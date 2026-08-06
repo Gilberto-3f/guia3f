@@ -79,6 +79,8 @@ export function ProfissionalGateProvider({ children }) {
   const [turistaDocsRow, setTuristaDocsRow] = useState(null)
   const [fotoPerfilBarra, setFotoPerfilBarra] = useState(/** @type {string | null} */ (gateInicial.fotoPerfilBarra))
   const [empresaIdBarra, setEmpresaIdBarra] = useState(/** @type {string | null} */ (gateInicial.empresaIdBarra))
+  /** True após o 1º refreshGate completo (splash / BottomBar condicionais). */
+  const [bootConcluido, setBootConcluido] = useState(false)
   const gateCarregadoUmaVez = useRef(false)
   /** @type {React.MutableRefObject<Promise<void> | null>} */
   const inflightGateRef = useRef(null)
@@ -124,6 +126,8 @@ export function ProfissionalGateProvider({ children }) {
       setTuristaDocsRow(null)
       setFotoPerfilBarra(null)
       setEmpresaIdBarra(null)
+      gateCarregadoUmaVez.current = true
+      setBootConcluido(true)
       setLoading(false)
       return
     }
@@ -142,6 +146,7 @@ export function ProfissionalGateProvider({ children }) {
         if (fotoBarra) setFotoPerfilBarra(fotoBarra)
       }
       gateCarregadoUmaVez.current = true
+      setBootConcluido(true)
       setLoading(false)
       return
     }
@@ -296,6 +301,7 @@ export function ProfissionalGateProvider({ children }) {
       empresaFotoUrl: empresaFotoCache,
     })
     gateCarregadoUmaVez.current = true
+    setBootConcluido(true)
     setLoading(false)
     }
 
@@ -370,6 +376,7 @@ export function ProfissionalGateProvider({ children }) {
         : null
     return {
       loading,
+      bootConcluido,
       usuarioStatus,
       userRole,
       roleEfetivo,
@@ -390,6 +397,7 @@ export function ProfissionalGateProvider({ children }) {
     }
   }, [
     loading,
+    bootConcluido,
     usuarioStatus,
     userRole,
     roleEfetivo,
@@ -410,6 +418,7 @@ export function useProfissionalGate() {
   if (v) return v
   return {
     loading: false,
+    bootConcluido: true,
     usuarioStatus: null,
     userRole: null,
     roleEfetivo: null,

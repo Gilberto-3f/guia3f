@@ -18,8 +18,10 @@ type AnuncioSlide = {
 }
 
 const SWIPE_MIN_PX = 48
+/** Intervalo de revezamento automático entre criativos ativos. */
+const AUTO_ROTACAO_MS = 5000
 
-/** Último anúncio home exibido nesta sessão (rotação na próxima entrada na Guia). */
+/** Último anúncio home exibido nesta sessão (próxima visita começa no seguinte). */
 const SESSION_LAST_HOME_AD_ID = 'guia_home_ultimo_anuncio_id'
 
 /** Lista em cache (sessionStorage) para evitar espera ao voltar à Home. */
@@ -166,13 +168,17 @@ function SlideEnvoltorio({ anuncio, children }: { anuncio: AnuncioSlide; childre
   )
 }
 
+/** Próximo índice após o último visto (round-robin). Sem last → aleatório se houver vários. */
 function indiceInicialRotacao(slides: AnuncioSlide[]): number {
   if (slides.length === 0) return 0
+  if (slides.length === 1) return 0
   try {
     const lastId = sessionStorage.getItem(SESSION_LAST_HOME_AD_ID)
-    if (!lastId) return 0
+    if (!lastId) {
+      return Math.floor(Math.random() * slides.length)
+    }
     const i = slides.findIndex((s) => s.id === lastId)
-    if (i < 0) return 0
+    if (i < 0) return Math.floor(Math.random() * slides.length)
     return (i + 1) % slides.length
   } catch {
     return 0
@@ -185,20 +191,45 @@ export default function PublicidadeHome() {
   const [carregando, setCarregando] = useState(true)
   const [indice, setIndice] = useState(0)
   const touchStartX = useRef<number | null>(null)
+  /** Evita reaplicar rotação no fetch (bug: avançava 2× e “grudava” no mesmo criativo). */
+  const rotacaoAplicadaRef = useRef(false)
+  const indiceRef = useRef(0)
+  const anunciosRef = useRef<AnuncioSlide[]>([])
+
+  indiceRef.current = indice
+  anunciosRef.current = anuncios
+
+  const aplicarSlides = useCallback((slides: AnuncioSlide[]) => {
+    if (!rotacaoAplicadaRef.current) {
+      const idx = indiceInicialRotacao(slides)
+      rotacaoAplicadaRef.current = true
+      setAnuncios(slides)
+      setIndice(slides.length ? idx : 0)
+    } else {
+      setAnuncios(slides)
+      setIndice((prev) => {
+        if (slides.length === 0) return 0
+        const idAtual = anunciosRef.current[prev]?.id
+        if (idAtual) {
+          const j = slides.findIndex((s) => s.id === idAtual)
+          if (j >= 0) return j
+        }
+        return Math.min(prev, slides.length - 1)
+      })
+    }
+  }, [])
 
   useLayoutEffect(() => {
     try {
       const cached = slidesDesdeCache(sessionStorage.getItem(SESSION_ANUNCIOS_HOME_JSON))
       if (cached && cached.length > 0) {
-        const idx = indiceInicialRotacao(cached)
-        setAnuncios(cached)
-        setIndice(idx)
+        aplicarSlides(cached)
         setCarregando(false)
       }
     } catch {
       /* ignore */
     }
-  }, [])
+  }, [aplicarSlides])
 
   useEffect(() => {
     let ativo = true
@@ -225,15 +256,26 @@ export default function PublicidadeHome() {
           empresa_id: row.empresa_id != null ? String(row.empresa_id) : null,
         }))
         gravarCacheHome(slides)
-        const idx = indiceInicialRotacao(slides)
-        setAnuncios(slides)
-        setIndice(slides.length ? idx : 0)
+        aplicarSlides(slides)
       }
       setCarregando(false)
     }
     void carregar()
     return () => {
       ativo = false
+    }
+  }, [aplicarSlides])
+
+  /** Grava o último visto só ao sair da home (não a cada troca de índice). */
+  useEffect(() => {
+    return () => {
+      const id = anunciosRef.current[indiceRef.current]?.id
+      if (!id) return
+      try {
+        sessionStorage.setItem(SESSION_LAST_HOME_AD_ID, id)
+      } catch {
+        /* ignore */
+      }
     }
   }, [])
 
@@ -247,16 +289,14 @@ export default function PublicidadeHome() {
     setIndice((prev) => (prev >= n ? n - 1 : prev))
   }, [n])
 
+  /** Revezamento automático entre criativos ativos. */
   useEffect(() => {
-    if (!n) return
-    const id = anuncios[indice]?.id
-    if (!id) return
-    try {
-      sessionStorage.setItem(SESSION_LAST_HOME_AD_ID, id)
-    } catch {
-      /* ignore */
-    }
-  }, [anuncios, indice, n])
+    if (n <= 1) return
+    const id = window.setInterval(() => {
+      setIndice((i) => (i + 1) % n)
+    }, AUTO_ROTACAO_MS)
+    return () => window.clearInterval(id)
+  }, [n])
 
   useEffect(() => {
     if (!n) return
@@ -282,10 +322,10 @@ export default function PublicidadeHome() {
       const end = e.changedTouches[0]?.clientX
       if (end == null) return
       const dx = end - start
-      if (dx < -SWIPE_MIN_PX) setIndice((i) => Math.min(n - 1, i + 1))
-      else if (dx > SWIPE_MIN_PX) setIndice((i) => Math.max(0, i - 1))
+      if (dx < -SWIPE_MIN_PX) setIndice((i) => (i + 1) % n)
+      else if (dx > SWIPE_MIN_PX) setIndice((i) => (i - 1 + n) % n)
     },
-    [n]
+    [n],
   )
 
   if (carregando) {

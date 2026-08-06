@@ -10,6 +10,7 @@ import { AnfitriaoModoProvider } from '@/context/AnfitriaoModoContext'
 import ModoApresentacaoChrome from '@/components/ModoApresentacaoChrome'
 import ProfissionalGateBanner from '@/components/ProfissionalGateBanner'
 import BottomBar from '@/components/BottomBar'
+import AppSplash from '@/components/AppSplash'
 import AdminEcossistemaAlertaGate from '@/components/canal/AdminEcossistemaAlertaGate'
 import TuristaComprasNotificacaoGate from '@/components/TuristaComprasNotificacaoGate'
 import ConviteAdminGate from '@/components/ConviteAdminGate'
@@ -113,6 +114,7 @@ function AppShellLayoutFrame({
 
   return (
     <>
+      <AppSplash />
       <div
         className={`flex flex-col ${fundoShell} ${paddingInferior} ${
           telaMensageiro || isGuiaOuMobilidade
