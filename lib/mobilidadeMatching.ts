@@ -310,20 +310,23 @@ function metaContratacaoDirecionada(
   }
 }
 
+export type OfertaMobilidadeResumo = {
+  profissionalId: string
+  nome: string
+  username: string | null
+  fotoUrl: string | null
+  distanciaKm: number
+  expiraEm: string
+  notaMedia?: number | null
+}
+
 export type SolicitarMobilidadeResult =
   | {
       ok: true
       solicitacaoId: string
       status: string
       redirectParceiro: string | null
-      oferta: {
-        profissionalId: string
-        nome: string
-        username: string | null
-        fotoUrl: string | null
-        distanciaKm: number
-        expiraEm: string
-      } | null
+      oferta: OfertaMobilidadeResumo | null
       backupsOcultos: number
     }
   | { ok: false; error: string }
@@ -677,14 +680,7 @@ export async function avancarFilaSeExpirada(
   solicitacaoId: string,
 ): Promise<{
   status: string
-  oferta: {
-    profissionalId: string
-    nome: string
-    username: string | null
-    fotoUrl: string | null
-    distanciaKm: number
-    expiraEm: string
-  } | null
+  oferta: OfertaMobilidadeResumo | null
 }> {
   const { data: row } = await admin
     .from('solicitacao_mobilidade')
@@ -711,15 +707,7 @@ export async function avancarFilaSeExpirada(
 async function montarOfertaAtual(
   admin: SupabaseClient,
   row: Record<string, unknown>,
-): Promise<{
-  profissionalId: string
-  nome: string
-  username: string | null
-  fotoUrl: string | null
-  distanciaKm: number
-  expiraEm: string
-  notaMedia: number | null
-} | null> {
+): Promise<OfertaMobilidadeResumo | null> {
   const pid = row.oferta_profissional_id != null ? String(row.oferta_profissional_id) : ''
   if (!pid) return null
   const { data: p } = await admin
@@ -761,14 +749,7 @@ async function avancarParaProximo(
   row: Record<string, unknown>,
 ): Promise<{
   status: string
-  oferta: {
-    profissionalId: string
-    nome: string
-    username: string | null
-    fotoUrl: string | null
-    distanciaKm: number
-    expiraEm: string
-  } | null
+  oferta: OfertaMobilidadeResumo | null
 }> {
   const recusados = new Set(
     Array.isArray(row.recusados_ids) ? (row.recusados_ids as string[]).map(String) : [],
