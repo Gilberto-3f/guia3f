@@ -23,10 +23,11 @@ export interface DadosEmpresa {
   preco_ticket_meia?: number | null
   preco_diaria?: number | null
   somente_anfitriao?: boolean
+  somente_guia?: boolean
 }
 
 export const EMPRESA_SELECT =
-  'id, usuario_id, nome_fantasia, nome_usuario, categoria, cidade, plano, nota_media, total_avaliacoes, docs_verificado, status, whatsapp, whatsapp_comercial, moeda_padrao, preco_ticket_inteira, preco_ticket_meia, preco_diaria, somente_anfitriao'
+  'id, usuario_id, nome_fantasia, nome_usuario, categoria, cidade, plano, nota_media, total_avaliacoes, docs_verificado, status, whatsapp, whatsapp_comercial, moeda_padrao, preco_ticket_inteira, preco_ticket_meia, preco_diaria, somente_anfitriao, somente_guia'
 
 export type DashboardEmpresaCtx = {
   dados: DadosEmpresa | null
@@ -67,6 +68,7 @@ export function mapEmpresaRow(data: Record<string, unknown>): DadosEmpresa {
     preco_ticket_meia: data.preco_ticket_meia != null ? asNumber(data.preco_ticket_meia, 0) : null,
     preco_diaria: data.preco_diaria != null ? asNumber(data.preco_diaria, 0) : null,
     somente_anfitriao: Boolean(data.somente_anfitriao),
+    somente_guia: Boolean(data.somente_guia),
   }
 }
 
