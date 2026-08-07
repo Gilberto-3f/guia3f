@@ -712,6 +712,7 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
           aberto={recomendarAberto}
           onFechar={() => setRecomendarAberto(false)}
           profissional={profissionalPopup}
+          origemIndicacao="ecossistema"
         />
       ) : null}
     </>,

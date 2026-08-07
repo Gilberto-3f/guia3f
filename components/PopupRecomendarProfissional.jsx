@@ -20,9 +20,15 @@ import { mensagemWhatsappRecomendacaoProfissional, openWhatsAppChat } from '@/li
  *   aberto: boolean
  *   onFechar: () => void
  *   profissional: import('@/lib/recomendarProfissional').ProfissionalRecomendacaoInfo
+ *   origemIndicacao?: 'cartao_visita' | 'ecossistema'
  * }} props
  */
-export default function PopupRecomendarProfissional({ aberto, onFechar, profissional }) {
+export default function PopupRecomendarProfissional({
+  aberto,
+  onFechar,
+  profissional,
+  origemIndicacao = 'cartao_visita',
+}) {
   const [paisId, setPaisId] = useState('br')
   const [paisMenuAberto, setPaisMenuAberto] = useState(false)
   const [contatoLocal, setContatoLocal] = useState('')
@@ -77,6 +83,7 @@ export default function PopupRecomendarProfissional({ aberto, onFechar, profissi
         const { profissionalUsername, recomendacaoId } = await registrarRecomendacaoProfissional(supabase, {
           profissionalIndicadoId: profissional.id,
           emailTurista: email,
+          origemIndicacao,
         })
 
         const mensagem = montarMensagem(profissionalUsername, recomendacaoId)
@@ -98,6 +105,7 @@ export default function PopupRecomendarProfissional({ aberto, onFechar, profissi
       const { profissionalUsername, recomendacaoId } = await registrarRecomendacaoProfissional(supabase, {
         profissionalIndicadoId: profissional.id,
         whatsappTurista: phone,
+        origemIndicacao,
       })
 
       const mensagem = montarMensagem(profissionalUsername, recomendacaoId)

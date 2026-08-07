@@ -732,6 +732,7 @@ export default function PopupCartaoVisitaProfissional({
           aberto={popupRecomendarAberto}
           onFechar={() => setPopupRecomendarAberto(false)}
           profissional={profissionalRecomendacao}
+          origemIndicacao="cartao_visita"
         />
       ) : null}
 

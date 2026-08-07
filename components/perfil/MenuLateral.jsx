@@ -10,7 +10,6 @@ import {
   Car,
   ChevronDown,
   ChevronUp,
-  ClipboardList,
   DollarSign,
   Handshake,
   History,
@@ -28,7 +27,6 @@ import {
   Shield,
   ShoppingBag,
   Speaker,
-  Star,
   Table,
   User,
   Users,
@@ -77,9 +75,7 @@ import PostIsoladoDrawer from '@/components/perfil/subpaginas/PostIsoladoDrawer'
 import Configuracoes from '@/components/perfil/subpaginas/Configuracoes'
 import RegrasEcossistema from '@/components/perfil/subpaginas/RegrasEcossistema'
 import Comissoes from '@/components/perfil/subpaginas/Comissoes'
-import AgendamentoAutomatico from '@/components/perfil/subpaginas/AgendamentoAutomatico'
 import TabelaValores from '@/components/perfil/subpaginas/TabelaValores'
-import MeusManifestos from '@/components/perfil/subpaginas/MeusManifestos'
 import EditarPaginaEmpresa from '@/components/perfil/subpaginas/EditarPaginaEmpresa'
 import CalendarioReservasHospedagem from '@/components/perfil/subpaginas/CalendarioReservasHospedagem'
 import CadastrarHospedagemAnfitriao from '@/components/perfil/subpaginas/CadastrarHospedagemAnfitriao'
@@ -95,9 +91,7 @@ import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import AnexarDocumentos from '@/components/perfil/subpaginas/AnexarDocumentos'
 import AnexarDocumentosTurista from '@/components/perfil/subpaginas/AnexarDocumentosTurista'
 import AnexarDocumentosEmpresa from '@/components/perfil/subpaginas/AnexarDocumentosEmpresa'
-import HistoricoManifestos from '@/components/perfil/subpaginas/HistoricoManifestos'
 import RecomendacoesFeitas from '@/components/perfil/subpaginas/RecomendacoesFeitas'
-import ParceriasProfissional from '@/components/perfil/subpaginas/ParceriasProfissional'
 import VisitantesPerfil from '@/components/perfil/subpaginas/VisitantesPerfil'
 import { contarVisitasPerfilPendentes } from '@/lib/perfilVisitas'
 import { contarComprasTuristaPendentes } from '@/lib/turistaCompras'
@@ -106,7 +100,6 @@ import AvisoPlanoEmpresaBloqueado from '@/components/empresa/AvisoPlanoEmpresaBl
 import { profissionalElegivelPerfilMobilidade } from '@/lib/mobilidadePerfilProfissional'
 import {
   GRUPOS_MENU_PROF_BLOQUEADOS_DOCS,
-  SUBGRUPOS_MENU_PROF_BLOQUEADOS_DOCS,
   subpaginaProfissionalBloqueadaPorDocs,
 } from '@/lib/profissionalDocsBloqueado'
 
@@ -156,12 +149,6 @@ function itemEhChatAdm(item) {
 }
 
 const itemSair = /** @type {const} */ { label: 'Sair', acao: 'logout' }
-
-/** Ícones dos subgrupos dentro de Aplicativo. */
-const ICONE_SUBGRUPO = {
-  'aplic-pessoal': User,
-  'aplic-prof-hist': Star,
-}
 
 function empresaMenuHospedagemVisivel(ctx) {
   if (Boolean(ctx.somenteAnfitriao)) return true
@@ -349,52 +336,18 @@ function secoesProfissional(ctx) {
     [
       { Icon: DollarSign, label: 'Comissões', subpagina: 'comissoes' },
       {
-        Icon: ClipboardList,
-        label: 'Manifesto',
-        href: '/profissional/manifesto',
-        condicional: (c) => c.placaVermelha === true,
-      },
-      {
         Icon: Table,
         label: 'Serviços Tabelados',
         subpagina: 'tabela',
         condicional: (c) => c.placaVermelha === true,
       },
-      {
-        Icon: CalendarDays,
-        label: 'Agendamento',
-        subpagina: 'agendamento',
-        condicional: (c) => c.placaVermelha === true,
-      },
-      { Icon: Handshake, label: 'Parcerias Fechadas', subpagina: 'parcerias-prof' },
+      { Icon: Speaker, label: 'Recomendações feitas', subpagina: 'recomendacoes' },
     ],
     ctx
   )
-  const aplicSubgrupos = [
-    {
-      key: 'aplic-pessoal',
-      label: 'Histórico Pessoal',
-      items: [
-        { Icon: History, label: 'Minhas Compras', subpagina: 'historico-compras' },
-        { Icon: Scale, label: 'Denúncias e Decisões', subpagina: 'historico-decisoes' },
-      ],
-    },
-    {
-      key: 'aplic-prof-hist',
-      label: 'Históricos de Trabalho',
-      items: filtrarMenu(
-        [
-          {
-            Icon: ClipboardList,
-            label: 'Manifestos Concluídos',
-            subpagina: 'historico-manifestos',
-            condicional: (c) => c.placaVermelha === true,
-          },
-          { Icon: Speaker, label: 'Recomendações', subpagina: 'recomendacoes' },
-        ],
-        ctx
-      ),
-    },
+  const gAplic = [
+    { Icon: History, label: 'Minhas compras', subpagina: 'historico-compras' },
+    { Icon: Scale, label: 'Denúncias e decisões', subpagina: 'historico-decisoes' },
   ]
   return [
     ...(ctx.ehAnfitriao ? [pastaAnfitriao(ctx)] : []),
@@ -406,8 +359,7 @@ function secoesProfissional(ctx) {
       tipo: 'grupo',
       key: 'aplicativo',
       label: 'Aplicativo',
-      subgrupos: aplicSubgrupos,
-      items: [itemConfig],
+      items: gAplic,
     },
     { tipo: 'sair' },
   ]
@@ -415,13 +367,10 @@ function secoesProfissional(ctx) {
 
 /**
  * Profissional com documentos pendentes: mesmos itens do turista + Anexar Documentos;
- * pastas Profissional e Históricos de Trabalho ficam bloqueadas (aviso ao expandir).
+ * pasta Profissional fica bloqueada (aviso ao expandir).
  * @param {MenuContext} ctx
  */
 function secoesProfissionalAguardandoDocs(ctx) {
-  const turista = secoesTurista()
-  const gAplicTurista = turista.find((s) => s.tipo === 'grupo' && s.key === 'aplicativo')
-
   return [
     secaoUsuario(
       filtrarMenu(
@@ -449,8 +398,10 @@ function secoesProfissionalAguardandoDocs(ctx) {
       tipo: 'grupo',
       key: 'aplicativo',
       label: 'Aplicativo',
-      subgrupos: [{ key: 'aplic-prof-hist', label: 'Históricos de Trabalho', items: [] }],
-      items: filtrarMenu(gAplicTurista?.items ?? [itemConfig], ctx),
+      items: [
+        { Icon: History, label: 'Minhas compras', subpagina: 'historico-compras' },
+        { Icon: Scale, label: 'Denúncias e decisões', subpagina: 'historico-decisoes' },
+      ],
     },
     { tipo: 'sair' },
   ]
@@ -751,8 +702,6 @@ export default function MenuLateral({
     'guia-agencia': false,
     empresa: false,
     admin: false,
-    'aplic-pessoal': false,
-    'aplic-prof-hist': false,
   }))
 
   const simulandoComoPerfil = Boolean(
@@ -1102,8 +1051,6 @@ export default function MenuLateral({
       profissional: false,
       empresa: false,
       admin: false,
-      'aplic-pessoal': false,
-      'aplic-prof-hist': false,
     })
   }, [aberto, menuVariantEfetivo, variant])
 
@@ -1329,11 +1276,7 @@ export default function MenuLateral({
         configuracoes: 'Configurações',
         'regras-ecossistema': 'Regras do ecossistema',
         comissoes: 'Comissões',
-        agendamento: 'Agendamento',
         tabela: 'Serviços Tabelados',
-        manifestos: 'Manifesto',
-        'historico-manifestos': 'Manifestos Concluídos',
-        'parcerias-prof': 'Parcerias Fechadas',
         'editar-pagina': 'Editar Página',
         'calendario-reservas-hospedagem': 'Calendário de Reservas',
         contratacoes: 'Contratações',
@@ -1353,7 +1296,7 @@ export default function MenuLateral({
         'cadastrar-agencia-guia': 'Cadastrar Agência',
         'agencia-pendente': 'Agência em análise',
       }
-      const titulosProfissional = ['historico-compras', 'recomendacoes', 'historico-manifestos']
+      const titulosProfissional = ['historico-compras', 'recomendacoes', 'historico-decisoes']
       const t =
         menuVariantEfetivo === 'profissional' && titulosProfissional.includes(item.subpagina)
           ? item.label
@@ -1490,11 +1433,7 @@ export default function MenuLateral({
           ferramentasAbertas={comissoesFerramentasAbertas}
         />
       )
-    if (id === 'agendamento') return <AgendamentoAutomatico />
     if (id === 'tabela') return <TabelaValores usuarioId={usuarioIdEfetivo} placaVermelha={placaVermelha} />
-    if (id === 'manifestos') return <MeusManifestos />
-    if (id === 'historico-manifestos') return <HistoricoManifestos />
-    if (id === 'parcerias-prof') return <ParceriasProfissional />
     if (id === 'recomendacoes-feitas') return <RecomendacoesFeitas usuarioId={usuarioIdEfetivo} />
     if (id === 'meu-historico') return <MeuHistorico tipo={histTipo} />
     if (id === 'historico-decisoes') {
@@ -1654,49 +1593,6 @@ export default function MenuLateral({
   const toggleGrupo = (g) => {
     setGruposAbertos((p) => ({ ...p, [g]: !p[g] }))
   }
-
-  /**
-   * @param {Array<{ key: string, label: string, items: MenuItem[] }>} subgrupos
-   */
-  const renderSubgrupos = (subgrupos) =>
-    subgrupos.map((sg) => {
-      const abSub = gruposAbertos[sg.key] ?? false
-      const SubIcon = ICONE_SUBGRUPO[sg.key] ?? User
-      const subgrupoBloqueado = profDocsBloqueado && SUBGRUPOS_MENU_PROF_BLOQUEADOS_DOCS.has(sg.key)
-      const itensSub = filtrarMenu(sg.items, ctx)
-      if (!subgrupoBloqueado && itensSub.length === 0) return null
-      return (
-        <div key={sg.key} className="mb-1 border-b border-gray-50 last:border-0">
-          <button
-            type="button"
-            onClick={() => toggleGrupo(sg.key)}
-            className="flex w-full items-center justify-between gap-2 py-2 pl-0 pr-0 text-left"
-          >
-            <span className="flex min-w-0 flex-1 items-center gap-3">
-              <span
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-500"
-                aria-hidden
-              >
-                <SubIcon size={16} strokeWidth={1.75} />
-              </span>
-              <span className="text-sm font-bold tracking-wide text-gray-900">{sg.label}</span>
-            </span>
-            <span className="flex shrink-0 items-center gap-2">
-              {abSub ? (
-                <ChevronUp className="h-3.5 w-3.5 shrink-0 text-gray-500" aria-hidden />
-              ) : (
-                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-500" aria-hidden />
-              )}
-            </span>
-          </button>
-          {abSub ? (
-            <div className="pb-1">
-              {subgrupoBloqueado ? <AvisoDocsProfissionalBloqueado className="py-4" /> : renderListaItens(itensSub, { compact: true })}
-            </div>
-          ) : null}
-        </div>
-      )
-    })
 
   if (!aberto || !variant) return null
 
@@ -1871,26 +1767,8 @@ export default function MenuLateral({
                         <div className="px-3 pb-2">
                           {grupoBloqueado ? (
                             <AvisoDocsProfissionalBloqueado className="py-4" />
-                          ) : sec.subgruposDepois ? (
-                            <>
-                              {renderItensSecaoGrupo(sec, { compact: true })}
-                              {sec.subgrupos?.length ? (
-                                <div className={(sec.items?.length ?? 0) > 0 ? 'mt-1 border-t border-gray-100 pt-1' : ''}>
-                                  {renderSubgrupos(sec.subgrupos)}
-                                </div>
-                              ) : null}
-                            </>
                           ) : (
-                            <>
-                              {sec.subgrupos?.length ? renderSubgrupos(sec.subgrupos) : null}
-                              {sec.subgrupos?.length
-                                ? (sec.items?.length ?? 0) > 0 ? (
-                                    <div className="mt-1 border-t border-gray-100 pt-1">
-                                      {renderItensSecaoGrupo(sec, { compact: true })}
-                                    </div>
-                                  ) : null
-                                : renderItensSecaoGrupo(sec, { compact: true })}
-                            </>
+                            renderItensSecaoGrupo(sec, { compact: true })
                           )}
                         </div>
                       ) : null}

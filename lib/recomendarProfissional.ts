@@ -29,6 +29,8 @@ export async function registrarRecomendacaoProfissional(
     profissionalIndicadoId: string
     whatsappTurista?: string | null
     emailTurista?: string | null
+    /** Canal de origem: cartão de visita (padrão) ou drawer Ecossistema. */
+    origemIndicacao?: 'cartao_visita' | 'ecossistema'
   },
 ): Promise<{ profissionalUsername: string | null; profissionalCategorias: string[]; recomendacaoId: string }> {
   const {
@@ -58,10 +60,12 @@ export async function registrarRecomendacaoProfissional(
   const profissionalIndicadorId = String(prof.id)
   const emailPrefix = params.emailTurista ? extrairEmailPrefix(params.emailTurista) : null
   const { ddd, final4 } = parseWhatsappTuristaRecomendacao(params.whatsappTurista)
+  const origemIndicacao = params.origemIndicacao === 'ecossistema' ? 'ecossistema' : 'cartao_visita'
 
   const payload: Record<string, string> = {
     profissional_indicador_id: profissionalIndicadorId,
     profissional_indicado_id: params.profissionalIndicadoId,
+    origem_indicacao: origemIndicacao,
   }
 
   if (emailPrefix) {
@@ -82,10 +86,19 @@ export async function registrarRecomendacaoProfissional(
   let recErr = insertRes.error
   let recomendacaoId = insertRes.data?.id != null ? String(insertRes.data.id) : ''
 
+  if (recErr && String(recErr.message ?? '').toLowerCase().includes('origem_indicacao')) {
+    const semOrigem = { ...payload }
+    delete semOrigem.origem_indicacao
+    insertRes = await tryInsert(semOrigem)
+    recErr = insertRes.error
+    recomendacaoId = insertRes.data?.id != null ? String(insertRes.data.id) : recomendacaoId
+  }
+
   if (recErr && emailPrefix && String(recErr.message ?? '').toLowerCase().includes('turista_email')) {
     insertRes = await tryInsert({
       profissional_indicador_id: profissionalIndicadorId,
       profissional_indicado_id: params.profissionalIndicadoId,
+      origem_indicacao: origemIndicacao,
     })
     recErr = insertRes.error
     recomendacaoId = insertRes.data?.id != null ? String(insertRes.data.id) : recomendacaoId
@@ -103,6 +116,7 @@ export async function registrarRecomendacaoProfissional(
     const minimo: Record<string, string> = {
       profissional_indicador_id: profissionalIndicadorId,
       profissional_indicado_id: params.profissionalIndicadoId,
+      origem_indicacao: origemIndicacao,
     }
     if (emailPrefix) {
       minimo.turista_canal = 'email'
@@ -117,6 +131,7 @@ export async function registrarRecomendacaoProfissional(
     insertRes = await tryInsert({
       profissional_indicador_id: profissionalIndicadorId,
       profissional_indicado_id: params.profissionalIndicadoId,
+      origem_indicacao: origemIndicacao,
     })
     recErr = insertRes.error
     recomendacaoId = insertRes.data?.id != null ? String(insertRes.data.id) : recomendacaoId
