@@ -18,16 +18,11 @@ html {
   height: 100%;
   --app-height: 100dvh;
   /*
-   * Coluna phone só no mobile estreito (< 640px).
-   * Tablet / tela larga: largura total (apresentação original, sem faixas laterais).
+   * Formato original (largura total) por padrão — tablets inclusos.
+   * Coluna phone-first só em mobile estreito (< 600px).
+   * (Antes: min-width 640/768 deixava tablets ~600px ainda em 430px.)
    */
-  --app-column: 430px;
-}
-
-@media (min-width: 640px) {
-  html {
-    --app-column: 100%;
-  }
+  --app-column: none;
 }
 
 body {
@@ -38,34 +33,37 @@ body {
   min-height: var(--app-height, 100dvh);
 }
 
-/* Mobile estreito: laterais cinza + coluna central. Tablet+: full-bleed. */
+/* Padrão: full-bleed (tablet / desktop). */
 .app-shell-backdrop {
-  display: flex;
-  justify-content: center;
+  display: block;
   min-height: var(--app-height, 100dvh);
-  background: #e8e8e8;
-}
-
-@media (min-width: 640px) {
-  .app-shell-backdrop {
-    display: block;
-    background: transparent;
-  }
+  background: transparent;
 }
 
 .app-shell-column {
   display: flex;
   width: 100%;
-  max-width: var(--app-column);
+  max-width: none;
   flex-direction: column;
   min-height: var(--app-height, 100dvh);
-  margin-inline: auto;
+  margin-inline: 0;
 }
 
-@media (min-width: 640px) {
+/* Mobile estreito: laterais + coluna central 430px. */
+@media (max-width: 599px) {
+  html {
+    --app-column: 430px;
+  }
+
+  .app-shell-backdrop {
+    display: flex;
+    justify-content: center;
+    background: #e8e8e8;
+  }
+
   .app-shell-column {
-    max-width: none;
-    margin-inline: 0;
+    max-width: var(--app-column);
+    margin-inline: auto;
   }
 }
 
