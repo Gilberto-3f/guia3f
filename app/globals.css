@@ -17,8 +17,14 @@ html {
   background: #ffffff;
   height: 100%;
   --app-height: 100dvh;
-  /* Coluna phone-first (tablet/desktop = laterais + coluna central). */
+  /* Phone: coluna estreita. Tablet+: largura total (sem faixas laterais). */
   --app-column: 430px;
+}
+
+@media (min-width: 768px) {
+  html {
+    --app-column: 100%;
+  }
 }
 
 body {
@@ -29,12 +35,18 @@ body {
   min-height: var(--app-height, 100dvh);
 }
 
-/* Shell: laterais no tablet; coluna central = experiência phone. */
+/* Shell: no mobile, laterais cinza + coluna central; no tablet+, coluna full-bleed. */
 .app-shell-backdrop {
   display: flex;
   justify-content: center;
   min-height: var(--app-height, 100dvh);
   background: #e8e8e8;
+}
+
+@media (min-width: 768px) {
+  .app-shell-backdrop {
+    background: #f9fafb;
+  }
 }
 
 .app-shell-column {
@@ -43,6 +55,12 @@ body {
   max-width: var(--app-column);
   flex-direction: column;
   min-height: var(--app-height, 100dvh);
+}
+
+@media (min-width: 768px) {
+  .app-shell-column {
+    max-width: none;
+  }
 }
 
 /* Empurra conteúdo abaixo da status bar; a cor de fundo do elemento preenche a área superior */

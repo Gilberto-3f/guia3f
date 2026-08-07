@@ -394,8 +394,7 @@ export default function PopupCartaoVisitaProfissional({
         role="presentation"
       >
         <div
-          className="flex w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-black shadow-xl sm:max-h-[85vh] sm:rounded-2xl"
-          style={{ height: 'min(72vh, 86vh)' }}
+          className="flex min-h-0 max-h-[min(92dvh,42rem)] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-black shadow-xl sm:max-h-[85vh] sm:rounded-2xl"
           role="dialog"
           aria-modal="true"
           onClick={(e) => e.stopPropagation()}
@@ -445,7 +444,10 @@ export default function PopupCartaoVisitaProfissional({
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
+          <div
+            className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-5 py-5 sm:px-6 sm:py-6"
+            data-modal-scroll-lock-scrollable
+          >
             {modo === 'avaliar' ? (
               <div className="flex flex-col items-center">
                 <div className="flex w-full max-w-sm justify-center">
@@ -643,6 +645,8 @@ export default function PopupCartaoVisitaProfissional({
                     <span className="text-sm text-gray-500">({total} avaliações)</span>
                   </div>
                 </div>
+                {/* Espaço para o rodapé fixo não cobrir o fim do conteúdo ao rolar */}
+                <div className="h-2 shrink-0" aria-hidden />
               </>
             ) : (
               <div className="flex flex-col items-center gap-4 text-center">
@@ -668,7 +672,7 @@ export default function PopupCartaoVisitaProfissional({
           </div>
 
           {verificado && mostrarRodape && modo === 'cartao' ? (
-            <div className="shrink-0 border-t border-gray-100 bg-white px-5 py-4">
+            <div className="shrink-0 border-t border-gray-100 bg-white px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
               <div className="flex flex-col gap-2">
                 {acoes.mostrarContratar ? (
                   <button
