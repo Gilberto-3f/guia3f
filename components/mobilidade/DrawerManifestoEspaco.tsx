@@ -257,39 +257,7 @@ function DetalheManifesto({ manifesto }: { manifesto: ManifestoDiarioRow }) {
           {manifesto.passageiros.length === 0 ? (
             <p className="py-6 text-center text-sm text-gray-400">{t('manifestoSemPassageiros')}</p>
           ) : (
-            manifesto.passageiros.map((p) => {
-              const handle = String(p.username ?? '')
-                .replace(/^@+/, '')
-                .trim()
-              const nome = p.nome_social || p.nome
-              return (
-                <li
-                  key={p.id}
-                  className="flex items-center gap-3 rounded-xl border border-gray-100 bg-[#f5f5f5] p-3"
-                >
-                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-gray-200">
-                    {p.foto_url ? (
-                      <AvatarImage src={p.foto_url} alt="" fill className="object-cover" sizes="48px" />
-                    ) : (
-                      <span className="flex h-full w-full items-center justify-center text-sm font-bold text-[#0097b2]">
-                        {(nome || 'T').charAt(0).toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-gray-900">{nome}</p>
-                    {handle ? (
-                      <UsuarioHandleVerificado
-                        username={handle}
-                        verificado={false}
-                        asButton={false}
-                        className="text-xs text-gray-500"
-                      />
-                    ) : null}
-                  </div>
-                </li>
-              )
-            })
+            manifesto.passageiros.map((p) => <CardPassageiroManifesto key={p.id} passageiro={p} />)
           )}
         </ul>
       ) : (
@@ -302,6 +270,76 @@ function DetalheManifesto({ manifesto }: { manifesto: ManifestoDiarioRow }) {
         </ul>
       )}
     </div>
+  )
+}
+
+function formatarDataNasc(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const s = String(iso).slice(0, 10)
+  const [y, m, d] = s.split('-')
+  if (!y || !m || !d) return s
+  return `${d}/${m}/${y}`
+}
+
+function CardPassageiroManifesto({
+  passageiro: p,
+}: {
+  passageiro: ManifestoDiarioRow['passageiros'][number]
+}) {
+  const [aberto, setAberto] = useState(false)
+  const handle = String(p.username ?? '')
+    .replace(/^@+/, '')
+    .trim()
+  const nome = p.nome_social || p.nome
+
+  return (
+    <li className="overflow-hidden rounded-xl border border-gray-100 bg-[#f5f5f5]">
+      <button
+        type="button"
+        onClick={() => setAberto((v) => !v)}
+        className="flex w-full items-center gap-3 p-3 text-left"
+        aria-expanded={aberto}
+      >
+        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-gray-200">
+          {p.foto_url ? (
+            <AvatarImage src={p.foto_url} alt="" fill className="object-cover" sizes="48px" />
+          ) : (
+            <span className="flex h-full w-full items-center justify-center text-sm font-bold text-[#0097b2]">
+              {(nome || 'T').charAt(0).toUpperCase()}
+            </span>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-gray-900">{p.nome}</p>
+          {handle ? (
+            <UsuarioHandleVerificado
+              username={handle}
+              verificado={false}
+              asButton={false}
+              className="text-xs text-gray-500"
+            />
+          ) : null}
+        </div>
+        {aberto ? (
+          <ChevronUp className="h-5 w-5 shrink-0 text-gray-400" aria-hidden />
+        ) : (
+          <ChevronDown className="h-5 w-5 shrink-0 text-gray-400" aria-hidden />
+        )}
+      </button>
+      {aberto ? (
+        <div className="space-y-1 border-t border-gray-200/80 px-3 py-2.5 text-xs text-gray-600">
+          <p>
+            <span className="font-semibold text-gray-700">Nasc.:</span> {formatarDataNasc(p.data_nascimento)}
+          </p>
+          <p>
+            <span className="font-semibold text-gray-700">Doc.:</span> {p.documento?.trim() || '—'}
+          </p>
+          {p.contratacao_rotulo ? (
+            <p className="text-[10px] text-gray-500">Entrada: {p.contratacao_rotulo}</p>
+          ) : null}
+        </div>
+      ) : null}
+    </li>
   )
 }
 

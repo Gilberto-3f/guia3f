@@ -3,6 +3,7 @@ import { assertUserSession } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { avancarFilaSeExpirada, solicitacaoEhContratacaoDirecionada } from '@/lib/mobilidadeMatching'
 import { carregarParceiroRecomendacaoOferta } from '@/lib/mobilidadeOfertaAtendimento'
+import { mediaNotaAlvo } from '@/lib/notaMediaAvaliacoes'
 
 async function carregarTuristaOferta(
   admin: ReturnType<typeof createSupabaseAdmin>,
@@ -11,13 +12,14 @@ async function carregarTuristaOferta(
   const uid = String(turistaUsuarioId ?? '').trim()
   if (!uid) return null
 
-  const [{ data: tur }, { data: usu }] = await Promise.all([
+  const [{ data: tur }, { data: usu }, nota_media] = await Promise.all([
     admin
       .from('turistas')
       .select('nome_completo, nome_usuario, foto_url, foto_perfil_url, docs_verificado')
       .eq('usuario_id', uid)
       .maybeSingle(),
     admin.from('usuarios').select('email').eq('id', uid).maybeSingle(),
+    mediaNotaAlvo(admin, 'turista', [uid]),
   ])
 
   const foto =
@@ -40,6 +42,7 @@ async function carregarTuristaOferta(
     username,
     foto_url: foto,
     verificado: Boolean(tur?.docs_verificado),
+    nota_media,
   }
 }
 

@@ -21,6 +21,7 @@ import {
   type MoedaModoProfissional,
 } from '@/lib/mobilidadePerfilProfissional'
 import { parseMobilidadeStatus } from '@/lib/mobilidadeStatusProfissional'
+import { mediaNotaAlvo } from '@/lib/notaMediaAvaliacoes'
 
 /** Tempo total para aceitar (ms). */
 export const MOBILIDADE_OFERTA_TIMEOUT_MS = 45_000
@@ -717,12 +718,15 @@ async function montarOfertaAtual(
   fotoUrl: string | null
   distanciaKm: number
   expiraEm: string
+  notaMedia: number | null
 } | null> {
   const pid = row.oferta_profissional_id != null ? String(row.oferta_profissional_id) : ''
   if (!pid) return null
   const { data: p } = await admin
     .from('profissionais')
-    .select('id, nome_completo, nome_usuario, foto_perfil_url, foto_url, mobilidade_lat, mobilidade_lng')
+    .select(
+      'id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, mobilidade_lat, mobilidade_lng',
+    )
     .eq('id', pid)
     .maybeSingle()
   if (!p) return null
@@ -734,6 +738,8 @@ async function montarOfertaAtual(
   if (Number.isFinite(oLat) && Number.isFinite(oLng) && Number.isFinite(pLat) && Number.isFinite(pLng)) {
     km = Math.round(haversineKm(oLat, oLng, pLat, pLng) * 10) / 10
   }
+  const uid = p.usuario_id != null ? String(p.usuario_id) : ''
+  const notaMedia = await mediaNotaAlvo(admin, 'profissional', [pid, uid].filter(Boolean))
   return {
     profissionalId: String(p.id),
     nome: String(p.nome_completo ?? ''),
@@ -746,6 +752,7 @@ async function montarOfertaAtual(
           : null,
     distanciaKm: km,
     expiraEm: String(row.oferta_expira_em ?? ''),
+    notaMedia,
   }
 }
 
@@ -869,17 +876,8 @@ export async function responderOfertaMobilidade(
 
   if (params.aceitar) {
     const agora = new Date().toISOString()
-    const modalidade = String(row.modalidade ?? '').trim().toLowerCase()
     const pax = params.dadosPax
-    if (
-      (modalidade === 'guia' || modalidade === 'van') &&
-      (!pax?.nome_completo?.trim() || !pax?.documento?.trim() || !pax?.data_nascimento?.trim())
-    ) {
-      return {
-        ok: false,
-        error: 'Informe nome, documento e data de nascimento do passageiro para o manifesto.',
-      }
-    }
+    // Manifesto (guia/van): dados vêm do cadastro do turista quando dadosPax não é enviado.
 
     const metaBase = {
       ...(typeof row.metadata === 'object' && row.metadata ? row.metadata : {}),

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { assertUserSession } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { carregarParceiroRecomendacaoOferta } from '@/lib/mobilidadeOfertaAtendimento'
+import { mediaNotaAlvo } from '@/lib/notaMediaAvaliacoes'
 
 /** Agendamentos pendentes do profissional (para confirmar / cancelar). */
 export async function GET() {
@@ -46,11 +47,14 @@ export async function GET() {
     const uid = r.turista_id != null ? String(r.turista_id) : ''
     let turista = null
     if (uid) {
-      const { data: tur } = await admin
-        .from('turistas')
-        .select('nome_completo, nome_usuario, foto_url, foto_perfil_url, docs_verificado')
-        .eq('usuario_id', uid)
-        .maybeSingle()
+      const [{ data: tur }, nota_media] = await Promise.all([
+        admin
+          .from('turistas')
+          .select('nome_completo, nome_usuario, foto_url, foto_perfil_url, docs_verificado')
+          .eq('usuario_id', uid)
+          .maybeSingle(),
+        mediaNotaAlvo(admin, 'turista', [uid]),
+      ])
       if (tur) {
         turista = {
           nome: String(tur.nome_completo ?? 'Turista'),
@@ -60,6 +64,7 @@ export async function GET() {
             (tur.foto_url != null && String(tur.foto_url).trim()) ||
             null,
           verificado: Boolean(tur.docs_verificado),
+          nota_media,
         }
       }
     }

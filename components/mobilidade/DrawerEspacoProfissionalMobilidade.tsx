@@ -300,22 +300,14 @@ export default function DrawerEspacoProfissionalMobilidade({
                 {nome || t('espacoProfissionalFallbackNome')}
               </p>
               {handle ? (
-                <div className="flex max-w-full items-center justify-center gap-1.5">
-                  <UsuarioHandleVerificado
-                    username={handle}
-                    verificado={verificado}
-                    verificadoTipo="profissional"
-                    asButton={false}
-                    className="justify-center text-sm font-normal leading-tight text-gray-600"
-                  />
-                  <span
-                    className="inline-flex shrink-0 items-center gap-0.5 text-sm font-bold text-amber-500"
-                    aria-label={`Nota ${notaTexto}`}
-                  >
-                    <span aria-hidden>★</span>
-                    {notaTexto}
-                  </span>
-                </div>
+                <UsuarioHandleVerificado
+                  username={handle}
+                  verificado={verificado}
+                  verificadoTipo="profissional"
+                  notaMedia={notaMedia}
+                  asButton={false}
+                  className="justify-center text-sm font-normal leading-tight text-gray-600"
+                />
               ) : (
                 <span
                   className="inline-flex items-center gap-0.5 text-sm font-bold text-amber-500"

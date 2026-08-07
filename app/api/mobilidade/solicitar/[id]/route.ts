@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { assertUserSession } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { avancarFilaSeExpirada } from '@/lib/mobilidadeMatching'
+import { mediaNotaAlvo } from '@/lib/notaMediaAvaliacoes'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -68,13 +69,15 @@ export async function GET(_req: Request, ctx: Ctx) {
   ) {
     const { data: p } = await admin
       .from('profissionais')
-      .select('id, nome_completo, nome_usuario, foto_perfil_url, foto_url, telefone')
+      .select('id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, telefone')
       .eq('id', row.profissional_id)
       .maybeSingle()
     if (p) {
       profissionalUsername = p.nome_usuario != null ? String(p.nome_usuario) : null
       profissionalWhatsapp =
         p.telefone != null && String(p.telefone).trim() ? String(p.telefone).trim() : null
+      const uid = p.usuario_id != null ? String(p.usuario_id) : ''
+      const notaMedia = await mediaNotaAlvo(admin, 'profissional', [String(p.id), uid].filter(Boolean))
       oferta = {
         profissionalId: String(p.id),
         nome: String(p.nome_completo ?? ''),
@@ -87,6 +90,7 @@ export async function GET(_req: Request, ctx: Ctx) {
               : null,
         distanciaKm: 0,
         expiraEm: '',
+        notaMedia,
       }
     }
   }

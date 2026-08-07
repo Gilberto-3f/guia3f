@@ -10,6 +10,7 @@ import {
 } from '@/lib/mobilidadeMatching'
 import ChatCorridaMobilidade from '@/components/mobilidade/ChatCorridaMobilidade'
 import AvaliacaoCorridaMobilidade from '@/components/mobilidade/AvaliacaoCorridaMobilidade'
+import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 
 export type OfertaResultadoUi = {
   profissionalId: string
@@ -18,6 +19,7 @@ export type OfertaResultadoUi = {
   fotoUrl: string | null
   distanciaKm: number
   expiraEm: string
+  notaMedia?: number | null
 }
 
 export type ResultadoCorridaMobilidade = {
@@ -51,7 +53,6 @@ export default function PopupResultadoCorridaMobilidade({
 
   const [matchStatus, setMatchStatus] = useState<string | null>(null)
   const [oferta, setOferta] = useState<OfertaResultadoUi | null>(null)
-  const [backups, setBackups] = useState(0)
   const [buscando, setBuscando] = useState(false)
   const [segRestantes, setSegRestantes] = useState<number | null>(null)
   const [conversaId, setConversaId] = useState<string | null>(null)
@@ -67,7 +68,6 @@ export default function PopupResultadoCorridaMobilidade({
     if (!aberto || !resultado) return
     setMatchStatus(resultado.status)
     setOferta(resultado.oferta)
-    setBackups(resultado.backupsOcultos)
     setMatchErro(resultado.matchErro ?? '')
     setConversaId(null)
     const st = resultado.status
@@ -110,6 +110,8 @@ export default function PopupResultadoCorridaMobilidade({
           const st = String(json.status ?? '')
           setMatchStatus(st)
           setBuscando(false)
+          const of = json.oferta as OfertaResultadoUi | null
+          if (of && of.profissionalId) setOferta(of)
           const cid = json.conversa_id != null ? String(json.conversa_id).trim() : ''
           if (cid) setConversaId(cid)
           if (st === 'concluida' || st === 'cancelada') setBuscando(false)
@@ -133,7 +135,6 @@ export default function PopupResultadoCorridaMobilidade({
         if (cancelled || !res.ok) return
         const st = String(json.status ?? '')
         setMatchStatus(st)
-        setBackups(Number(json.backups_ocultos ?? 0))
         const of = json.oferta as OfertaResultadoUi | null
         setOferta(of && of.profissionalId ? of : null)
         if (
@@ -282,9 +283,12 @@ export default function PopupResultadoCorridaMobilidade({
                   </p>
                   <p className="mt-2 font-semibold text-gray-900">{oferta.nome}</p>
                   {oferta.username ? (
-                    <p className="text-sm text-gray-500">
-                      @{String(oferta.username).replace(/^@+/, '')}
-                    </p>
+                    <UsuarioHandleVerificado
+                      username={String(oferta.username).replace(/^@+/, '')}
+                      notaMedia={oferta.notaMedia ?? null}
+                      asButton={false}
+                      className="text-sm text-gray-500"
+                    />
                   ) : null}
                 </div>
                 {conversaId ? <ChatCorridaMobilidade conversaId={conversaId} /> : null}
@@ -305,15 +309,6 @@ export default function PopupResultadoCorridaMobilidade({
                     </span>
                   ) : null}
                 </div>
-                <p className="mt-2 font-semibold text-gray-900">{oferta.nome}</p>
-                {oferta.username ? (
-                  <p className="text-sm text-gray-500">
-                    @{String(oferta.username).replace(/^@+/, '')}
-                  </p>
-                ) : null}
-                <p className="mt-1 text-xs text-gray-500">
-                  ~{oferta.distanciaKm} km · {t('matchBackups', { n: backups })}
-                </p>
                 <p className="mt-2 text-xs text-gray-400">{t('matchAguardandoAceite')}</p>
               </div>
             ) : null}

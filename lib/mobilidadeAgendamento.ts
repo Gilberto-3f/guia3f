@@ -546,17 +546,8 @@ export async function confirmarAgendamentoMobilidade(
   }
 
   const agora = new Date().toISOString()
-  const modalidade = String(row.modalidade ?? '').trim().toLowerCase()
   const pax = params.dadosPax
-  if (
-    (modalidade === 'guia' || modalidade === 'van') &&
-    (!pax?.nome_completo?.trim() || !pax?.documento?.trim() || !pax?.data_nascimento?.trim())
-  ) {
-    return {
-      ok: false,
-      error: 'Informe nome, documento e data de nascimento do passageiro para o manifesto.',
-    }
-  }
+  // Manifesto (guia/van): dados vêm do cadastro do turista quando dadosPax não é enviado.
 
   const metaBase = {
     ...(typeof row.metadata === 'object' && row.metadata ? row.metadata : {}),

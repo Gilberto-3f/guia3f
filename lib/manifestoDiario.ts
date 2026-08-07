@@ -190,26 +190,39 @@ export async function registrarTuristaNoManifesto(
   let nome_social = params.dadosPax?.nome_social ?? null
   let data_nascimento = params.dadosPax?.data_nascimento ?? null
   let foto_url = params.dadosPax?.foto_url ?? null
+  let validada = params.dadosPax?.validada === true
 
-  if (!params.dadosPax) {
+  // Sempre completa a partir do cadastro do turista (campos faltantes / fluxo automático).
+  {
     const { data: tur } = await supabase
       .from('turistas')
       .select('nome_completo, nome_usuario, documento_identidade, foto_url, foto_perfil_url')
       .eq('usuario_id', params.turistaUsuarioId)
       .maybeSingle()
     if (tur) {
-      nome = String(tur.nome_completo ?? nome)
-      documento = tur.documento_identidade != null ? String(tur.documento_identidade) : null
+      if (!params.dadosPax?.nome?.trim()) {
+        nome = String(tur.nome_completo ?? nome)
+      }
+      if (!documento && tur.documento_identidade != null) {
+        documento = String(tur.documento_identidade)
+      }
       const un = tur.nome_usuario != null ? String(tur.nome_usuario).replace(/^@+/, '') : ''
-      username = un ? `@${un}` : null
-      nome_social = un || null
-      foto_url =
-        tur.foto_perfil_url != null
-          ? String(tur.foto_perfil_url)
-          : tur.foto_url != null
-            ? String(tur.foto_url)
-            : null
+      if (!username && un) username = `@${un}`
+      if (!nome_social && un) nome_social = un
+      if (!foto_url) {
+        foto_url =
+          tur.foto_perfil_url != null
+            ? String(tur.foto_perfil_url)
+            : tur.foto_url != null
+              ? String(tur.foto_url)
+              : null
+      }
     }
+  }
+
+  // Cadastro com nome + documento = dados prontos para o manifesto (sem popup manual).
+  if (!validada && nome.trim() && documento?.trim()) {
+    validada = true
   }
 
   const passageiro = await inserirPassageiroManifesto(supabase, {
@@ -224,7 +237,7 @@ export async function registrarTuristaNoManifesto(
     contratacaoTipo: params.contratacaoTipo,
     profissionalIndiretoId: params.profissionalIndiretoId ?? null,
     legacyManifestoId: params.legacyManifestoId ?? null,
-    contratacaoValidada: params.dadosPax?.validada === true,
+    contratacaoValidada: validada,
   })
 
   if ('error' in passageiro) return { error: passageiro.error }

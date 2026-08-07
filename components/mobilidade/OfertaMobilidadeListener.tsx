@@ -8,7 +8,6 @@ import {
   JUSTIFICATIVAS_RECUSA_MOBILIDADE,
   type JustificativaRecusaMobilidadeId,
 } from '@/lib/mobilidadeRecusaJustificativas'
-import { modalidadeUsaManifesto } from '@/lib/mobilidadeOfertaAtendimento'
 import {
   profissionalChegouNaPartida,
   RAIO_CHEGADA_METROS,
@@ -18,9 +17,6 @@ import AvaliacaoCorridaMobilidade from '@/components/mobilidade/AvaliacaoCorrida
 import DrawerAtendimentoMobilidade, {
   type OfertaAtendimentoUi,
 } from '@/components/mobilidade/DrawerAtendimentoMobilidade'
-import PopupComplementoContratacao, {
-  type DadosComplementoContratacao,
-} from '@/components/manifesto/PopupComplementoContratacao'
 import PopupChegadaProfissionalMobilidade from '@/components/mobilidade/PopupChegadaProfissionalMobilidade'
 
 type Oferta = OfertaAtendimentoUi & {
@@ -73,8 +69,6 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
   const [bonus, setBonus] = useState('')
   const [resumoFin, setResumoFin] = useState<string | null>(null)
   const [solicitacaoAvaliar, setSolicitacaoAvaliar] = useState<string | null>(null)
-  const [popupPaxAberto, setPopupPaxAberto] = useState(false)
-  const [erroPax, setErroPax] = useState('')
   const [erroChegada, setErroChegada] = useState('')
   const detectandoChegadaRef = useRef(false)
 
@@ -326,31 +320,21 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
     }
   }
 
-  const enviarAceite = async (dadosPax?: DadosComplementoContratacao) => {
+  const enviarAceite = async () => {
     if (!oferta) return false
-    const paxBody = dadosPax
-      ? {
-          dados_pax: {
-            nome_completo: dadosPax.nome_completo,
-            data_nascimento: dadosPax.data_nascimento,
-            documento: dadosPax.documento,
-          },
-        }
-      : {}
 
     if (oferta._fluxo === 'agendamento_confirmacao') {
       const res = await fetch(`/api/mobilidade/agendamento/${oferta.solicitacao_id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ acao: 'confirmar', ...paxBody }),
+        body: JSON.stringify({ acao: 'confirmar' }),
       })
       if (!res.ok) {
         const json = (await res.json()) as { error?: string }
-        setErroPax(String(json.error ?? t('aceiteErro')))
+        setErroRecusa(String(json.error ?? t('aceiteErro')))
         return false
       }
       setOferta(null)
-      setPopupPaxAberto(false)
       await carregarCorrida()
       return true
     }
@@ -361,16 +345,14 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
       body: JSON.stringify({
         solicitacao_id: oferta.solicitacao_id,
         aceitar: true,
-        ...paxBody,
       }),
     })
     if (!res.ok) {
       const json = (await res.json()) as { error?: string }
-      setErroPax(String(json.error ?? t('aceiteErro')))
+      setErroRecusa(String(json.error ?? t('aceiteErro')))
       return false
     }
     setOferta(null)
-    setPopupPaxAberto(false)
     await carregarCorrida()
     return true
   }
@@ -378,25 +360,11 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
   const aceitar = async () => {
     if (!oferta || busy) return
     setMostrarRecusa(false)
-    setErroPax('')
-    if (modalidadeUsaManifesto(oferta.modalidade)) {
-      setPopupPaxAberto(true)
-      return
-    }
+    setErroRecusa('')
+    // Guia/van: manifesto usa dados do cadastro do turista (sem formulário manual).
     setBusy(true)
     try {
       await enviarAceite()
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const confirmarPax = async (dados: DadosComplementoContratacao) => {
-    if (!oferta || busy) return
-    setBusy(true)
-    setErroPax('')
-    try {
-      await enviarAceite(dados)
     } finally {
       setBusy(false)
     }
@@ -718,20 +686,6 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
           setJustificativaDetalhe('')
           setErroRecusa('')
         }}
-      />
-      <PopupComplementoContratacao
-        aberto={popupPaxAberto}
-        onFechar={() => {
-          if (busy) return
-          setPopupPaxAberto(false)
-          setErroPax('')
-        }}
-        onConfirmar={(dados) => void confirmarPax(dados)}
-        enviando={busy}
-        erroServidor={erroPax}
-        titulo={t('paxAceiteTitulo')}
-        descricao={t('paxAceiteDescricao')}
-        nomeInicial={oferta.turista?.nome ?? ''}
       />
     </>
   )

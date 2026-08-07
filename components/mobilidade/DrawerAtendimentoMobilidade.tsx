@@ -22,6 +22,7 @@ export type TuristaOfertaAtendimento = {
   username: string | null
   foto_url: string | null
   verificado: boolean
+  nota_media?: number | null
 }
 
 export type OfertaAtendimentoUi = {
@@ -190,6 +191,7 @@ export default function DrawerAtendimentoMobilidade({
             username={username}
             verificado={Boolean(turista?.verificado)}
             verificadoTipo="profissional"
+            notaMedia={turista?.nota_media ?? null}
             asButton={false}
             className="justify-center text-sm font-normal text-gray-600"
           />
