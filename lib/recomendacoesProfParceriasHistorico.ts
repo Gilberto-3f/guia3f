@@ -110,7 +110,8 @@ export async function buscarRecomendacoesProfissionaisParaProfissional(
       .order('created_at', { ascending: false })
     if (dataLimite) qLegado = qLegado.gte('created_at', dataLimite)
     const legado = await qLegado
-    data = legado.data
+    // Select legado sem origem_indicacao; o loop usa default cartao_visita.
+    data = legado.data as typeof data
     error = legado.error
   }
 
