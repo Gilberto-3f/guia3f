@@ -97,18 +97,20 @@ export default function DrawerHistoricoAtendimentosEspaco({ aberto, onFechar }: 
           <button
             type="button"
             onClick={() => setAba('hoje')}
-            className={`flex-1 rounded-md py-2 text-xs font-bold uppercase tracking-wide ${
-              aba === 'hoje' ? 'bg-white text-[#0097b2] shadow-sm' : 'text-gray-600'
+            className={`flex-1 rounded-md py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
+              aba === 'hoje' ? 'text-white shadow-sm' : 'text-gray-600'
             }`}
+            style={aba === 'hoje' ? { backgroundColor: '#00D443' } : undefined}
           >
             {t('historicoAbaHoje')}
           </button>
           <button
             type="button"
             onClick={() => setAba('historico')}
-            className={`flex-1 rounded-md py-2 text-xs font-bold uppercase tracking-wide ${
-              aba === 'historico' ? 'bg-white text-[#0097b2] shadow-sm' : 'text-gray-600'
+            className={`flex-1 rounded-md py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
+              aba === 'historico' ? 'text-white shadow-sm' : 'text-gray-600'
             }`}
+            style={aba === 'historico' ? { backgroundColor: '#00D443' } : undefined}
           >
             {t('historicoAbaRecentes')}
           </button>

@@ -3,12 +3,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
+  Bus,
   CalendarDays,
+  Car,
   ChevronLeft,
   ChevronRight,
   Info,
+  MapPin,
   Network,
+  Radio,
   Search,
+  UserSearch,
   X,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -47,6 +52,14 @@ type Props = {
 }
 
 type Etapa = 'escolha' | 'manual' | 'algoritmo'
+type AbaOnline = 'van' | 'taxista' | 'guia'
+
+function categoriaNaAba(cats: string[], aba: AbaOnline): boolean {
+  const set = new Set(cats.map((c) => String(c).toLowerCase()))
+  if (aba === 'van') return set.has('van')
+  if (aba === 'taxista') return set.has('taxista')
+  return set.has('guia')
+}
 
 function hojeIsoLocal(): string {
   const d = new Date()
@@ -99,6 +112,7 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
 
   const [etapa, setEtapa] = useState<Etapa>('escolha')
   const [infoAberto, setInfoAberto] = useState(false)
+  const [abaOnline, setAbaOnline] = useState<AbaOnline>('van')
   const [termo, setTermo] = useState('')
   const [buscando, setBuscando] = useState(false)
   const [erro, setErro] = useState('')
@@ -118,6 +132,7 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
   const reset = useCallback(() => {
     setEtapa('escolha')
     setInfoAberto(false)
+    setAbaOnline('van')
     setTermo('')
     setResultados([])
     setSelecionado(null)
@@ -274,6 +289,11 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
     if (!diaSlot) return []
     return slotsPorData.get(diaSlot) ?? []
   }, [diaSlot, slotsPorData])
+
+  const resultadosOnlineFiltrados = useMemo(() => {
+    if (etapa !== 'algoritmo') return resultados
+    return resultados.filter((p) => categoriaNaAba(p.categorias, abaOnline))
+  }, [etapa, resultados, abaOnline])
 
   const profissionalPopup: ProfissionalRecomendacaoInfo | null = selecionado
     ? {
@@ -534,9 +554,10 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
                   setErro('')
                   setResultados([])
                 }}
-                className="flex w-full flex-col items-center justify-center rounded-2xl px-4 py-4 text-center text-white shadow-md"
+                className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl px-4 py-4 text-center text-white shadow-md"
                 style={{ backgroundColor: COR }}
               >
+                <UserSearch className="h-7 w-7" aria-hidden />
                 <span className="text-base font-extrabold uppercase tracking-wide">
                   {t('ecossistemaBtnManual')}
                 </span>
@@ -545,9 +566,10 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
               <button
                 type="button"
                 onClick={abrirAlgoritmo}
-                className="flex w-full flex-col items-center justify-center rounded-2xl px-4 py-4 text-center text-white shadow-md"
+                className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl px-4 py-4 text-center text-white shadow-md"
                 style={{ backgroundColor: VERDE }}
               >
+                <Radio className="h-7 w-7" aria-hidden />
                 <span className="text-base font-extrabold uppercase tracking-wide">
                   {t('ecossistemaBtnApp')}
                 </span>
@@ -572,19 +594,43 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
                   />
                 </label>
               ) : (
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-gray-700">
-                    {t('ecossistemaOnlineTitulo')}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => void buscarOnline()}
-                    disabled={buscando}
-                    className="rounded-lg px-3 py-1.5 text-xs font-bold uppercase text-white disabled:opacity-50"
-                    style={{ backgroundColor: COR }}
-                  >
-                    {t('ecossistemaAtualizar')}
-                  </button>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-gray-700">
+                      {t('ecossistemaOnlineTitulo')}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void buscarOnline()}
+                      disabled={buscando}
+                      className="rounded-lg px-3 py-1.5 text-xs font-bold uppercase text-white disabled:opacity-50"
+                      style={{ backgroundColor: COR }}
+                    >
+                      {t('ecossistemaAtualizar')}
+                    </button>
+                  </div>
+                  <div className="flex rounded-lg bg-gray-100 p-1">
+                    {(
+                      [
+                        { id: 'van' as const, label: t('ecossistemaAbaVan'), Icon: Bus },
+                        { id: 'taxista' as const, label: t('ecossistemaAbaTaxi'), Icon: Car },
+                        { id: 'guia' as const, label: t('ecossistemaAbaGuia'), Icon: MapPin },
+                      ] as const
+                    ).map(({ id, label, Icon }) => (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => setAbaOnline(id)}
+                        className={`flex flex-1 items-center justify-center gap-1 rounded-md py-2 text-[11px] font-bold uppercase tracking-wide transition-colors ${
+                          abaOnline === id ? 'text-white shadow-sm' : 'text-gray-600'
+                        }`}
+                        style={abaOnline === id ? { backgroundColor: VERDE } : undefined}
+                      >
+                        <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -608,8 +654,18 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
                 </p>
               ) : null}
 
+              {!buscando &&
+              etapa === 'algoritmo' &&
+              resultados.length > 0 &&
+              resultadosOnlineFiltrados.length === 0 &&
+              !erro ? (
+                <p className="py-6 text-center text-sm text-gray-400">
+                  {t('ecossistemaSemOnlineAba')}
+                </p>
+              ) : null}
+
               <ul className="space-y-2">
-                {resultados.map((p) => (
+                {(etapa === 'algoritmo' ? resultadosOnlineFiltrados : resultados).map((p) => (
                   <li key={p.id}>
                     <button
                       type="button"

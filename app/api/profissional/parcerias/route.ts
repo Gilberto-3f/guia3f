@@ -30,6 +30,7 @@ export type ParceriaRow = {
   turista: {
     nome: string
     username: string
+    foto_url: string | null
   } | null
   contratado_em: string | null
   papel: 'indicador' | 'indicado' | 'parceiro'
@@ -163,14 +164,21 @@ export async function GET(req: Request) {
     if (turistaId) {
       const { data: t } = await auth.supabase
         .from('turistas')
-        .select('nome_completo, nome_usuario')
+        .select('nome_completo, nome_usuario, foto_url, foto_perfil_url')
         .eq('usuario_id', turistaId)
         .maybeSingle()
       if (t) {
         const un = t.nome_usuario != null ? String(t.nome_usuario).replace(/^@+/, '') : ''
+        const fotoTur =
+          t.foto_perfil_url != null && String(t.foto_perfil_url).trim()
+            ? String(t.foto_perfil_url)
+            : t.foto_url != null && String(t.foto_url).trim()
+              ? String(t.foto_url)
+              : null
         turista = {
           nome: String(t.nome_completo ?? 'Turista'),
           username: un ? `@${un}` : '—',
+          foto_url: fotoTur,
         }
       }
     }

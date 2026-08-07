@@ -15,6 +15,23 @@ function formatarDataHora(iso: string): string {
   return d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
 }
 
+/** Um único status operacional da parceria (não empilha badges). */
+function statusAtualParceria(p: ParceriaRow): { label: string; className: string } {
+  if (p.liquidado) {
+    return { label: 'Liquidado', className: 'bg-emerald-100 text-emerald-800' }
+  }
+  if (p.pagamento_confirmado) {
+    return { label: 'Rec. pendente', className: 'bg-amber-50 text-amber-800' }
+  }
+  const atendimentoConcluido =
+    String(p.status) !== 'em_andamento' ||
+    p.atrativos.some((a) => a.visitado || a.status === 'visitado')
+  if (atendimentoConcluido) {
+    return { label: 'Pag. pendente', className: 'bg-amber-50 text-amber-800' }
+  }
+  return { label: 'Em andamento', className: 'bg-[#0097b2]/15 text-[#0097b2]' }
+}
+
 type AbaParcerias = 'andamento' | 'historico'
 
 type Props = {
@@ -151,12 +168,18 @@ export default function ParceriasProfissional({ compact = false }: Props) {
             const mostrarBotaoReceber =
               p.papel === 'indicador' && !p.recebimento_confirmado && !p.liquidado
             const receberLiberado = p.pagamento_confirmado
+            const st = statusAtualParceria(p)
+            const turistaHandle = p.turista?.username
+              ? String(p.turista.username).startsWith('@')
+                ? p.turista.username
+                : `@${p.turista.username.replace(/^@+/, '')}`
+              : null
 
             return (
               <li key={p.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white">
                 <button
                   type="button"
-                  className="flex w-full items-center gap-3 p-3 text-left"
+                  className="flex w-full items-start gap-3 p-3 text-left"
                   onClick={() => setExpandido(aberto ? null : p.id)}
                   aria-expanded={aberto}
                 >
@@ -167,15 +190,46 @@ export default function ParceriasProfissional({ compact = false }: Props) {
                     height={48}
                     className="h-12 w-12 shrink-0 rounded-lg object-cover"
                   />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-gray-900">{p.parceiro.nome}</p>
-                    <p className="truncate text-sm text-[#0097b2]">{handle}</p>
-                    <p className="truncate text-xs text-gray-500">{p.parceiro.categorias || '—'}</p>
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div>
+                      <p className="truncate font-semibold text-gray-900">{p.parceiro.nome}</p>
+                      <p className="truncate text-sm text-[#0097b2]">{handle}</p>
+                      <span
+                        className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${st.className}`}
+                      >
+                        {st.label}
+                      </span>
+                    </div>
+                    {p.turista ? (
+                      <div className="flex items-center gap-2 rounded-lg bg-[#f5f5f5] px-2 py-1.5">
+                        <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gray-200">
+                          {p.turista.foto_url ? (
+                            <AvatarImage
+                              src={p.turista.foto_url}
+                              alt=""
+                              fill
+                              className="object-cover"
+                              sizes="36px"
+                            />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center text-xs font-bold text-[#0097b2]">
+                              {(p.turista.nome || 'T').charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-gray-900">{p.turista.nome}</p>
+                          {turistaHandle ? (
+                            <p className="truncate text-xs text-gray-500">{turistaHandle}</p>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                   {aberto ? (
-                    <ChevronUp className="h-5 w-5 shrink-0 text-[#0097b2]" aria-hidden />
+                    <ChevronUp className="mt-1 h-5 w-5 shrink-0 text-[#0097b2]" aria-hidden />
                   ) : (
-                    <ChevronDown className="h-5 w-5 shrink-0 text-gray-400" aria-hidden />
+                    <ChevronDown className="mt-1 h-5 w-5 shrink-0 text-gray-400" aria-hidden />
                   )}
                 </button>
 
@@ -185,56 +239,8 @@ export default function ParceriasProfissional({ compact = false }: Props) {
                       {aba === 'historico'
                         ? `Período: ${formatarDataHora(p.created_at)}`
                         : `Início: ${formatarDataHora(p.created_at)}`}
+                      {p.contratado_em ? ` · Contratado: ${formatarDataHora(p.contratado_em)}` : ''}
                     </p>
-                    {aba === 'historico' && p.total_comissoes_estimadas != null ? (
-                      <p className="text-xs font-medium text-[#15803d]">
-                        Atrativos visitados: {p.total_comissoes_estimadas}
-                      </p>
-                    ) : null}
-                    {p.turista ? (
-                      <p className="text-xs font-medium text-[#15803d]">
-                        Turista: {p.turista.nome} ({p.turista.username})
-                        {p.contratado_em ? ` · ${formatarDataHora(p.contratado_em)}` : ''}
-                      </p>
-                    ) : null}
-
-                    <div className="flex flex-wrap gap-1">
-                      <span
-                        className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                          p.status === 'em_andamento'
-                            ? 'bg-[#0097b2]/15 text-[#0097b2]'
-                            : 'bg-gray-100 text-gray-600'
-                        }`}
-                      >
-                        {p.status === 'em_andamento' ? 'Em andamento' : p.status}
-                      </span>
-                      {p.liquidado ? (
-                        <span className="inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-800">
-                          Liquidado
-                        </span>
-                      ) : (
-                        <>
-                          <span
-                            className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                              p.pagamento_confirmado
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-amber-50 text-amber-800'
-                            }`}
-                          >
-                            {p.pagamento_confirmado ? 'Pag. ok' : 'Pag. pendente'}
-                          </span>
-                          <span
-                            className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                              p.recebimento_confirmado
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-amber-50 text-amber-800'
-                            }`}
-                          >
-                            {p.recebimento_confirmado ? 'Rec. ok' : 'Rec. pendente'}
-                          </span>
-                        </>
-                      )}
-                    </div>
 
                     {aba === 'andamento' && !p.liquidado ? (
                       <div className="flex flex-wrap gap-2 pt-1">
@@ -302,8 +308,8 @@ export default function ParceriasProfissional({ compact = false }: Props) {
                                 <span
                                   className={
                                     a.status === 'visitado'
-                                      ? 'font-bold text-[#15803d]'
-                                      : 'text-amber-700'
+                                      ? 'font-bold text-gray-700'
+                                      : 'text-gray-500'
                                   }
                                 >
                                   {a.status === 'visitado' ? 'Visitado' : 'Agendado'}
