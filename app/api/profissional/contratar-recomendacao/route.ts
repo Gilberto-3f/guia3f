@@ -11,6 +11,11 @@ import {
   precisaDadosPaxManifesto,
   resolverDestinoContratacaoRecomendacao,
 } from '@/lib/recomendacaoContratacaoDestino'
+import {
+  canalParceiroPorCidadesAtuacao,
+  CONFIG_APIS_MOBILIDADE_SELECT,
+  resolverUrlApiMobilidadeParceiro,
+} from '@/lib/mobilidadeParceiroApi'
 
 /** Turista contrata profissional via link de recomendação (ref=recomendacao&rec=). */
 export async function POST(req: Request) {
@@ -47,7 +52,7 @@ export async function POST(req: Request) {
       `
       id,
       profissional_indicado:profissional_indicado_id (
-        id, usuario_id, categorias, placa_vermelha, empresa_hospedagem_id
+        id, usuario_id, categorias, placa_vermelha, empresa_hospedagem_id, cidade_atuacao
       )
     `,
     )
@@ -64,9 +69,12 @@ export async function POST(req: Request) {
 
   const { data: cfg } = await admin
     .from('config_apis')
-    .select('api_mobilidade_url')
+    .select(CONFIG_APIS_MOBILIDADE_SELECT)
     .limit(1)
     .maybeSingle()
+
+  const canalParceiro = canalParceiroPorCidadesAtuacao(indicadoMeta.cidade_atuacao)
+  const apiMobilidadeUrl = resolverUrlApiMobilidadeParceiro(cfg, canalParceiro)
 
   const destino = resolverDestinoContratacaoRecomendacao({
     categoriasIndicado: cats,
@@ -74,7 +82,7 @@ export async function POST(req: Request) {
     empresaHospedagemId:
       indicadoMeta.empresa_hospedagem_id != null ? String(indicadoMeta.empresa_hospedagem_id) : null,
     profissionalUsuarioId: profissionalIndicadoUsuarioId,
-    apiMobilidadeUrl: cfg?.api_mobilidade_url != null ? String(cfg.api_mobilidade_url) : null,
+    apiMobilidadeUrl,
   })
 
   const fluxoMobilidadeDrawer = destino.tipo === 'mobilidade_canal'

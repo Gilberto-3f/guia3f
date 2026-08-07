@@ -9,6 +9,11 @@ import {
 import type { ModalidadeMobilidadeId } from '@/lib/mobilidadePopupPesquisa'
 import { ehCruzamentoFronteira, inferirCidadeDePonto } from '@/lib/mobilidadePopupPesquisa'
 import { normalizarMoedasPreferencia } from '@/lib/mobilidadePerfilProfissional'
+import {
+  canalParceiroPorTrecho,
+  CONFIG_APIS_MOBILIDADE_SELECT,
+  resolverUrlApiMobilidadeParceiro,
+} from '@/lib/mobilidadeParceiroApi'
 
 const MODS = new Set(['motorista_app', 'van', 'taxista', 'guia'])
 
@@ -60,9 +65,12 @@ export async function POST(req: Request) {
 
   const { data: cfg } = await admin
     .from('config_apis')
-    .select('api_mobilidade_url')
+    .select(CONFIG_APIS_MOBILIDADE_SELECT)
     .limit(1)
     .maybeSingle()
+
+  const canalParceiro = canalParceiroPorTrecho(cidadeOrigem, cidadeDestino)
+  const apiMobilidadeUrl = resolverUrlApiMobilidadeParceiro(cfg, canalParceiro)
 
   const recRaw =
     body.recomendacao_id != null
@@ -120,7 +128,7 @@ export async function POST(req: Request) {
   const res = await criarSolicitacaoEOfertar(
     admin,
     input,
-    cfg?.api_mobilidade_url != null ? String(cfg.api_mobilidade_url) : null,
+    apiMobilidadeUrl,
   )
 
   if (!res.ok) {

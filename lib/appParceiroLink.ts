@@ -1,23 +1,41 @@
 import { supabase } from '@/lib/supabase'
+import {
+  canalParceiroPorCidade,
+  canalParceiroPorCidadesAtuacao,
+  CONFIG_APIS_MOBILIDADE_SELECT,
+  resolverLinkAppParceiro,
+  type CanalParceiroMobilidade,
+} from '@/lib/mobilidadeParceiroApi'
+import type { CidadeTriplice } from '@/lib/mobilidadeRegional'
+
+export type CarregarLinkAppParceiroOpts = {
+  /** Cidade explícita (Foz / CDE). */
+  cidade?: CidadeTriplice | string | null
+  /** Lista cidade_atuacao do profissional. */
+  cidadesAtuacao?: unknown
+  /** Canal já resolvido. */
+  canal?: CanalParceiroMobilidade | null
+}
 
 /**
  * Link do app parceiro (loja/deep link) para o botão APP PARCEIRO.
- * Preferência: `app_parceiro_link`; fallback: `api_mobilidade_url` se ainda não cadastrado.
+ * Escolhe canal Foz ou CDE quando a cidade/atuação for informada.
  */
-export async function carregarLinkAppParceiro(): Promise<string | null> {
+export async function carregarLinkAppParceiro(
+  opts?: CarregarLinkAppParceiroOpts,
+): Promise<string | null> {
+  const canal =
+    opts?.canal ??
+    (opts?.cidade != null ? canalParceiroPorCidade(opts.cidade) : null) ??
+    canalParceiroPorCidadesAtuacao(opts?.cidadesAtuacao)
+
   const { data } = await supabase
     .from('config_apis')
-    .select('app_parceiro_link, api_mobilidade_url')
+    .select(CONFIG_APIS_MOBILIDADE_SELECT)
     .limit(1)
     .maybeSingle()
 
-  const preferido =
-    data?.app_parceiro_link != null ? String(data.app_parceiro_link).trim() : ''
-  if (preferido) return preferido
-
-  const fallback =
-    data?.api_mobilidade_url != null ? String(data.api_mobilidade_url).trim() : ''
-  return fallback || null
+  return resolverLinkAppParceiro(data, canal)
 }
 
 /** Abre o link em nova aba; retorna false se URL inválida/ausente. */

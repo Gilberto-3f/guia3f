@@ -34,13 +34,13 @@ export default function PopupRecomendarMobilidade({ aberto, onFechar, cidadeAtua
     if (!aberto) return
     let ativo = true
     void (async () => {
-      const link = await carregarLinkAppParceiro()
+      const link = await carregarLinkAppParceiro({ cidade: cidadeAtuacao })
       if (ativo) setLinkApp(link)
     })()
     return () => {
       ativo = false
     }
-  }, [aberto])
+  }, [aberto, cidadeAtuacao])
 
   if (!aberto) return null
 

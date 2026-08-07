@@ -140,47 +140,99 @@ export function GestaoAPIs() {
       </div>
 
       <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <h3 className="mb-4 text-sm font-bold text-[#001f3f]">🚗 Mobilidade</h3>
-        <div className="grid grid-cols-1 gap-4">
-          <label className="text-sm font-semibold text-gray-700">
-            API URL
-            <span className="mt-0.5 block text-xs font-normal text-gray-500">
-              Redireciona turistas, empresas e adm ao contratar motorista de app.
-            </span>
-            <input
-              type="text"
-              value={localApis.api_mobilidade_url}
-              onChange={(e) => setLocalApis({ ...localApis, api_mobilidade_url: e.target.value })}
-              disabled={!podeEditarAPIs}
-              className="mt-1 w-full rounded-xl border border-gray-200 p-2 text-sm disabled:opacity-60"
-              placeholder="https://api.parceiro.com/v1"
-            />
-          </label>
-          <label className="text-sm font-semibold text-gray-700">
-            API key
-            <input
-              type="password"
-              value={localApis.api_mobilidade_key}
-              onChange={(e) => setLocalApis({ ...localApis, api_mobilidade_key: e.target.value })}
-              disabled={!podeEditarAPIs}
-              className="mt-1 w-full rounded-xl border border-gray-200 p-2 text-sm disabled:opacity-60"
-              placeholder="api_key_xxxxx"
-            />
-          </label>
-          <label className="text-sm font-semibold text-gray-700">
-            Link do app parceiro (profissionais)
-            <span className="mt-0.5 block text-xs font-normal text-gray-500">
-              Aberto pelo botão APP PARCEIRO no Espaço Profissional (loja ou deep link).
-            </span>
-            <input
-              type="url"
-              value={localApis.app_parceiro_link}
-              onChange={(e) => setLocalApis({ ...localApis, app_parceiro_link: e.target.value })}
-              disabled={!podeEditarAPIs}
-              className="mt-1 w-full rounded-xl border border-gray-200 p-2 text-sm disabled:opacity-60"
-              placeholder="https://play.google.com/store/apps/details?id=..."
-            />
-          </label>
+        <h3 className="mb-2 text-sm font-bold text-[#001f3f]">🚗 Mobilidade</h3>
+        <p className="mb-4 text-xs text-gray-500">
+          Canais independentes por cidade: Foz e CDE (deslocamento urbano local).
+        </p>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="rounded-xl border border-gray-100 bg-[#f5f5f5] p-3">
+            <p className="text-sm font-bold text-[#0097b2]">Foz do Iguaçu</p>
+            <div className="mt-3 grid grid-cols-1 gap-3">
+              <label className="text-sm font-semibold text-gray-700">
+                API URL
+                <input
+                  type="text"
+                  value={localApis.api_mobilidade_url_foz}
+                  onChange={(e) =>
+                    setLocalApis({ ...localApis, api_mobilidade_url_foz: e.target.value })
+                  }
+                  disabled={!podeEditarAPIs}
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-white p-2 text-sm disabled:opacity-60"
+                  placeholder="https://api.parceiro-foz.com/v1"
+                />
+              </label>
+              <label className="text-sm font-semibold text-gray-700">
+                API key
+                <input
+                  type="password"
+                  value={localApis.api_mobilidade_key_foz}
+                  onChange={(e) =>
+                    setLocalApis({ ...localApis, api_mobilidade_key_foz: e.target.value })
+                  }
+                  disabled={!podeEditarAPIs}
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-white p-2 text-sm disabled:opacity-60"
+                  placeholder="api_key_xxxxx"
+                />
+              </label>
+              <label className="text-sm font-semibold text-gray-700">
+                Link do app parceiro
+                <input
+                  type="url"
+                  value={localApis.app_parceiro_link_foz}
+                  onChange={(e) =>
+                    setLocalApis({ ...localApis, app_parceiro_link_foz: e.target.value })
+                  }
+                  disabled={!podeEditarAPIs}
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-white p-2 text-sm disabled:opacity-60"
+                  placeholder="https://play.google.com/..."
+                />
+              </label>
+            </div>
+          </div>
+          <div className="rounded-xl border border-gray-100 bg-[#f5f5f5] p-3">
+            <p className="text-sm font-bold text-[#00D443]">Ciudad del Este (CDE)</p>
+            <div className="mt-3 grid grid-cols-1 gap-3">
+              <label className="text-sm font-semibold text-gray-700">
+                API URL
+                <input
+                  type="text"
+                  value={localApis.api_mobilidade_url_cde}
+                  onChange={(e) =>
+                    setLocalApis({ ...localApis, api_mobilidade_url_cde: e.target.value })
+                  }
+                  disabled={!podeEditarAPIs}
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-white p-2 text-sm disabled:opacity-60"
+                  placeholder="https://api.parceiro-cde.com/v1"
+                />
+              </label>
+              <label className="text-sm font-semibold text-gray-700">
+                API key
+                <input
+                  type="password"
+                  value={localApis.api_mobilidade_key_cde}
+                  onChange={(e) =>
+                    setLocalApis({ ...localApis, api_mobilidade_key_cde: e.target.value })
+                  }
+                  disabled={!podeEditarAPIs}
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-white p-2 text-sm disabled:opacity-60"
+                  placeholder="api_key_xxxxx"
+                />
+              </label>
+              <label className="text-sm font-semibold text-gray-700">
+                Link do app parceiro
+                <input
+                  type="url"
+                  value={localApis.app_parceiro_link_cde}
+                  onChange={(e) =>
+                    setLocalApis({ ...localApis, app_parceiro_link_cde: e.target.value })
+                  }
+                  disabled={!podeEditarAPIs}
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-white p-2 text-sm disabled:opacity-60"
+                  placeholder="https://play.google.com/..."
+                />
+              </label>
+            </div>
+          </div>
         </div>
       </div>
 

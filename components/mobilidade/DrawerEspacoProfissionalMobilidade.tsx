@@ -116,6 +116,7 @@ export default function DrawerEspacoProfissionalMobilidade({
   const [ecossistemaAberto, setEcossistemaAberto] = useState(false)
   const [historicoAtendAberto, setHistoricoAtendAberto] = useState(false)
   const [historicoParcAberto, setHistoricoParcAberto] = useState(false)
+  const [cidadesAtuacao, setCidadesAtuacao] = useState<unknown>(null)
 
   const handleAcao = useCallback(
     async (id: EspacoProfissionalAcaoId) => {
@@ -123,7 +124,9 @@ export default function DrawerEspacoProfissionalMobilidade({
       if (id === 'app_parceiro') {
         setAcaoBusy(true)
         try {
-          const link = await carregarLinkAppParceiro()
+          const link = await carregarLinkAppParceiro({
+            cidadesAtuacao,
+          })
           if (!abrirLinkAppParceiro(link)) {
             setAcaoErro(t('appParceiroLinkAusente'))
           }
@@ -159,7 +162,7 @@ export default function DrawerEspacoProfissionalMobilidade({
         return
       }
     },
-    [t],
+    [t, cidadesAtuacao],
   )
 
   useEffect(() => {
@@ -183,11 +186,13 @@ export default function DrawerEspacoProfissionalMobilidade({
       const { data: prof } = await supabase
         .from('profissionais')
         .select(
-          'id, nome_completo, nome_usuario, foto_perfil_url, foto_url, docs_verificado, status, placa_vermelha, categorias',
+          'id, nome_completo, nome_usuario, foto_perfil_url, foto_url, docs_verificado, status, placa_vermelha, categorias, cidade_atuacao',
         )
         .eq('usuario_id', uid)
         .maybeSingle()
       if (!ativo || !prof) return
+
+      setCidadesAtuacao(prof.cidade_atuacao ?? null)
 
       const nomeNovo = String(prof.nome_completo ?? t('espacoProfissionalFallbackNome'))
       const usernameNovo = prof.nome_usuario != null ? String(prof.nome_usuario) : null

@@ -350,10 +350,18 @@ export type ConfigAPIs = {
   webhook_secret: string
   ambiente: ConfigAmbienteAPI
   moedas: string[]
+  /** @deprecated Preferir campos _foz / _cde. Mantido como fallback legado. */
   api_mobilidade_url: string
+  /** @deprecated Preferir campos _foz / _cde. */
   api_mobilidade_key: string
-  /** Link do app (loja/deep link) para profissionais motorista_app — botão APP PARCEIRO. */
+  /** @deprecated Preferir app_parceiro_link_foz / _cde. */
   app_parceiro_link: string
+  api_mobilidade_url_foz: string
+  api_mobilidade_key_foz: string
+  app_parceiro_link_foz: string
+  api_mobilidade_url_cde: string
+  api_mobilidade_key_cde: string
+  app_parceiro_link_cde: string
   cotacoes_modo: CotacaoModoConfig
   cotacoes_fonte_url: string
   cotacoes_manual: Record<string, number>

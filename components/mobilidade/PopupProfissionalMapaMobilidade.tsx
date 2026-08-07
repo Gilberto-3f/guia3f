@@ -9,6 +9,11 @@ import type { VisitanteParceriaMapa } from '@/lib/mobilidadeMapaVisitante'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { supabase } from '@/lib/supabase'
 import { normalizarCategoriasProfissional } from '@/lib/cartaoVisitaProfissional'
+import {
+  canalParceiroPorCidadesAtuacao,
+  CONFIG_APIS_MOBILIDADE_SELECT,
+  resolverUrlApiMobilidadeParceiro,
+} from '@/lib/mobilidadeParceiroApi'
 
 type Props = {
   prof: ProfissionalOnlineMapa | null
@@ -43,11 +48,11 @@ export default function PopupProfissionalMapaMobilidade({
     if (cats.includes('motorista_app')) {
       const { data: cfg } = await supabase
         .from('config_apis')
-        .select('api_mobilidade_url')
+        .select(CONFIG_APIS_MOBILIDADE_SELECT)
         .limit(1)
         .maybeSingle()
-      apiMobilidadeUrl =
-        cfg?.api_mobilidade_url != null ? String(cfg.api_mobilidade_url).trim() || null : null
+      const canal = canalParceiroPorCidadesAtuacao(prof.cidades_atuacao)
+      apiMobilidadeUrl = resolverUrlApiMobilidadeParceiro(cfg, canal)
     }
 
     const { href, externo } = resolverHrefContratarCartaoVisita({

@@ -35,6 +35,11 @@ import { registrarVisitaPerfil } from '@/lib/perfilVisitas'
 import PerfilRecomendacaoContratarGate from '@/components/perfil/PerfilRecomendacaoContratarGate'
 import { normalizarCategoriasProfissional } from '@/lib/cartaoVisitaProfissional'
 import { resolverHrefContratarCartaoVisita } from '@/lib/recomendacaoContratacaoDestino'
+import {
+  canalParceiroPorCidade,
+  CONFIG_APIS_MOBILIDADE_SELECT,
+  resolverUrlApiMobilidadeParceiro,
+} from '@/lib/mobilidadeParceiroApi'
 
 type PostRepostFeed = ReturnType<typeof mapPostComAutoresRow>
 
@@ -988,11 +993,11 @@ export default function PerfilSocialPage() {
           if (cats.includes('motorista_app')) {
             const { data: cfg } = await supabase
               .from('config_apis')
-              .select('api_mobilidade_url')
+              .select(CONFIG_APIS_MOBILIDADE_SELECT)
               .limit(1)
               .maybeSingle()
-            apiMobilidadeUrl =
-              cfg?.api_mobilidade_url != null ? String(cfg.api_mobilidade_url).trim() || null : null
+            const canal = canalParceiroPorCidade(profMeta.cidadeAtuacaoLabel)
+            apiMobilidadeUrl = resolverUrlApiMobilidadeParceiro(cfg, canal)
           }
 
           const { href, externo } = resolverHrefContratarCartaoVisita({
