@@ -45,7 +45,7 @@ export default function AppSplash() {
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0097b2]"
       style={{ height: 'var(--app-height, 100dvh)' }}
       role="status"
       aria-live="polite"
