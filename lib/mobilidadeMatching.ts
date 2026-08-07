@@ -894,6 +894,17 @@ export async function responderOfertaMobilidade(
       })
       .eq('id', params.solicitacaoId)
 
+    if (row.recomendacao_id) {
+      await admin
+        .from('recomendacoes_profissional')
+        .update({
+          contratado_em: agora,
+          turista_usuario_id: String(row.turista_id),
+        })
+        .eq('id', String(row.recomendacao_id))
+        .is('contratado_em', null)
+    }
+
     await admin
       .from('profissionais')
       .update({

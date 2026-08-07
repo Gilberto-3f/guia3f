@@ -19,7 +19,6 @@ import {
 import { useTranslations } from 'next-intl'
 import AvatarImage from '@/components/AvatarImage'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
-import PopupRecomendarProfissional from '@/components/PopupRecomendarProfissional'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import {
   COR_AZUL_LOGO,
@@ -28,7 +27,7 @@ import {
 } from '@/lib/hospedagemCalendario'
 import { rotuloCategoriaProfissionalRecomendacao } from '@/lib/recomendarProfissional'
 import type { ProfissionalEcossistemaRow } from '@/app/api/profissional/buscar-ecossistema/route'
-import type { ProfissionalRecomendacaoInfo } from '@/lib/recomendarProfissional'
+import type { ClienteEcossistemaRow } from '@/app/api/profissional/buscar-cliente-ecossistema/route'
 
 const COR = '#0097b2'
 const VERDE = '#00D443'
@@ -104,7 +103,7 @@ function lerGps(): Promise<{ lat: number; lng: number } | null> {
 }
 
 /**
- * Drawer Ecossistema: escolha Manual / App → lista → calendário → RECOMENDAR.
+ * Drawer Ecossistema: Manual / ONLINE AGORA → parceiro → cliente → solicitar atendimento.
  */
 export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
   const t = useTranslations('Mobilidade')
@@ -121,7 +120,15 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
   const [slots, setSlots] = useState<Slot[]>([])
   const [slotsLoading, setSlotsLoading] = useState(false)
   const [slotsMsg, setSlotsMsg] = useState('')
-  const [recomendarAberto, setRecomendarAberto] = useState(false)
+  /** Após escolher parceiro: agenda → localizar cliente. */
+  const [faseParceiro, setFaseParceiro] = useState<'agenda' | 'cliente'>('agenda')
+  const [termoCliente, setTermoCliente] = useState('')
+  const [buscandoCliente, setBuscandoCliente] = useState(false)
+  const [clientes, setClientes] = useState<ClienteEcossistemaRow[]>([])
+  const [clienteSel, setClienteSel] = useState<ClienteEcossistemaRow | null>(null)
+  const [erroCliente, setErroCliente] = useState('')
+  const [enviandoSolic, setEnviandoSolic] = useState(false)
+  const [okSolic, setOkSolic] = useState('')
 
   const hoje = hojeIsoLocal()
   const now = new Date()
@@ -140,8 +147,15 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
     setSlotsMsg('')
     setErro('')
     setDiaSlot(null)
-    setRecomendarAberto(false)
     setBuscando(false)
+    setFaseParceiro('agenda')
+    setTermoCliente('')
+    setClientes([])
+    setClienteSel(null)
+    setErroCliente('')
+    setEnviandoSolic(false)
+    setOkSolic('')
+    setBuscandoCliente(false)
   }, [])
 
   useEffect(() => {
@@ -261,8 +275,52 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
   const escolher = (p: ProfissionalEcossistemaRow) => {
     setSelecionado(p)
     setDiaSlot(null)
+    setFaseParceiro('agenda')
+    setClienteSel(null)
+    setClientes([])
+    setTermoCliente('')
+    setErroCliente('')
+    setOkSolic('')
     void carregarSlots(p.id)
   }
+
+  /** Busca cliente turista (recomendação direcionada). */
+  useEffect(() => {
+    if (!aberto || !selecionado || faseParceiro !== 'cliente') return
+    const q = termoCliente.trim().replace(/^@+/, '')
+    if (q.length < 2) {
+      setClientes([])
+      setBuscandoCliente(false)
+      return
+    }
+    const id = window.setTimeout(() => {
+      void (async () => {
+        setBuscandoCliente(true)
+        setErroCliente('')
+        try {
+          const res = await fetch(
+            `/api/profissional/buscar-cliente-ecossistema?q=${encodeURIComponent(q)}`,
+          )
+          const json = (await res.json()) as {
+            clientes?: ClienteEcossistemaRow[]
+            error?: string
+          }
+          if (!res.ok) {
+            setErroCliente(String(json.error ?? t('ecossistemaErroCliente')))
+            setClientes([])
+            return
+          }
+          setClientes(Array.isArray(json.clientes) ? json.clientes : [])
+        } catch {
+          setErroCliente(t('ecossistemaErroCliente'))
+          setClientes([])
+        } finally {
+          setBuscandoCliente(false)
+        }
+      })()
+    }, 300)
+    return () => window.clearTimeout(id)
+  }, [aberto, selecionado, faseParceiro, termoCliente, t])
 
   const slotsPorData = useMemo(() => {
     const map = new Map<string, Slot[]>()
@@ -290,30 +348,66 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
     return slotsPorData.get(diaSlot) ?? []
   }, [diaSlot, slotsPorData])
 
+  const dataAgendadaIso = useMemo(() => {
+    if (!diaSlot) return null
+    const slot = slotsDoDia[0]
+    const hora = slot?.hora_inicio != null ? String(slot.hora_inicio).slice(0, 5) : '09:00'
+    const [hh, mm] = hora.split(':').map((x) => Number(x))
+    if (!Number.isFinite(hh) || !Number.isFinite(mm)) return `${diaSlot}T12:00:00`
+    return `${diaSlot}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00`
+  }, [diaSlot, slotsDoDia])
+
+  const solicitarAtendimento = async () => {
+    if (!selecionado || !clienteSel) {
+      setErroCliente(t('ecossistemaEscolhaCliente'))
+      return
+    }
+    setEnviandoSolic(true)
+    setErroCliente('')
+    setOkSolic('')
+    try {
+      const res = await fetch('/api/profissional/ecossistema/solicitar-atendimento', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          profissional_indicado_id: selecionado.id,
+          turista_usuario_id: clienteSel.usuario_id,
+          data_agendada: dataAgendadaIso,
+        }),
+      })
+      const json = (await res.json()) as { error?: string; ok?: boolean }
+      if (!res.ok) {
+        setErroCliente(String(json.error ?? t('ecossistemaErroSolicitar')))
+        return
+      }
+      setOkSolic(t('ecossistemaSolicitadoOk'))
+    } catch {
+      setErroCliente(t('ecossistemaErroSolicitar'))
+    } finally {
+      setEnviandoSolic(false)
+    }
+  }
+
   const resultadosOnlineFiltrados = useMemo(() => {
     if (etapa !== 'algoritmo') return resultados
     return resultados.filter((p) => categoriaNaAba(p.categorias, abaOnline))
   }, [etapa, resultados, abaOnline])
 
-  const profissionalPopup: ProfissionalRecomendacaoInfo | null = selecionado
-    ? {
-        id: selecionado.id,
-        usuarioId: selecionado.usuario_id,
-        nome: selecionado.nome,
-        nomeUsuario: selecionado.username,
-        categorias: selecionado.categorias,
-        notaMedia: selecionado.nota_media,
-        totalAvaliacoes: selecionado.total_avaliacoes,
-        paisBandeira: selecionado.pais_bandeira,
-      }
-    : null
-
   const voltarCabecalho = () => {
+    if (selecionado && faseParceiro === 'cliente') {
+      setFaseParceiro('agenda')
+      setErroCliente('')
+      setOkSolic('')
+      return
+    }
     if (selecionado) {
       setSelecionado(null)
       setSlots([])
       setSlotsMsg('')
       setDiaSlot(null)
+      setFaseParceiro('agenda')
+      setClienteSel(null)
       return
     }
     if (etapa !== 'escolha') {
@@ -345,7 +439,11 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
               id="drawer-ecossistema-titulo"
               className="min-w-0 flex-1 truncate text-base font-bold uppercase tracking-wide text-white"
             >
-              {selecionado ? selecionado.nome : t('espacoAcao.ecossistema.titulo')}
+              {selecionado
+                ? faseParceiro === 'cliente'
+                  ? t('ecossistemaBuscaClienteTitulo')
+                  : selecionado.nome
+                : t('espacoAcao.ecossistema.titulo')}
             </h2>
             {!selecionado && etapa === 'escolha' ? (
               <button
@@ -372,7 +470,7 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4" data-modal-scroll-lock-scrollable>
-          {selecionado ? (
+          {selecionado && faseParceiro === 'agenda' ? (
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-gray-100">
@@ -527,11 +625,155 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
 
               <button
                 type="button"
-                onClick={() => setRecomendarAberto(true)}
+                onClick={() => {
+                  setFaseParceiro('cliente')
+                  setErroCliente('')
+                  setOkSolic('')
+                }}
                 className="w-full rounded-xl py-3 text-sm font-extrabold uppercase tracking-wide text-white shadow-md"
                 style={{ backgroundColor: VERDE }}
               >
-                {t('ecossistemaRecomendar')}
+                {t('ecossistemaBuscaClienteTitulo')}
+              </button>
+            </div>
+          ) : faseParceiro === 'cliente' && selecionado ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-gray-100">
+                  {selecionado.foto_url ? (
+                    <AvatarImage
+                      src={selecionado.foto_url}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="48px"
+                    />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center text-base font-bold text-[#0097b2]">
+                      {selecionado.nome.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-gray-900">{selecionado.nome}</p>
+                  <p className="truncate text-xs text-gray-500">
+                    {rotuloCategoriaProfissionalRecomendacao(selecionado.categorias)}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-bold text-[#0097b2]">{t('ecossistemaBuscaClienteTitulo')}</p>
+                <p className="mt-1 text-xs text-gray-500">{t('ecossistemaBuscaClienteHint')}</p>
+              </div>
+
+              <label className="relative block">
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                  aria-hidden
+                />
+                <input
+                  type="search"
+                  value={termoCliente}
+                  onChange={(e) => {
+                    setTermoCliente(e.target.value)
+                    setClienteSel(null)
+                    setOkSolic('')
+                  }}
+                  placeholder={t('ecossistemaBuscaClientePlaceholder')}
+                  className="w-full rounded-xl border border-gray-200 bg-[#f5f5f5] py-3 pl-10 pr-3 text-sm outline-none ring-[#0097b2] focus:bg-white focus:ring-2"
+                  autoComplete="off"
+                  autoFocus
+                />
+              </label>
+
+              {erroCliente ? (
+                <p className="rounded-xl bg-red-50 px-3 py-2 text-center text-xs text-red-700">
+                  {erroCliente}
+                </p>
+              ) : null}
+              {okSolic ? (
+                <p className="rounded-xl bg-emerald-50 px-3 py-2 text-center text-xs font-semibold text-emerald-800">
+                  {okSolic}
+                </p>
+              ) : null}
+
+              {clienteSel ? (
+                <div className="rounded-xl border border-[#0097b2]/30 bg-[#0097b2]/5 px-3 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[#0097b2]">
+                    {t('ecossistemaClienteSelecionado')}
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-gray-900">{clienteSel.nome}</p>
+                  {clienteSel.username ? (
+                    <p className="text-xs text-gray-500">@{clienteSel.username}</p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {buscandoCliente ? (
+                <p className="animate-pulse py-4 text-center text-sm text-gray-400">…</p>
+              ) : null}
+
+              {!buscandoCliente &&
+              termoCliente.trim().length >= 2 &&
+              clientes.length === 0 &&
+              !erroCliente ? (
+                <p className="py-4 text-center text-sm text-gray-500">{t('ecossistemaSemCliente')}</p>
+              ) : null}
+
+              <ul className="space-y-2">
+                {clientes.map((c) => {
+                  const ativo = clienteSel?.usuario_id === c.usuario_id
+                  return (
+                    <li key={c.usuario_id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClienteSel(c)
+                          setOkSolic('')
+                          setErroCliente('')
+                        }}
+                        className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition ${
+                          ativo
+                            ? 'border-[#0097b2] bg-[#0097b2]/10'
+                            : 'border-gray-100 bg-[#f5f5f5] hover:border-[#0097b2]/40'
+                        }`}
+                      >
+                        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-white">
+                          {c.foto_url ? (
+                            <AvatarImage
+                              src={c.foto_url}
+                              alt=""
+                              fill
+                              className="object-cover"
+                              sizes="40px"
+                            />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center text-sm font-bold text-[#0097b2]">
+                              {c.nome.charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-gray-900">{c.nome}</p>
+                          {c.username ? (
+                            <p className="truncate text-xs text-gray-500">@{c.username}</p>
+                          ) : null}
+                        </div>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+
+              <button
+                type="button"
+                onClick={() => void solicitarAtendimento()}
+                disabled={enviandoSolic || !clienteSel || Boolean(okSolic)}
+                className="w-full rounded-xl py-3 text-sm font-extrabold uppercase tracking-wide text-white shadow-md disabled:opacity-60"
+                style={{ backgroundColor: VERDE }}
+              >
+                {enviandoSolic ? t('ecossistemaSolicitando') : t('ecossistemaSolicitarAtendimento')}
               </button>
             </div>
           ) : etapa === 'escolha' ? (
@@ -554,10 +796,10 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
                   setErro('')
                   setResultados([])
                 }}
-                className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl px-4 py-4 text-center text-white shadow-md"
+                className="flex w-full flex-row items-center justify-center gap-3 rounded-2xl px-4 py-4 text-center text-white shadow-md"
                 style={{ backgroundColor: COR }}
               >
-                <UserSearch className="h-7 w-7" aria-hidden />
+                <UserSearch className="h-6 w-6 shrink-0" aria-hidden />
                 <span className="text-base font-extrabold uppercase tracking-wide">
                   {t('ecossistemaBtnManual')}
                 </span>
@@ -566,10 +808,10 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
               <button
                 type="button"
                 onClick={abrirAlgoritmo}
-                className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl px-4 py-4 text-center text-white shadow-md"
+                className="flex w-full flex-row items-center justify-center gap-3 rounded-2xl px-4 py-4 text-center text-white shadow-md"
                 style={{ backgroundColor: VERDE }}
               >
-                <Radio className="h-7 w-7" aria-hidden />
+                <Radio className="h-6 w-6 shrink-0" aria-hidden />
                 <span className="text-base font-extrabold uppercase tracking-wide">
                   {t('ecossistemaBtnApp')}
                 </span>
@@ -706,15 +948,6 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
           )}
         </div>
       </div>
-
-      {profissionalPopup ? (
-        <PopupRecomendarProfissional
-          aberto={recomendarAberto}
-          onFechar={() => setRecomendarAberto(false)}
-          profissional={profissionalPopup}
-          origemIndicacao="ecossistema"
-        />
-      ) : null}
     </>,
     document.body,
   )
