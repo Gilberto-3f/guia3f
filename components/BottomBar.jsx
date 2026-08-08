@@ -593,7 +593,7 @@ export default function BottomBar() {
       ref={rootRef}
       className="fixed bottom-0 left-0 right-0 z-50 mx-auto w-full max-w-[var(--app-column)] border-t border-gray-200 bg-white shadow-lg"
     >
-      <div className="flex items-center justify-around pt-2 pb-[max(0.25rem,env(safe-area-inset-bottom,0px))]">
+      <div className="flex items-center justify-around pt-2 pb-1">
         <Link
           href="/guia"
           onPointerDown={antesDeNavegar}
