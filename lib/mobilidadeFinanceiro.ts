@@ -141,8 +141,8 @@ export async function liquidarComissaoCorridaMobilidade(
       const rRegular = await inserirNotificacaoCanalFinanceiroProfissional(admin, {
         profissionalUsuarioId: params.profissionalUsuarioId,
         tipo: 'extrato_comissao',
-        titulo: 'Corrida concluída — comissão (mobilidade tabelada)',
-        mensagem: `${rota}. Valor da corrida ${formatBrl(valorCorrida)}. Sua parte na taxa (${taxaPct}%): ${formatBrl(valorRegular)}. Pagamento: ${pagamentoInformado}.`,
+        titulo: 'Resumo da corrida — comissão',
+        mensagem: `Resumo da corrida: ${rota}. Valor ${formatBrl(valorCorrida)}. Sua parte na taxa (${taxaPct}%): ${formatBrl(valorRegular)}. Pagamento: ${pagamentoInformado}.`,
         valor: valorRegular,
         comprovanteDetalhes: {
           kind: 'mobilidade_corrida',
@@ -162,6 +162,8 @@ export async function liquidarComissaoCorridaMobilidade(
           pagamento_confirmado_dinheiro: pagamentoConfirmadoDinheiro,
           bonus_voluntario: bonusVoluntario,
           recomendacao_id: recId || null,
+          origem_nome: row.origem_nome,
+          destino_nome: row.destino_nome,
         },
       })
       if (rRegular.id) canalIds.push(rRegular.id)
@@ -171,8 +173,8 @@ export async function liquidarComissaoCorridaMobilidade(
       const rInd = await inserirNotificacaoCanalFinanceiroProfissional(admin, {
         profissionalUsuarioId: indicadorUsuarioId,
         tipo: 'extrato_parceria',
-        titulo: 'Parceria — comissão de corrida indicada',
-        mensagem: `Corrida ${rota} concluída. Sua parte na taxa (${taxaPct}%): ${formatBrl(valorIndicador)}.`,
+        titulo: 'Resumo da corrida — parceria',
+        mensagem: `Resumo da corrida: ${rota}. Sua parte na taxa (${taxaPct}%): ${formatBrl(valorIndicador)}.`,
         valor: valorIndicador,
         comprovanteDetalhes: {
           kind: 'mobilidade_corrida',
@@ -186,6 +188,8 @@ export async function liquidarComissaoCorridaMobilidade(
           pagamento: pagamentoInformado,
           recomendacao_id: recId,
           profissional_regular_usuario_id: params.profissionalUsuarioId,
+          origem_nome: row.origem_nome,
+          destino_nome: row.destino_nome,
         },
       })
       if (rInd.id) canalIds.push(rInd.id)
@@ -196,8 +200,8 @@ export async function liquidarComissaoCorridaMobilidade(
     const rBonus = await inserirNotificacaoCanalFinanceiroProfissional(admin, {
       profissionalUsuarioId: params.profissionalUsuarioId,
       tipo: 'extrato_comissao',
-      titulo: 'Bônus voluntário da corrida',
-      mensagem: `Turista ofereceu bônus de ${formatBrl(bonusVoluntario)} (fora da taxa da plataforma).`,
+      titulo: 'Resumo da corrida — bônus',
+      mensagem: `Resumo da corrida: turista ofereceu bônus de ${formatBrl(bonusVoluntario)} (fora da taxa da plataforma).`,
       valor: bonusVoluntario,
       comprovanteDetalhes: {
         kind: 'mobilidade_bonus_voluntario',
@@ -209,11 +213,12 @@ export async function liquidarComissaoCorridaMobilidade(
   }
 
   if (urbana) {
+    const rotaUrb = `${row.origem_nome ?? '—'} → ${row.destino_nome ?? '—'}`
     const rUrb = await inserirNotificacaoCanalFinanceiroProfissional(admin, {
       profissionalUsuarioId: params.profissionalUsuarioId,
       tipo: 'extrato_comissao',
-      titulo: 'Corrida urbana concluída',
-      mensagem: `Modalidade app urbano — taxa de plataforma ${taxaPct}%. Valor informado: ${formatBrl(valorCorrida)}.`,
+      titulo: 'Resumo da corrida — urbana',
+      mensagem: `Resumo da corrida: ${rotaUrb}. Modalidade app urbano — taxa ${taxaPct}%. Valor informado: ${formatBrl(valorCorrida)}.`,
       valor: valorCorrida > 0 ? valorCorrida : null,
       comprovanteDetalhes: {
         kind: 'mobilidade_corrida',
@@ -222,6 +227,8 @@ export async function liquidarComissaoCorridaMobilidade(
         taxa_pct: taxaPct,
         valor_corrida: valorCorrida,
         pagamento: pagamentoInformado,
+        origem_nome: row.origem_nome,
+        destino_nome: row.destino_nome,
       },
     })
     if (rUrb.id) canalIds.push(rUrb.id)

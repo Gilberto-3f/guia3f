@@ -189,6 +189,73 @@ export async function registrarCompraTuristaUso(
   })
 }
 
+/** Corrida de mobilidade concluída → aba SERVIÇOS (Minhas compras). */
+export async function registrarCompraTuristaCorridaMobilidade(
+  supabase: SupabaseClient,
+  params: {
+    turistaUsuarioId: string
+    solicitacaoId: string
+    profissionalUsuarioId: string
+    profissionalNome: string
+    profissionalUsername?: string | null
+    profissionalFotoUrl?: string | null
+    origemNome?: string | null
+    destinoNome?: string | null
+    valor?: number | null
+    pagamento?: string | null
+    lugares?: number | null
+    dataAgendada?: string | null
+    modalidade?: string | null
+    concluidoEm?: string | null
+  },
+): Promise<void> {
+  const turistaId = String(params.turistaUsuarioId ?? '').trim()
+  const solicitacaoId = String(params.solicitacaoId ?? '').trim()
+  if (!turistaId || !solicitacaoId) return
+
+  const username = String(params.profissionalUsername ?? '')
+    .replace(/^@+/, '')
+    .trim()
+  const nome = String(params.profissionalNome ?? 'Profissional').trim() || 'Profissional'
+  const origem = String(params.origemNome ?? '').trim() || '—'
+  const destino = String(params.destinoNome ?? '').trim() || '—'
+  const agendado = Boolean(params.dataAgendada)
+  const valor =
+    params.valor != null && Number.isFinite(Number(params.valor)) ? Number(params.valor) : null
+  const lugares =
+    params.lugares != null && Number.isFinite(Number(params.lugares))
+      ? Number(params.lugares)
+      : 1
+  const concluidoEm = params.concluidoEm || new Date().toISOString()
+
+  await upsertCompraTurista(supabase, {
+    turistaUsuarioId: turistaId,
+    tipo: 'mobilidade',
+    referenciaId: solicitacaoId,
+    profissionalUsuarioId: params.profissionalUsuarioId || null,
+    titulo: nome,
+    descricao: `${origem} → ${destino}`,
+    status: 'registrada',
+    metadata: {
+      kind: 'mobilidade_corrida',
+      solicitacao_id: solicitacaoId,
+      profissional_nome: nome,
+      profissional_username: username || null,
+      profissional_foto_url: params.profissionalFotoUrl ?? null,
+      origem_nome: origem,
+      destino_nome: destino,
+      valor_estimado: valor,
+      pagamento: params.pagamento ?? null,
+      lugares,
+      data_agendada: params.dataAgendada ?? null,
+      modalidade: params.modalidade ?? null,
+      atendimento: agendado ? 'agendado' : 'imediato',
+      concluido_em: concluidoEm,
+    },
+    resetVisto: true,
+  })
+}
+
 export async function contarComprasTuristaPendentes(
   supabase: SupabaseClient,
   turistaUsuarioId: string,

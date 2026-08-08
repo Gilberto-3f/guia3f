@@ -7,6 +7,7 @@ import {
 } from '@/lib/manifestoDiario'
 import { encerrarConversaCorrida } from '@/lib/mobilidadeChatCorrida'
 import { liquidarComissaoCorridaMobilidade } from '@/lib/mobilidadeFinanceiro'
+import { registrarCompraTuristaCorridaMobilidade } from '@/lib/turistaCompras'
 
 function metaObj(raw: unknown): Record<string, unknown> {
   return typeof raw === 'object' && raw != null && !Array.isArray(raw)
@@ -132,14 +133,18 @@ export async function concluirCorridaMobilidade(
 ): Promise<ConcluirCorridaResult> {
   const { data: prof } = await admin
     .from('profissionais')
-    .select('id, placa_vermelha, categorias')
+    .select(
+      'id, placa_vermelha, categorias, nome_completo, nome_usuario, foto_perfil_url, foto_url',
+    )
     .eq('usuario_id', params.profissionalUsuarioId)
     .maybeSingle()
   if (!prof?.id) return { ok: false, error: 'Profissional não encontrado.' }
 
   const { data: row } = await admin
     .from('solicitacao_mobilidade')
-    .select('id, status, profissional_id, metadata, turista_id')
+    .select(
+      'id, status, profissional_id, metadata, turista_id, origem_nome, destino_nome, valor_estimado, pagamento, lugares, data_agendada, modalidade',
+    )
     .eq('id', params.solicitacaoId)
     .maybeSingle()
 
@@ -212,6 +217,40 @@ export async function concluirCorridaMobilidade(
     .eq('id', prof.id)
 
   await encerrarConversaCorrida(admin, params.solicitacaoId)
+
+  const fotoProf =
+    prof.foto_perfil_url != null && String(prof.foto_perfil_url).trim()
+      ? String(prof.foto_perfil_url)
+      : prof.foto_url != null && String(prof.foto_url).trim()
+        ? String(prof.foto_url)
+        : null
+
+  try {
+    await registrarCompraTuristaCorridaMobilidade(admin, {
+      turistaUsuarioId: String(row.turista_id),
+      solicitacaoId: params.solicitacaoId,
+      profissionalUsuarioId: params.profissionalUsuarioId,
+      profissionalNome: String(prof.nome_completo ?? 'Profissional'),
+      profissionalUsername:
+        prof.nome_usuario != null ? String(prof.nome_usuario).replace(/^@+/, '') : null,
+      profissionalFotoUrl: fotoProf,
+      origemNome: row.origem_nome != null ? String(row.origem_nome) : null,
+      destinoNome: row.destino_nome != null ? String(row.destino_nome) : null,
+      valor:
+        fin.liquidacao.valorCorrida > 0
+          ? fin.liquidacao.valorCorrida
+          : row.valor_estimado != null
+            ? Number(row.valor_estimado)
+            : null,
+      pagamento: row.pagamento != null ? String(row.pagamento) : null,
+      lugares: row.lugares != null ? Number(row.lugares) : null,
+      dataAgendada: row.data_agendada != null ? String(row.data_agendada) : null,
+      modalidade: row.modalidade != null ? String(row.modalidade) : null,
+      concluidoEm: agora,
+    })
+  } catch {
+    /* histórico não bloqueia conclusão */
+  }
 
   return {
     ok: true,

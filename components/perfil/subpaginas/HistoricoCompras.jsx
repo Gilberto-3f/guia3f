@@ -2,7 +2,16 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
-import { Briefcase, ShoppingBag, Bed, Ticket, Car, ChevronDown, ChevronUp } from 'lucide-react'
+import {
+  Briefcase,
+  ShoppingBag,
+  Bed,
+  Ticket,
+  Car,
+  ChevronDown,
+  ChevronUp,
+  UserRound,
+} from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import {
   listarComprasTurista,
@@ -10,12 +19,15 @@ import {
 } from '@/lib/turistaCompras'
 import { rotuloFormaPagamentoReservaHospedagem } from '@/lib/reservaHospedagem'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
+import AvatarImage from '@/components/AvatarImage'
+import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 
 const STATUS_ROTULO = {
   pendente: 'Aguardando anfitrião',
   confirmada: 'Confirmada',
   cancelada: 'Cancelada',
   registrada: 'Registrada',
+  concluida: 'Concluída',
 }
 
 function iconeCompra(tipo) {
@@ -26,7 +38,9 @@ function iconeCompra(tipo) {
 }
 
 function statusCls(status) {
-  if (status === 'confirmada' || status === 'registrada') return 'bg-emerald-50 text-emerald-700'
+  if (status === 'confirmada' || status === 'registrada' || status === 'concluida') {
+    return 'bg-emerald-50 text-emerald-700'
+  }
   if (status === 'pendente') return 'bg-amber-50 text-amber-700'
   if (status === 'cancelada') return 'bg-red-50 text-red-700'
   return 'bg-gray-100 text-gray-600'
@@ -37,6 +51,38 @@ function formatarData(iso) {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function formatarDataHora(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function formatBrl(n) {
+  const v = Number(n)
+  if (!Number.isFinite(v)) return null
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function rotuloPagamentoMobilidade(pag) {
+  const p = String(pag ?? '').trim().toLowerCase()
+  if (!p) return null
+  if (p === 'dinheiro') return 'Dinheiro'
+  if (p === 'pix') return 'Pix'
+  if (p === 'cartao' || p === 'cartao_credito' || p === 'cartao_debito') return 'Cartão'
+  return p
+}
+
+function ehMobilidade(tipo) {
+  return tipo === 'mobilidade' || tipo === 'mobilidade_corrida'
 }
 
 function podeCancelarReserva(item) {
@@ -73,7 +119,9 @@ export default function HistoricoCompras({ usuarioId }) {
       if (aba === 'servicos') {
         const { data: sols } = await supabase
           .from('solicitacao_mobilidade')
-          .select('id, status, created_at, profissional_id, profissionais(nome_completo, nome_usuario)')
+          .select(
+            'id, status, created_at, profissional_id, origem_nome, destino_nome, valor_estimado, pagamento, lugares, data_agendada, profissionais(nome_completo, nome_usuario, foto_perfil_url, foto_url, usuario_id)',
+          )
           .eq('turista_id', usuarioId)
           .order('created_at', { ascending: false })
           .limit(40)
@@ -92,15 +140,41 @@ export default function HistoricoCompras({ usuarioId }) {
                 : prof?.nome_usuario != null
                   ? String(prof.nome_usuario)
                   : 'Profissional'
+            const foto =
+              prof?.foto_perfil_url != null && String(prof.foto_perfil_url).trim()
+                ? String(prof.foto_perfil_url)
+                : prof?.foto_url != null && String(prof.foto_url).trim()
+                  ? String(prof.foto_url)
+                  : null
             return {
               id: `mob-${s.id}`,
-              titulo: `Mobilidade — ${nome}`,
-              descricao: null,
+              titulo: nome,
+              descricao:
+                s.origem_nome || s.destino_nome
+                  ? `${s.origem_nome ?? '—'} → ${s.destino_nome ?? '—'}`
+                  : null,
               status: String(s.status ?? 'pendente'),
               registrado_em: String(s.created_at ?? ''),
               tipo: 'mobilidade',
               empresa_id: null,
+              profissional_usuario_id: prof?.usuario_id != null ? String(prof.usuario_id) : null,
               pendente: false,
+              metadata: {
+                kind: 'mobilidade_corrida',
+                profissional_nome: nome,
+                profissional_username:
+                  prof?.nome_usuario != null
+                    ? String(prof.nome_usuario).replace(/^@+/, '')
+                    : null,
+                profissional_foto_url: foto,
+                origem_nome: s.origem_nome != null ? String(s.origem_nome) : null,
+                destino_nome: s.destino_nome != null ? String(s.destino_nome) : null,
+                valor_estimado: s.valor_estimado != null ? Number(s.valor_estimado) : null,
+                pagamento: s.pagamento != null ? String(s.pagamento) : null,
+                lugares: s.lugares != null ? Number(s.lugares) : null,
+                data_agendada: s.data_agendada != null ? String(s.data_agendada) : null,
+                atendimento: s.data_agendada ? 'agendado' : 'imediato',
+              },
             }
           })
         setMobilidadeExtra(extra)
@@ -130,6 +204,11 @@ export default function HistoricoCompras({ usuarioId }) {
   const abrirEmpresa = (empresaId) => {
     if (!empresaId) return
     router.push(`/empresa/${empresaId}`)
+  }
+
+  const abrirPerfilProf = (usuarioIdProf) => {
+    if (!usuarioIdProf) return
+    router.push(`/perfil/${usuarioIdProf}`)
   }
 
   const cancelarReserva = async (item) => {
@@ -204,49 +283,117 @@ export default function HistoricoCompras({ usuarioId }) {
               const status = String(item.status ?? 'registrada')
               const meta =
                 item.metadata && typeof item.metadata === 'object' ? item.metadata : {}
-              const formaPag = rotuloFormaPagamentoReservaHospedagem(meta.forma_pagamento)
+              const mobilidade = ehMobilidade(item.tipo)
+              const formaPag = mobilidade
+                ? rotuloPagamentoMobilidade(meta.pagamento)
+                : rotuloFormaPagamentoReservaHospedagem(meta.forma_pagamento)
               const motivoRecusa = meta.motivo_recusa != null ? String(meta.motivo_recusa) : null
-              const expandivel = podeCancelarReserva(item)
+              const expandivel = podeCancelarReserva(item) || mobilidade
               const expandido = abertoId === item.id
+              const fotoUrl =
+                meta.profissional_foto_url != null ? String(meta.profissional_foto_url) : null
+              const username = String(meta.profissional_username ?? '')
+                .replace(/^@+/, '')
+                .trim()
+              const nomeProf =
+                meta.profissional_nome != null
+                  ? String(meta.profissional_nome)
+                  : String(item.titulo ?? 'Profissional')
+              const valorTxt = formatBrl(meta.valor_estimado)
+              const quando =
+                formatarDataHora(meta.concluido_em) || formatarDataHora(item.registrado_em)
 
               return (
                 <li key={item.id} className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
                   <div className="flex w-full items-start gap-3 px-3 py-3 text-left">
-                    <button
-                      type="button"
-                      onClick={() => abrirEmpresa(item.empresa_id)}
-                      disabled={!item.empresa_id}
-                      className="flex min-w-0 flex-1 items-start gap-3 disabled:cursor-default"
-                    >
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0097b2]/10 text-[#0097b2]">
-                        <Ico className="h-5 w-5" strokeWidth={1.75} aria-hidden />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-semibold text-gray-900">{item.titulo}</span>
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusCls(status)}`}
-                          >
-                            {STATUS_ROTULO[status] ?? status}
+                    {mobilidade ? (
+                      <button
+                        type="button"
+                        onClick={() => abrirPerfilProf(item.profissional_usuario_id)}
+                        disabled={!item.profissional_usuario_id}
+                        className="flex min-w-0 flex-1 items-start gap-3 disabled:cursor-default"
+                      >
+                        <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-[#0097b2]/10">
+                          {fotoUrl ? (
+                            <AvatarImage
+                              src={fotoUrl}
+                              alt=""
+                              fill
+                              className="object-cover"
+                              sizes="40px"
+                            />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center text-[#0097b2]">
+                              <UserRound className="h-5 w-5" aria-hidden />
+                            </span>
+                          )}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold leading-tight text-gray-900">
+                              {nomeProf}
+                            </span>
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusCls(status)}`}
+                            >
+                              {STATUS_ROTULO[status] ?? status}
+                            </span>
+                            {item.pendente ? (
+                              <span className="h-2 w-2 shrink-0 rounded-full bg-[#00D443]" aria-label="Novo" />
+                            ) : null}
                           </span>
-                          {item.pendente ? (
-                            <span className="h-2 w-2 shrink-0 rounded-full bg-[#00D443]" aria-label="Novo" />
+                          {username ? (
+                            <UsuarioHandleVerificado
+                              username={username}
+                              asButton={false}
+                              className="mt-0 text-xs font-normal leading-tight text-gray-600"
+                            />
                           ) : null}
+                          {item.descricao ? (
+                            <span className="mt-0.5 block text-xs text-gray-600">{item.descricao}</span>
+                          ) : null}
+                          <span className="mt-1 block text-[11px] text-gray-400">
+                            {formatarData(item.registrado_em)}
+                          </span>
                         </span>
-                        {item.descricao ? (
-                          <span className="mt-0.5 block text-xs text-gray-600">{item.descricao}</span>
-                        ) : null}
-                        {formaPag ? (
-                          <span className="mt-0.5 block text-xs text-gray-500">Pagamento: {formaPag}</span>
-                        ) : null}
-                        {motivoRecusa ? (
-                          <span className="mt-0.5 block text-xs text-red-600">Motivo: {motivoRecusa}</span>
-                        ) : null}
-                        <span className="mt-1 block text-[11px] text-gray-400">
-                          {formatarData(item.registrado_em)}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => abrirEmpresa(item.empresa_id)}
+                        disabled={!item.empresa_id}
+                        className="flex min-w-0 flex-1 items-start gap-3 disabled:cursor-default"
+                      >
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0097b2]/10 text-[#0097b2]">
+                          <Ico className="h-5 w-5" strokeWidth={1.75} aria-hidden />
                         </span>
-                      </span>
-                    </button>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold text-gray-900">{item.titulo}</span>
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusCls(status)}`}
+                            >
+                              {STATUS_ROTULO[status] ?? status}
+                            </span>
+                            {item.pendente ? (
+                              <span className="h-2 w-2 shrink-0 rounded-full bg-[#00D443]" aria-label="Novo" />
+                            ) : null}
+                          </span>
+                          {item.descricao ? (
+                            <span className="mt-0.5 block text-xs text-gray-600">{item.descricao}</span>
+                          ) : null}
+                          {formaPag ? (
+                            <span className="mt-0.5 block text-xs text-gray-500">Pagamento: {formaPag}</span>
+                          ) : null}
+                          {motivoRecusa ? (
+                            <span className="mt-0.5 block text-xs text-red-600">Motivo: {motivoRecusa}</span>
+                          ) : null}
+                          <span className="mt-1 block text-[11px] text-gray-400">
+                            {formatarData(item.registrado_em)}
+                          </span>
+                        </span>
+                      </button>
+                    )}
 
                     {expandivel ? (
                       <button
@@ -254,7 +401,7 @@ export default function HistoricoCompras({ usuarioId }) {
                         onClick={() => setAbertoId(expandido ? null : item.id)}
                         className="mt-1 shrink-0 rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
                         aria-expanded={expandido}
-                        aria-label={expandido ? 'Recolher opções' : 'Expandir opções'}
+                        aria-label={expandido ? 'Recolher' : 'Ver resumo'}
                       >
                         {expandido ? (
                           <ChevronUp className="h-5 w-5" aria-hidden />
@@ -267,14 +414,53 @@ export default function HistoricoCompras({ usuarioId }) {
 
                   {expandivel && expandido ? (
                     <div className="border-t border-gray-100 px-3 py-3">
-                      <button
-                        type="button"
-                        disabled={cancelandoId === item.id}
-                        onClick={() => void cancelarReserva(item)}
-                        className="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
-                      >
-                        {cancelandoId === item.id ? 'Cancelando…' : 'Cancelar reserva'}
-                      </button>
+                      {mobilidade ? (
+                        <ul className="space-y-1.5 text-sm text-gray-800">
+                          {quando ? (
+                            <li>
+                              <span className="font-semibold text-gray-600">Quando: </span>
+                              {quando}
+                            </li>
+                          ) : null}
+                          <li>
+                            <span className="font-semibold text-gray-600">Origem: </span>
+                            {meta.origem_nome != null ? String(meta.origem_nome) : '—'}
+                          </li>
+                          <li>
+                            <span className="font-semibold text-gray-600">Destino: </span>
+                            {meta.destino_nome != null ? String(meta.destino_nome) : '—'}
+                          </li>
+                          {valorTxt ? (
+                            <li>
+                              <span className="font-semibold text-gray-600">Valor: </span>
+                              {valorTxt}
+                            </li>
+                          ) : null}
+                          {formaPag ? (
+                            <li>
+                              <span className="font-semibold text-gray-600">Pagamento: </span>
+                              {formaPag}
+                            </li>
+                          ) : null}
+                          <li>
+                            <span className="font-semibold text-gray-600">Passageiros: </span>
+                            {meta.lugares != null ? Number(meta.lugares) : 1}
+                          </li>
+                          <li>
+                            <span className="font-semibold text-gray-600">Tipo: </span>
+                            {meta.atendimento === 'agendado' ? 'Agendado' : 'Imediato'}
+                          </li>
+                        </ul>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={cancelandoId === item.id}
+                          onClick={() => void cancelarReserva(item)}
+                          className="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                        >
+                          {cancelandoId === item.id ? 'Cancelando…' : 'Cancelar reserva'}
+                        </button>
+                      )}
                     </div>
                   ) : null}
                 </li>
