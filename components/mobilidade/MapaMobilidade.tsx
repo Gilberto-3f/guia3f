@@ -36,6 +36,8 @@ type Props = {
   carregandoPins?: boolean
   /** Oculta aviso de empresas vazias (modo corrida profissional). */
   ocultarAvisoEmpresas?: boolean
+  /** Etapa 4: atendimento imediato do pro — sem pins de empresa. */
+  ocultarPinsEmpresas?: boolean
   className?: string
 }
 
@@ -146,6 +148,7 @@ export default function MapaMobilidade({
   visitanteParceria = null,
   carregandoPins = false,
   ocultarAvisoEmpresas = false,
+  ocultarPinsEmpresas = false,
   className = '',
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -311,6 +314,11 @@ export default function MapaMobilidade({
     for (const m of markersEmpresaRef.current) m.remove()
     markersEmpresaRef.current = []
 
+    if (ocultarPinsEmpresas) {
+      setSelecionada(null)
+      return
+    }
+
     const lista = empresas.slice(0, MAX_PINS_EMPRESA)
     for (const emp of lista) {
       if (!Number.isFinite(emp.latitude) || !Number.isFinite(emp.longitude)) continue
@@ -323,7 +331,7 @@ export default function MapaMobilidade({
         .addTo(map)
       markersEmpresaRef.current.push(marker)
     }
-  }, [empresas, mapReady])
+  }, [empresas, mapReady, ocultarPinsEmpresas])
 
   useEffect(() => {
     const map = mapRef.current
@@ -480,7 +488,7 @@ export default function MapaMobilidade({
         </div>
       ) : null}
 
-      {mapReady && !carregandoPins && !ocultarAvisoEmpresas && empresas.length === 0 ? (
+      {mapReady && !carregandoPins && !ocultarAvisoEmpresas && !ocultarPinsEmpresas && empresas.length === 0 ? (
         <div className="pointer-events-none absolute inset-x-3 top-16 z-20 mx-auto max-w-sm rounded-lg bg-white/90 px-3 py-2 text-center text-[11px] text-gray-600 shadow">
           Nenhuma empresa com latitude/longitude cadastrada no Guia ainda.
         </div>

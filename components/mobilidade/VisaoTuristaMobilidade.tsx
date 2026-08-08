@@ -64,6 +64,24 @@ type Props = {
   /** Marcadores da corrida (partida / destino) sobre o mapa. */
   origemCorrida?: { lat: number; lng: number; label?: string } | null
   destinoCorrida?: { lat: number; lng: number; label?: string } | null
+  /** Atendimento imediato do pro: esconde pins de empresas. */
+  ocultarPinsEmpresas?: boolean
+  /** Notifica corrida ativa do turista (mapa no page). */
+  onCorridaTuristaChange?: (
+    corrida: {
+      solicitacao_id: string
+      status: string
+      data_agendada?: string | null
+      origem_nome?: string | null
+      destino_nome?: string | null
+      lat_origem?: number | null
+      lng_origem?: number | null
+      lat_destino?: number | null
+      lng_destino?: number | null
+      prof_lat?: number | null
+      prof_lng?: number | null
+    } | null,
+  ) => void
 }
 
 /**
@@ -75,6 +93,8 @@ export default function VisaoTuristaMobilidade({
   trajeto = null,
   origemCorrida = null,
   destinoCorrida = null,
+  ocultarPinsEmpresas = false,
+  onCorridaTuristaChange,
 }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -708,6 +728,8 @@ export default function VisaoTuristaMobilidade({
           contextoMapa={contextoMapa ?? 'turista'}
           visitanteParceria={visitanteParceria}
           carregandoPins={carregandoEmpresas}
+          ocultarPinsEmpresas={ocultarPinsEmpresas}
+          ocultarAvisoEmpresas={ocultarPinsEmpresas}
         />
         {carregandoEmpresas ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-24 z-[5] flex justify-center">
@@ -811,7 +833,7 @@ export default function VisaoTuristaMobilidade({
       />
 
       {comListener ? <OfertaMobilidadeListener /> : null}
-      <ChegadaTuristaMobilidadeListener />
+      <ChegadaTuristaMobilidadeListener onCorridaChange={onCorridaTuristaChange} />
     </div>
   )
 }

@@ -34,6 +34,12 @@ type CorridaTurista = {
   lugares: number | null
   data_agendada: string | null
   conversa_id: string | null
+  lat_origem?: number | null
+  lng_origem?: number | null
+  lat_destino?: number | null
+  lng_destino?: number | null
+  prof_lat?: number | null
+  prof_lng?: number | null
   profissional_username: string | null
   profissional_whatsapp: string | null
   profissional: ProfissionalCorrida | null
@@ -41,11 +47,15 @@ type CorridaTurista = {
 
 const STATUS_ATIVO = new Set(['aceita', 'a_caminho', 'no_local', 'em_viagem'])
 
+type Props = {
+  onCorridaChange?: (corrida: CorridaTurista | null) => void
+}
+
 /**
  * Drawer de atendimento ativo do turista + popup "Profissional CHEGOU!!!".
  * Reabre pelo card flutuante (imediato) ou barra inferior (agendado).
  */
-export default function ChegadaTuristaMobilidadeListener() {
+export default function ChegadaTuristaMobilidadeListener({ onCorridaChange }: Props = {}) {
   const t = useTranslations('Mobilidade')
   const { perfilEhTurista, perfilEhEmpresa, perfilEhProfissional, roleEfetivo, loading } =
     useProfissionalGate()
@@ -94,6 +104,14 @@ export default function ChegadaTuristaMobilidadeListener() {
       /* ignore */
     }
   }, [elegivel])
+
+  useEffect(() => {
+    onCorridaChange?.(corrida)
+  }, [corrida, onCorridaChange])
+
+  useEffect(() => {
+    if (!elegivel) onCorridaChange?.(null)
+  }, [elegivel, onCorridaChange])
 
   useEffect(() => {
     if (!elegivel) return

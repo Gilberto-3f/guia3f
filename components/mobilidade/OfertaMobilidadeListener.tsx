@@ -189,6 +189,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
     if (!elegivel) return
     let ativo = true
     let id: ReturnType<typeof setInterval> | null = null
+    const intervaloMs = corrida ? 5_000 : 25_000
     const boot = window.setTimeout(() => {
       if (!ativo) return
       void (async () => {
@@ -199,15 +200,15 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
             const s = await carregarCorrida()
             if (s === 'auth' && id) clearInterval(id)
           })()
-        }, 25_000)
+        }, intervaloMs)
       })()
-    }, 2000)
+    }, corrida ? 400 : 2000)
     return () => {
       ativo = false
       window.clearTimeout(boot)
       if (id) clearInterval(id)
     }
-  }, [elegivel, carregarCorrida])
+  }, [elegivel, carregarCorrida, corrida?.solicitacao_id])
 
   useEffect(() => {
     if (!elegivel || corrida) return

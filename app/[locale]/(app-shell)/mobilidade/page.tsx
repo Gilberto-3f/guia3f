@@ -12,6 +12,13 @@ import OfertaMobilidadeListener, {
 } from '@/components/mobilidade/OfertaMobilidadeListener'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
+import { ehAtendimentoImediatoAtivo } from '@/lib/mobilidadeAtendimentoAtivoEventos'
+import {
+  destinoVisivelNoMapa,
+  montarTrajetoCorridaAtiva,
+  pontoPartidaCorrida,
+  type CorridaMapaCoords,
+} from '@/lib/mobilidadeTrajetoMapa'
 
 function MobilidadePageInner() {
   const router = useRouter()
@@ -27,69 +34,30 @@ function MobilidadePageInner() {
     tituloBloqueio,
     loading: gateLoading,
   } = useGateComprasReservas()
-  const [corridaMapa, setCorridaMapa] = useState<CorridaAtivaMobilidade | null>(null)
+  const [corridaMapa, setCorridaMapa] = useState<CorridaMapaCoords | null>(null)
 
-  const onCorridaChange = useCallback((c: CorridaAtivaMobilidade | null) => {
+  const onCorridaProChange = useCallback((c: CorridaAtivaMobilidade | null) => {
     setCorridaMapa(c)
   }, [])
 
-  const pontoPartida = useMemo(() => {
-    if (
-      corridaMapa?.lat_origem == null ||
-      corridaMapa?.lng_origem == null ||
-      !Number.isFinite(corridaMapa.lat_origem) ||
-      !Number.isFinite(corridaMapa.lng_origem)
-    ) {
-      return null
-    }
-    return {
-      lat: corridaMapa.lat_origem,
-      lng: corridaMapa.lng_origem,
-      label: corridaMapa.origem_nome || undefined,
-    }
-  }, [corridaMapa])
+  const onCorridaTuristaChange = useCallback((c: CorridaMapaCoords | null) => {
+    setCorridaMapa(c)
+  }, [])
 
-  const pontoDestino = useMemo(() => {
-    if (
-      corridaMapa?.lat_destino == null ||
-      corridaMapa?.lng_destino == null ||
-      !Number.isFinite(corridaMapa.lat_destino) ||
-      !Number.isFinite(corridaMapa.lng_destino)
-    ) {
-      return null
-    }
-    return {
-      lat: corridaMapa.lat_destino,
-      lng: corridaMapa.lng_destino,
-      label: corridaMapa.destino_nome || undefined,
-    }
-  }, [corridaMapa])
+  const imediatoAtivo = Boolean(
+    corridaMapa &&
+      ehAtendimentoImediatoAtivo({
+        status: corridaMapa.status,
+        data_agendada: corridaMapa.data_agendada,
+      }),
+  )
 
-  const pontoProf = useMemo(() => {
-    if (
-      corridaMapa?.prof_lat == null ||
-      corridaMapa?.prof_lng == null ||
-      !Number.isFinite(corridaMapa.prof_lat) ||
-      !Number.isFinite(corridaMapa.prof_lng)
-    ) {
-      return null
-    }
-    return { lat: corridaMapa.prof_lat, lng: corridaMapa.prof_lng }
-  }, [corridaMapa])
-
-  const statusCorrida = String(corridaMapa?.status ?? '')
-  const emViagem = statusCorrida === 'em_viagem'
-
+  const pontoPartida = useMemo(() => pontoPartidaCorrida(corridaMapa), [corridaMapa])
+  const pontoDestinoMapa = useMemo(() => destinoVisivelNoMapa(corridaMapa), [corridaMapa])
   const trajeto = useMemo(() => {
-    if (!perfilEhProfissional || !corridaMapa) return null
-    if (emViagem) {
-      if (pontoPartida && pontoDestino) return { de: pontoPartida, ate: pontoDestino }
-      if (pontoProf && pontoDestino) return { de: pontoProf, ate: pontoDestino }
-      return null
-    }
-    if (!pontoProf || !pontoPartida) return null
-    return { de: pontoProf, ate: pontoPartida }
-  }, [perfilEhProfissional, corridaMapa, emViagem, pontoProf, pontoPartida, pontoDestino])
+    if (!imediatoAtivo) return null
+    return montarTrajetoCorridaAtiva(corridaMapa)
+  }, [imediatoAtivo, corridaMapa])
 
   useEffect(() => {
     if (!perfilEhTurista || gateLoading || podeComprarReservar) return
@@ -124,7 +92,6 @@ function MobilidadePageInner() {
   }
 
   // Profissional + turista/empresa/ADM: mesmo shell (abas + mapa + card).
-  // Ofertas/corrida do pro ficam no listener do layout (com trajeto no mapa).
   if (perfilEhProfissional) {
     return (
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
@@ -133,9 +100,10 @@ function MobilidadePageInner() {
           comListener={false}
           trajeto={trajeto}
           origemCorrida={pontoPartida}
-          destinoCorrida={emViagem ? pontoDestino : null}
+          destinoCorrida={pontoDestinoMapa}
+          ocultarPinsEmpresas={imediatoAtivo}
         />
-        <OfertaMobilidadeListener onCorridaChange={onCorridaChange} />
+        <OfertaMobilidadeListener onCorridaChange={onCorridaProChange} />
       </div>
     )
   }
@@ -143,7 +111,12 @@ function MobilidadePageInner() {
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
       <CabecalhoAbasGuiaMobilidade abaAtiva="mobilidade" />
-      <VisaoTuristaMobilidade />
+      <VisaoTuristaMobilidade
+        trajeto={trajeto}
+        origemCorrida={pontoPartida}
+        destinoCorrida={pontoDestinoMapa}
+        onCorridaTuristaChange={onCorridaTuristaChange}
+      />
     </div>
   )
 }

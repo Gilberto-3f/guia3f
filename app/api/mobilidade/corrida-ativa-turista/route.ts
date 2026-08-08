@@ -21,7 +21,7 @@ export async function GET() {
   const { data: row } = await admin
     .from('solicitacao_mobilidade')
     .select(
-      'id, status, origem_nome, destino_nome, modalidade, valor_estimado, pagamento, lugares, data_agendada, profissional_id, metadata',
+      'id, status, origem_nome, destino_nome, modalidade, valor_estimado, pagamento, lugares, data_agendada, profissional_id, metadata, lat_origem, lng_origem, lat_destino, lng_destino',
     )
     .eq('turista_id', auth.userId)
     .in('status', ['aceita', 'a_caminho', 'no_local', 'em_viagem'])
@@ -33,6 +33,11 @@ export async function GET() {
     return NextResponse.json({ ok: true, corrida: null })
   }
 
+  const numOrNull = (v: unknown) => {
+    const n = Number(v)
+    return Number.isFinite(n) ? n : null
+  }
+
   let profissional: {
     usuario_id: string
     nome: string
@@ -42,12 +47,14 @@ export async function GET() {
     nota_media: number | null
     whatsapp: string | null
   } | null = null
+  let profLat: number | null = null
+  let profLng: number | null = null
 
   if (row.profissional_id) {
     const { data: p } = await admin
       .from('profissionais')
       .select(
-        'usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, telefone, docs_verificado, placa_vermelha',
+        'usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, telefone, docs_verificado, placa_vermelha, mobilidade_lat, mobilidade_lng',
       )
       .eq('id', row.profissional_id)
       .maybeSingle()
@@ -82,6 +89,8 @@ export async function GET() {
         whatsapp:
           p.telefone != null && String(p.telefone).trim() ? String(p.telefone).trim() : null,
       }
+      profLat = numOrNull(p.mobilidade_lat)
+      profLng = numOrNull(p.mobilidade_lng)
     }
   }
 
@@ -104,6 +113,12 @@ export async function GET() {
       lugares: row.lugares != null ? Number(row.lugares) : null,
       data_agendada: row.data_agendada != null ? String(row.data_agendada) : null,
       conversa_id: conv?.id != null ? String(conv.id) : null,
+      lat_origem: numOrNull(row.lat_origem),
+      lng_origem: numOrNull(row.lng_origem),
+      lat_destino: numOrNull(row.lat_destino),
+      lng_destino: numOrNull(row.lng_destino),
+      prof_lat: profLat,
+      prof_lng: profLng,
       profissional_nome: profissional?.nome ?? null,
       profissional_username: profissional?.username ?? null,
       profissional_whatsapp: profissional?.whatsapp ?? null,
