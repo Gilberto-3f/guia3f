@@ -129,6 +129,10 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
   const [erroCliente, setErroCliente] = useState('')
   const [enviandoSolic, setEnviandoSolic] = useState(false)
   const [okSolic, setOkSolic] = useState('')
+  /** null = ainda não escolheu; imediato | pre */
+  const [tipoAtendimento, setTipoAtendimento] = useState<'imediato' | 'pre' | null>(null)
+  const [agendaAberta, setAgendaAberta] = useState(false)
+  const [erroAgenda, setErroAgenda] = useState('')
 
   const hoje = hojeIsoLocal()
   const now = new Date()
@@ -156,6 +160,9 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
     setEnviandoSolic(false)
     setOkSolic('')
     setBuscandoCliente(false)
+    setTipoAtendimento(null)
+    setAgendaAberta(false)
+    setErroAgenda('')
   }, [])
 
   useEffect(() => {
@@ -281,12 +288,46 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
     setTermoCliente('')
     setErroCliente('')
     setOkSolic('')
-    void carregarSlots(p.id)
+    setTipoAtendimento(null)
+    setAgendaAberta(false)
+    setErroAgenda('')
+    setSlots([])
+    setSlotsMsg('')
+  }
+
+  const selecionarTipoAtendimento = (tipo: 'imediato' | 'pre') => {
+    setTipoAtendimento(tipo)
+    setErroAgenda('')
+    if (tipo === 'imediato') {
+      setDiaSlot(null)
+      setAgendaAberta(false)
+      return
+    }
+    setAgendaAberta(true)
+    if (selecionado && slots.length === 0 && !slotsLoading) {
+      void carregarSlots(selecionado.id)
+    }
+  }
+
+  const avancarParaCliente = () => {
+    if (!tipoAtendimento) {
+      setErroAgenda(t('ecossistemaEscolhaTipo'))
+      return
+    }
+    if (tipoAtendimento === 'pre' && !diaSlot) {
+      setErroAgenda(t('ecossistemaEscolhaData'))
+      setAgendaAberta(true)
+      return
+    }
+    setErroAgenda('')
+    setFaseParceiro('cliente')
+    setErroCliente('')
+    setOkSolic('')
   }
 
   /** Busca cliente turista (recomendação direcionada). */
   useEffect(() => {
-    if (!aberto || !selecionado || faseParceiro !== 'cliente') return
+    if (!aberto || !selecionado || faseParceiro !== 'cliente' || clienteSel) return
     const q = termoCliente.trim().replace(/^@+/, '')
     if (q.length < 2) {
       setClientes([])
@@ -320,7 +361,7 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
       })()
     }, 300)
     return () => window.clearTimeout(id)
-  }, [aberto, selecionado, faseParceiro, termoCliente, t])
+  }, [aberto, selecionado, faseParceiro, termoCliente, clienteSel, t])
 
   const slotsPorData = useMemo(() => {
     const map = new Map<string, Slot[]>()
@@ -349,13 +390,13 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
   }, [diaSlot, slotsPorData])
 
   const dataAgendadaIso = useMemo(() => {
-    if (!diaSlot) return null
+    if (tipoAtendimento !== 'pre' || !diaSlot) return null
     const slot = slotsDoDia[0]
     const hora = slot?.hora_inicio != null ? String(slot.hora_inicio).slice(0, 5) : '09:00'
     const [hh, mm] = hora.split(':').map((x) => Number(x))
     if (!Number.isFinite(hh) || !Number.isFinite(mm)) return `${diaSlot}T12:00:00`
     return `${diaSlot}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00`
-  }, [diaSlot, slotsDoDia])
+  }, [tipoAtendimento, diaSlot, slotsDoDia])
 
   const solicitarAtendimento = async () => {
     if (!selecionado || !clienteSel) {
@@ -373,7 +414,8 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
         body: JSON.stringify({
           profissional_indicado_id: selecionado.id,
           turista_usuario_id: clienteSel.usuario_id,
-          data_agendada: dataAgendadaIso,
+          data_agendada: tipoAtendimento === 'pre' ? dataAgendadaIso : null,
+          atendimento_imediato: tipoAtendimento === 'imediato',
         }),
       })
       const json = (await res.json()) as { error?: string; ok?: boolean }
@@ -408,6 +450,9 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
       setDiaSlot(null)
       setFaseParceiro('agenda')
       setClienteSel(null)
+      setTipoAtendimento(null)
+      setAgendaAberta(false)
+      setErroAgenda('')
       return
     }
     if (etapa !== 'escolha') {
@@ -507,129 +552,183 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
               </div>
 
               <div>
-                <div className="mb-2 flex items-center gap-1.5 text-sm font-bold text-[#0097b2]">
-                  <CalendarDays className="h-4 w-4" aria-hidden />
-                  {t('ecossistemaAgendaTitulo')}
+                <p className="mb-2 text-sm font-bold text-[#0097b2]">{t('ecossistemaAtendimentoTitulo')}</p>
+                <div className="flex flex-col gap-2">
+                  <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-[#f5f5f5] px-3 py-3">
+                    <input
+                      type="checkbox"
+                      checked={tipoAtendimento === 'imediato'}
+                      onChange={() => selecionarTipoAtendimento('imediato')}
+                      className="h-4 w-4 accent-[#00D443]"
+                    />
+                    <span className="text-sm font-semibold text-gray-900">
+                      {t('ecossistemaAtendimentoImediato')}
+                    </span>
+                  </label>
+                  <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-[#f5f5f5] px-3 py-3">
+                    <input
+                      type="checkbox"
+                      checked={tipoAtendimento === 'pre'}
+                      onChange={() => selecionarTipoAtendimento('pre')}
+                      className="h-4 w-4 accent-[#00D443]"
+                    />
+                    <span className="text-sm font-semibold text-gray-900">
+                      {t('ecossistemaAtendimentoPre')}
+                    </span>
+                  </label>
                 </div>
-                <p className="mb-3 text-xs text-gray-500">{t('ecossistemaAgendaHint')}</p>
-
-                {slotsLoading ? (
-                  <p className="animate-pulse py-6 text-center text-sm text-gray-400">…</p>
-                ) : (
-                  <>
-                    {slotsMsg ? (
-                      <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-center text-xs text-amber-800">
-                        {slotsMsg}
-                      </p>
-                    ) : null}
-
-                    <div className="rounded-xl border border-gray-200 bg-white p-3">
-                      <div className="mb-3 flex items-center justify-between">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (mes === 0) {
-                              setMes(11)
-                              setAno((a) => a - 1)
-                            } else setMes((m) => m - 1)
-                          }}
-                          className="rounded-lg p-1.5 text-[#0097b2] hover:bg-[#0097b2]/10"
-                          aria-label={t('calendarioMesAnterior')}
-                        >
-                          <ChevronLeft className="h-5 w-5" aria-hidden />
-                        </button>
-                        <p className="text-sm font-bold capitalize text-[#001f3f]">{tituloMes}</p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (mes === 11) {
-                              setMes(0)
-                              setAno((a) => a + 1)
-                            } else setMes((m) => m + 1)
-                          }}
-                          className="rounded-lg p-1.5 text-[#0097b2] hover:bg-[#0097b2]/10"
-                          aria-label={t('calendarioProximoMes')}
-                        >
-                          <ChevronRight className="h-5 w-5" aria-hidden />
-                        </button>
-                      </div>
-
-                      <div className="mb-1 grid grid-cols-7 gap-1">
-                        {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((d) => (
-                          <div
-                            key={d}
-                            className="text-center text-[10px] font-semibold text-gray-500"
-                          >
-                            {d}
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="grid grid-cols-7 gap-1">
-                        {cells.map((iso, idx) => {
-                          if (!iso) return <div key={`e-${idx}`} className="aspect-square" />
-                          const st = statusDia(iso, slotsPorData.get(iso) ?? [], hoje)
-                          const clicavel = st === 'livre' || st === 'lotado'
-                          const textColor = st === 'vazio' ? '#666666' : '#ffffff'
-                          return (
-                            <button
-                              key={iso}
-                              type="button"
-                              disabled={!clicavel}
-                              onClick={() => {
-                                if (!clicavel) return
-                                setDiaSlot(iso)
-                              }}
-                              className="aspect-square rounded-md text-[11px] font-semibold disabled:cursor-default"
-                              style={{
-                                backgroundColor: corStatus(st),
-                                color: textColor,
-                                outline: diaSlot === iso ? '2px solid #001f3f' : undefined,
-                                outlineOffset: 1,
-                              }}
-                            >
-                              {Number(iso.slice(8, 10))}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-
-                    {diaSlot && slotsDoDia.length > 0 ? (
-                      <ul className="mt-3 space-y-2">
-                        {slotsDoDia.map((s) => {
-                          const livres =
-                            s.vagas_livres ?? s.vagas_total - s.vagas_ocupadas
-                          return (
-                            <li
-                              key={s.id}
-                              className="rounded-xl border border-gray-100 bg-[#f5f5f5] px-3 py-2 text-sm"
-                            >
-                              <span className="font-semibold text-gray-900">
-                                {s.hora_inicio} – {s.hora_fim}
-                              </span>
-                              <span className="ml-2 text-xs text-gray-500">
-                                {t('calendarioVagasResumo', {
-                                  livres,
-                                  total: s.vagas_total,
-                                })}
-                              </span>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    ) : null}
-                  </>
-                )}
               </div>
+
+              {tipoAtendimento === 'pre' ? (
+                <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !agendaAberta
+                      setAgendaAberta(next)
+                      if (next && selecionado && slots.length === 0 && !slotsLoading) {
+                        void carregarSlots(selecionado.id)
+                      }
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-3 text-left"
+                  >
+                    <CalendarDays className="h-5 w-5 shrink-0 text-[#0097b2]" aria-hidden />
+                    <span className="min-w-0 flex-1 text-sm font-bold uppercase tracking-wide text-[#0097b2]">
+                      {t('ecossistemaAgendaChevron')}
+                    </span>
+                    {diaSlot ? (
+                      <span className="shrink-0 text-xs font-semibold text-gray-600">
+                        {diaSlot.slice(8, 10)}/{diaSlot.slice(5, 7)}
+                      </span>
+                    ) : null}
+                    <span className="text-xs text-gray-400">{agendaAberta ? '▲' : '▼'}</span>
+                  </button>
+                  {agendaAberta ? (
+                    <div className="border-t border-gray-100 px-3 pb-3 pt-2">
+                      <p className="mb-3 text-xs text-gray-500">{t('ecossistemaAgendaHint')}</p>
+                      {slotsLoading ? (
+                        <p className="animate-pulse py-6 text-center text-sm text-gray-400">…</p>
+                      ) : (
+                        <>
+                          {slotsMsg ? (
+                            <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-center text-xs text-amber-800">
+                              {slotsMsg}
+                            </p>
+                          ) : null}
+
+                          <div className="rounded-xl border border-gray-200 bg-white p-3">
+                            <div className="mb-3 flex items-center justify-between">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (mes === 0) {
+                                    setMes(11)
+                                    setAno((a) => a - 1)
+                                  } else setMes((m) => m - 1)
+                                }}
+                                className="rounded-lg p-1.5 text-[#0097b2] hover:bg-[#0097b2]/10"
+                                aria-label={t('calendarioMesAnterior')}
+                              >
+                                <ChevronLeft className="h-5 w-5" aria-hidden />
+                              </button>
+                              <p className="text-sm font-bold capitalize text-[#001f3f]">{tituloMes}</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (mes === 11) {
+                                    setMes(0)
+                                    setAno((a) => a + 1)
+                                  } else setMes((m) => m + 1)
+                                }}
+                                className="rounded-lg p-1.5 text-[#0097b2] hover:bg-[#0097b2]/10"
+                                aria-label={t('calendarioProximoMes')}
+                              >
+                                <ChevronRight className="h-5 w-5" aria-hidden />
+                              </button>
+                            </div>
+
+                            <div className="mb-1 grid grid-cols-7 gap-1">
+                              {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((d) => (
+                                <div
+                                  key={d}
+                                  className="text-center text-[10px] font-semibold text-gray-500"
+                                >
+                                  {d}
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="grid grid-cols-7 gap-1">
+                              {cells.map((iso, idx) => {
+                                if (!iso) return <div key={`e-${idx}`} className="aspect-square" />
+                                const st = statusDia(iso, slotsPorData.get(iso) ?? [], hoje)
+                                const clicavel = st === 'livre' || st === 'lotado'
+                                const textColor = st === 'vazio' ? '#666666' : '#ffffff'
+                                return (
+                                  <button
+                                    key={iso}
+                                    type="button"
+                                    disabled={!clicavel}
+                                    onClick={() => {
+                                      if (!clicavel) return
+                                      setDiaSlot(iso)
+                                      setErroAgenda('')
+                                    }}
+                                    className="aspect-square rounded-md text-[11px] font-semibold disabled:cursor-default"
+                                    style={{
+                                      backgroundColor: corStatus(st),
+                                      color: textColor,
+                                      outline: diaSlot === iso ? '2px solid #001f3f' : undefined,
+                                      outlineOffset: 1,
+                                    }}
+                                  >
+                                    {Number(iso.slice(8, 10))}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </div>
+
+                          {diaSlot && slotsDoDia.length > 0 ? (
+                            <ul className="mt-3 space-y-2">
+                              {slotsDoDia.map((s) => {
+                                const livres =
+                                  s.vagas_livres ?? s.vagas_total - s.vagas_ocupadas
+                                return (
+                                  <li
+                                    key={s.id}
+                                    className="rounded-xl border border-gray-100 bg-[#f5f5f5] px-3 py-2 text-sm"
+                                  >
+                                    <span className="font-semibold text-gray-900">
+                                      {s.hora_inicio} – {s.hora_fim}
+                                    </span>
+                                    <span className="ml-2 text-xs text-gray-500">
+                                      {t('calendarioVagasResumo', {
+                                        livres,
+                                        total: s.vagas_total,
+                                      })}
+                                    </span>
+                                  </li>
+                                )
+                              })}
+                            </ul>
+                          ) : null}
+                        </>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {erroAgenda ? (
+                <p className="rounded-xl bg-red-50 px-3 py-2 text-center text-xs text-red-700">
+                  {erroAgenda}
+                </p>
+              ) : null}
 
               <button
                 type="button"
-                onClick={() => {
-                  setFaseParceiro('cliente')
-                  setErroCliente('')
-                  setOkSolic('')
-                }}
+                onClick={avancarParaCliente}
                 className="w-full rounded-xl py-3 text-sm font-extrabold uppercase tracking-wide text-white shadow-md"
                 style={{ backgroundColor: VERDE }}
               >
@@ -638,143 +737,147 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
             </div>
           ) : faseParceiro === 'cliente' && selecionado ? (
             <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-gray-100">
-                  {selecionado.foto_url ? (
-                    <AvatarImage
-                      src={selecionado.foto_url}
-                      alt=""
-                      fill
-                      className="object-cover"
-                      sizes="48px"
-                    />
-                  ) : (
-                    <span className="flex h-full w-full items-center justify-center text-base font-bold text-[#0097b2]">
-                      {selecionado.nome.charAt(0).toUpperCase()}
-                    </span>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-gray-900">{selecionado.nome}</p>
-                  <p className="truncate text-xs text-gray-500">
-                    {rotuloCategoriaProfissionalRecomendacao(selecionado.categorias)}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-sm font-bold text-[#0097b2]">{t('ecossistemaBuscaClienteTitulo')}</p>
-                <p className="mt-1 text-xs text-gray-500">{t('ecossistemaBuscaClienteHint')}</p>
-              </div>
-
-              <label className="relative block">
-                <Search
-                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-                  aria-hidden
-                />
-                <input
-                  type="search"
-                  value={termoCliente}
-                  onChange={(e) => {
-                    setTermoCliente(e.target.value)
-                    setClienteSel(null)
-                    setOkSolic('')
-                  }}
-                  placeholder={t('ecossistemaBuscaClientePlaceholder')}
-                  className="w-full rounded-xl border border-gray-200 bg-[#f5f5f5] py-3 pl-10 pr-3 text-sm outline-none ring-[#0097b2] focus:bg-white focus:ring-2"
-                  autoComplete="off"
-                  autoFocus
-                />
-              </label>
-
-              {erroCliente ? (
-                <p className="rounded-xl bg-red-50 px-3 py-2 text-center text-xs text-red-700">
-                  {erroCliente}
-                </p>
-              ) : null}
-              {okSolic ? (
-                <p className="rounded-xl bg-emerald-50 px-3 py-2 text-center text-xs font-semibold text-emerald-800">
-                  {okSolic}
-                </p>
-              ) : null}
-
               {clienteSel ? (
-                <div className="rounded-xl border border-[#0097b2]/30 bg-[#0097b2]/5 px-3 py-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[#0097b2]">
-                    {t('ecossistemaClienteSelecionado')}
-                  </p>
-                  <p className="mt-1 text-sm font-bold text-gray-900">{clienteSel.nome}</p>
-                  {clienteSel.username ? (
-                    <p className="text-xs text-gray-500">@{clienteSel.username}</p>
+                <>
+                  <div className="flex items-center gap-3 rounded-xl border border-[#0097b2]/30 bg-[#0097b2]/5 px-3 py-3">
+                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-white">
+                      {clienteSel.foto_url ? (
+                        <AvatarImage
+                          src={clienteSel.foto_url}
+                          alt=""
+                          fill
+                          className="object-cover"
+                          sizes="56px"
+                        />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center text-lg font-bold text-[#0097b2]">
+                          {clienteSel.nome.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-gray-900">{clienteSel.nome}</p>
+                      {clienteSel.username ? (
+                        <p className="truncate text-xs text-gray-500">@{clienteSel.username}</p>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setClienteSel(null)
+                      setOkSolic('')
+                      setErroCliente('')
+                    }}
+                    className="w-full text-center text-xs font-semibold text-[#0097b2] underline"
+                  >
+                    {t('ecossistemaTrocarCliente')}
+                  </button>
+
+                  {erroCliente ? (
+                    <p className="rounded-xl bg-red-50 px-3 py-2 text-center text-xs text-red-700">
+                      {erroCliente}
+                    </p>
                   ) : null}
-                </div>
-              ) : null}
+                  {okSolic ? (
+                    <p className="rounded-xl bg-emerald-50 px-3 py-2 text-center text-xs font-semibold text-emerald-800">
+                      {okSolic}
+                    </p>
+                  ) : null}
 
-              {buscandoCliente ? (
-                <p className="animate-pulse py-4 text-center text-sm text-gray-400">…</p>
-              ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void solicitarAtendimento()}
+                    disabled={enviandoSolic || Boolean(okSolic)}
+                    className="w-full rounded-xl py-3 text-sm font-extrabold uppercase tracking-wide text-white shadow-md disabled:opacity-60"
+                    style={{ backgroundColor: VERDE }}
+                  >
+                    {enviandoSolic ? t('ecossistemaSolicitando') : t('ecossistemaSolicitarAtendimento')}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <p className="text-sm font-bold text-[#0097b2]">{t('ecossistemaBuscaClienteTitulo')}</p>
+                    <p className="mt-1 text-xs text-gray-500">{t('ecossistemaBuscaClienteHint')}</p>
+                  </div>
 
-              {!buscandoCliente &&
-              termoCliente.trim().length >= 2 &&
-              clientes.length === 0 &&
-              !erroCliente ? (
-                <p className="py-4 text-center text-sm text-gray-500">{t('ecossistemaSemCliente')}</p>
-              ) : null}
+                  <label className="relative block">
+                    <Search
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                      aria-hidden
+                    />
+                    <input
+                      type="search"
+                      value={termoCliente}
+                      onChange={(e) => {
+                        setTermoCliente(e.target.value)
+                        setOkSolic('')
+                      }}
+                      placeholder={t('ecossistemaBuscaClientePlaceholder')}
+                      className="w-full rounded-xl border border-gray-200 bg-[#f5f5f5] py-3 pl-10 pr-3 text-sm outline-none ring-[#0097b2] focus:bg-white focus:ring-2"
+                      autoComplete="off"
+                      autoFocus
+                    />
+                  </label>
 
-              <ul className="space-y-2">
-                {clientes.map((c) => {
-                  const ativo = clienteSel?.usuario_id === c.usuario_id
-                  return (
-                    <li key={c.usuario_id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setClienteSel(c)
-                          setOkSolic('')
-                          setErroCliente('')
-                        }}
-                        className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition ${
-                          ativo
-                            ? 'border-[#0097b2] bg-[#0097b2]/10'
-                            : 'border-gray-100 bg-[#f5f5f5] hover:border-[#0097b2]/40'
-                        }`}
-                      >
-                        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-white">
-                          {c.foto_url ? (
-                            <AvatarImage
-                              src={c.foto_url}
-                              alt=""
-                              fill
-                              className="object-cover"
-                              sizes="40px"
-                            />
-                          ) : (
-                            <span className="flex h-full w-full items-center justify-center text-sm font-bold text-[#0097b2]">
-                              {c.nome.charAt(0).toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-gray-900">{c.nome}</p>
-                          {c.username ? (
-                            <p className="truncate text-xs text-gray-500">@{c.username}</p>
-                          ) : null}
-                        </div>
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
+                  {erroCliente ? (
+                    <p className="rounded-xl bg-red-50 px-3 py-2 text-center text-xs text-red-700">
+                      {erroCliente}
+                    </p>
+                  ) : null}
 
-              <button
-                type="button"
-                onClick={() => void solicitarAtendimento()}
-                disabled={enviandoSolic || !clienteSel || Boolean(okSolic)}
-                className="w-full rounded-xl py-3 text-sm font-extrabold uppercase tracking-wide text-white shadow-md disabled:opacity-60"
-                style={{ backgroundColor: VERDE }}
-              >
-                {enviandoSolic ? t('ecossistemaSolicitando') : t('ecossistemaSolicitarAtendimento')}
-              </button>
+                  {buscandoCliente ? (
+                    <p className="animate-pulse py-4 text-center text-sm text-gray-400">…</p>
+                  ) : null}
+
+                  {!buscandoCliente &&
+                  termoCliente.trim().length >= 2 &&
+                  clientes.length === 0 &&
+                  !erroCliente ? (
+                    <p className="py-4 text-center text-sm text-gray-500">{t('ecossistemaSemCliente')}</p>
+                  ) : null}
+
+                  <ul className="space-y-2">
+                    {clientes.map((c) => (
+                      <li key={c.usuario_id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setClienteSel(c)
+                            setOkSolic('')
+                            setErroCliente('')
+                          }}
+                          className="flex w-full items-center gap-3 rounded-xl border border-gray-100 bg-[#f5f5f5] px-3 py-2.5 text-left transition hover:border-[#0097b2]/40"
+                        >
+                          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-white">
+                            {c.foto_url ? (
+                              <AvatarImage
+                                src={c.foto_url}
+                                alt=""
+                                fill
+                                className="object-cover"
+                                sizes="40px"
+                              />
+                            ) : (
+                              <span className="flex h-full w-full items-center justify-center text-sm font-bold text-[#0097b2]">
+                                {c.nome.charAt(0).toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-gray-900">{c.nome}</p>
+                            {c.username ? (
+                              <p className="truncate text-xs text-gray-500">@{c.username}</p>
+                            ) : null}
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
             </div>
           ) : etapa === 'escolha' ? (
             <div className="space-y-4">
