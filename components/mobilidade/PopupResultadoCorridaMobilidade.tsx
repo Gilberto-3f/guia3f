@@ -9,6 +9,7 @@ import {
   MOBILIDADE_OFERTA_WARN_MS,
 } from '@/lib/mobilidadeMatching'
 import { avisarCorridaAtivaAtualizada } from '@/lib/mobilidadeAtendimentoAtivoEventos'
+import AvaliacaoCorridaMobilidade from '@/components/mobilidade/AvaliacaoCorridaMobilidade'
 
 export type OfertaResultadoUi = {
   profissionalId: string
