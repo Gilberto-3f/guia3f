@@ -502,6 +502,8 @@
     "drawerAtivoRota": "Rota",
     "drawerAtivoReabrir": "Atendimento em andamento — tocar para abrir",
     "drawerAtivoAbrirDetalhe": "Abrir atendimento",
+    "drawerAtivoManifesto": "Manifesto",
+    "chegadaProOk": "OK",
     "concluirAtendimento": "Concluir atendimento",
     "atendimentoImediato": "Imediato",
     "msgImediataTaxista": "Deseja aceitar o atendimento?",

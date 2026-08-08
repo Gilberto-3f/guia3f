@@ -193,8 +193,8 @@ export default function ChegadaTuristaMobilidadeListener({ onCorridaChange }: Pr
       <PopupChegadaTuristaMobilidade
         aberto={mostrarChegada}
         usernameProfissional={corrida.profissional_username ?? pro?.username ?? null}
-        whatsappProfissional={corrida.profissional_whatsapp ?? pro?.whatsapp ?? null}
         onFechar={() => setChegadaDismissedId(corrida.solicitacao_id)}
+        onOk={() => setDrawerAberto(true)}
       />
     </>
   )

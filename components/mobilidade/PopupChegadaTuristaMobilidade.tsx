@@ -3,23 +3,23 @@
 import { X, CheckCircle2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
-import { openWhatsAppChat } from '@/lib/whatsapp-empresa'
 
 const VERDE = '#00D443'
 
 type Props = {
   aberto: boolean
   usernameProfissional?: string | null
-  whatsappProfissional?: string | null
   onFechar: () => void
+  /** Após OK — tipicamente reabre o drawer de atendimento. */
+  onOk?: () => void
 }
 
-/** Popup verde: Profissional CHEGOU!!! — WhatsApp do profissional. */
+/** Popup verde curto: Profissional CHEGOU!!! (sem WhatsApp). */
 export default function PopupChegadaTuristaMobilidade({
   aberto,
   usernameProfissional = null,
-  whatsappProfissional = null,
   onFechar,
+  onOk,
 }: Props) {
   useModalScrollLock(aberto)
   const t = useTranslations('Mobilidade')
@@ -29,13 +29,11 @@ export default function PopupChegadaTuristaMobilidade({
   const handle = String(usernameProfissional ?? '')
     .replace(/^@+/, '')
     .trim()
-  const handleLabel = handle ? `@${handle}` : t('atendimentoTuristaFallback')
+  const handleLabel = handle ? `@${handle}` : t('atendimentoProfissionalFallback')
 
-  const abrirWhats = () => {
-    const msg = t('chegadaWhatsappMsg', { user: handleLabel })
-    if (!openWhatsAppChat(whatsappProfissional, msg)) {
-      /* telefone ausente — popup permanece */
-    }
+  const confirmar = () => {
+    onFechar()
+    onOk?.()
   }
 
   return (
@@ -44,7 +42,7 @@ export default function PopupChegadaTuristaMobilidade({
         type="button"
         className="absolute inset-0 cursor-default"
         aria-label={t('fechar')}
-        onClick={onFechar}
+        onClick={confirmar}
       />
       <div
         role="dialog"
@@ -55,7 +53,7 @@ export default function PopupChegadaTuristaMobilidade({
       >
         <button
           type="button"
-          onClick={onFechar}
+          onClick={confirmar}
           className="absolute right-3 top-3 text-white/90 hover:text-white"
           aria-label={t('fechar')}
         >
@@ -73,19 +71,13 @@ export default function PopupChegadaTuristaMobilidade({
             {t('chegadaProTexto', { user: handleLabel })}
           </p>
 
-          <div className="mt-5 rounded-2xl bg-white p-3 shadow-sm">
-            <button
-              type="button"
-              onClick={abrirWhats}
-              disabled={!whatsappProfissional}
-              className="w-full rounded-xl bg-[#25D366] py-3 text-sm font-bold text-white disabled:opacity-50"
-            >
-              {t('chegadaWhatsapp')}
-            </button>
-            {!whatsappProfissional ? (
-              <p className="mt-2 text-[11px] text-gray-500">{t('chegadaWhatsappIndisponivel')}</p>
-            ) : null}
-          </div>
+          <button
+            type="button"
+            onClick={confirmar}
+            className="mt-5 w-full rounded-xl bg-white py-3 text-sm font-bold uppercase tracking-wide text-[#0097b2]"
+          >
+            {t('chegadaProOk')}
+          </button>
         </div>
       </div>
     </div>

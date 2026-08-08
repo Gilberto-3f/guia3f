@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
-import { Car, ChevronDown, MapPin, Navigation, UserRound, X } from 'lucide-react'
+import { Car, ChevronDown, ClipboardList, MapPin, Navigation, UserRound, X } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import ChatCorridaMobilidade from '@/components/mobilidade/ChatCorridaMobilidade'
+import DrawerManifestoEspaco from '@/components/mobilidade/DrawerManifestoEspaco'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import { modalidadeUsaManifesto } from '@/lib/mobilidadeOfertaAtendimento'
 
@@ -107,6 +108,7 @@ export default function DrawerAtendimentoAtivoMobilidade({
   const [chatAberto, setChatAberto] = useState(false)
   const [chatUnread, setChatUnread] = useState(0)
   const [chatLastReadIso, setChatLastReadIso] = useState<string | null>(null)
+  const [manifestoAberto, setManifestoAberto] = useState(false)
 
   const st = String(atendimento.status ?? 'a_caminho')
   const headerVerde = st === 'em_viagem' || st === 'no_local'
@@ -115,11 +117,9 @@ export default function DrawerAtendimentoAtivoMobilidade({
   const HeaderIcon = papel === 'profissional' ? Navigation : Car
 
   const podeConcluir = papel === 'profissional' && st === 'em_viagem' && Boolean(onConcluir)
-  const mostrarManifestoHint =
-    papel === 'profissional' &&
-    st === 'em_viagem' &&
-    modalidadeUsaManifesto(atendimento.modalidade) &&
-    Boolean(atendimento.manifesto_id)
+  /** INÍCIO (guia/van): botão MANIFESTO no lugar do card do turista. */
+  const faseInicioManifesto =
+    papel === 'profissional' && st === 'em_viagem' && modalidadeUsaManifesto(atendimento.modalidade)
 
   useEffect(() => {
     if (!aberto) {
@@ -127,6 +127,7 @@ export default function DrawerAtendimentoAtivoMobilidade({
       setChatAberto(false)
       setChatUnread(0)
       setChatLastReadIso(null)
+      setManifestoAberto(false)
       return
     }
     // Só conta como não lida mensagem chegada depois de abrir o drawer.
@@ -156,7 +157,9 @@ export default function DrawerAtendimentoAtivoMobilidade({
 
   if (!aberto) return null
 
-  return createPortal(
+  return (
+    <>
+      {createPortal(
     <div
       className="fixed inset-0 z-[80] flex flex-col bg-white"
       style={{ height: 'var(--app-height, 100dvh)' }}
@@ -185,47 +188,59 @@ export default function DrawerAtendimentoAtivoMobilidade({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4" data-modal-scroll-lock-scrollable>
-        {/* Card da outra parte (EM ANDAMENTO) — INÍCIO guia/van: hint manifesto */}
-        {mostrarManifestoHint ? (
-          <p className="mb-3 rounded-xl bg-[#0097b2]/10 px-3 py-2 text-center text-xs font-medium text-[#0097b2]">
-            {t('manifestoRegistrado')}
-          </p>
-        ) : null}
-
-        <div className="flex flex-col items-center gap-0.5 text-center">
-          <div
-            className="relative mb-1.5 h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100"
-            style={{ boxShadow: `0 0 0 4px ${headerCor}` }}
-          >
-            {parte?.foto_url ? (
-              <AvatarImage
-                src={parte.foto_url}
-                alt=""
-                fill
-                className="object-cover"
-                sizes="80px"
-              />
-            ) : (
-              <span className="flex h-full w-full items-center justify-center text-[#0097b2]">
-                <UserRound className="h-10 w-10" aria-hidden />
-              </span>
-            )}
+        {faseInicioManifesto ? (
+          <div className="mb-5 flex flex-col items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setManifestoAberto(true)}
+              className="flex w-full max-w-sm items-center justify-center gap-2 rounded-xl py-4 text-sm font-bold uppercase tracking-wide text-white shadow-sm"
+              style={{ backgroundColor: COR }}
+            >
+              <ClipboardList className="h-5 w-5 shrink-0" aria-hidden strokeWidth={2.25} />
+              {t('drawerAtivoManifesto')}
+            </button>
+            {atendimento.manifesto_id ? (
+              <p className="text-center text-xs font-medium text-[#0097b2]">
+                {t('manifestoRegistrado')}
+              </p>
+            ) : null}
           </div>
-          <p className="max-w-md text-lg font-bold leading-tight text-gray-900">
-            {parte?.nome ||
-              (papel === 'profissional'
-                ? t('atendimentoTuristaFallback')
-                : t('atendimentoProfissionalFallback'))}
-          </p>
-          <UsuarioHandleVerificado
-            username={username}
-            verificado={Boolean(parte?.verificado)}
-            verificadoTipo="profissional"
-            notaMedia={parte?.nota_media ?? null}
-            asButton={false}
-            className="justify-center text-sm font-normal leading-tight text-gray-600"
-          />
-        </div>
+        ) : (
+          <div className="flex flex-col items-center gap-0.5 text-center">
+            <div
+              className="relative mb-1.5 h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100"
+              style={{ boxShadow: `0 0 0 4px ${headerCor}` }}
+            >
+              {parte?.foto_url ? (
+                <AvatarImage
+                  src={parte.foto_url}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  sizes="80px"
+                />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center text-[#0097b2]">
+                  <UserRound className="h-10 w-10" aria-hidden />
+                </span>
+              )}
+            </div>
+            <p className="max-w-md text-lg font-bold leading-tight text-gray-900">
+              {parte?.nome ||
+                (papel === 'profissional'
+                  ? t('atendimentoTuristaFallback')
+                  : t('atendimentoProfissionalFallback'))}
+            </p>
+            <UsuarioHandleVerificado
+              username={username}
+              verificado={Boolean(parte?.verificado)}
+              verificadoTipo="profissional"
+              notaMedia={parte?.nota_media ?? null}
+              asButton={false}
+              className="justify-center text-sm font-normal leading-tight text-gray-600"
+            />
+          </div>
+        )}
 
         {/* Rota */}
         <div className="mt-5 rounded-xl border border-gray-200 bg-[#f5f5f5] px-4 py-3">
@@ -362,5 +377,13 @@ export default function DrawerAtendimentoAtivoMobilidade({
       ) : null}
     </div>,
     document.body,
+      )}
+      {faseInicioManifesto ? (
+        <DrawerManifestoEspaco
+          aberto={manifestoAberto}
+          onFechar={() => setManifestoAberto(false)}
+        />
+      ) : null}
+    </>
   )
 }

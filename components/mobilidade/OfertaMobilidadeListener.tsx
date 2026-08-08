@@ -349,6 +349,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
       }
       await carregarCorrida()
       avisarCorridaAtivaAtualizada()
+      setDrawerAtivoAberto(true)
     } finally {
       setBusy(false)
     }
