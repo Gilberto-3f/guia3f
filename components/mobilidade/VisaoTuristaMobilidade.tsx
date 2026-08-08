@@ -14,6 +14,7 @@ import CardStatusProfissionalMobilidade from '@/components/mobilidade/CardStatus
 import CardAnfitriaoMobilidade from '@/components/mobilidade/CardAnfitriaoMobilidade'
 import OfertaMobilidadeListener from '@/components/mobilidade/OfertaMobilidadeListener'
 import ChegadaTuristaMobilidadeListener from '@/components/mobilidade/ChegadaTuristaMobilidadeListener'
+import ConclusaoAtendimentoMobilidadeListener from '@/components/mobilidade/ConclusaoAtendimentoMobilidadeListener'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { profissionalTemCategoriaMobilidade } from '@/lib/mobilidadeStatusProfissional'
@@ -834,6 +835,7 @@ export default function VisaoTuristaMobilidade({
 
       {comListener ? <OfertaMobilidadeListener /> : null}
       <ChegadaTuristaMobilidadeListener onCorridaChange={onCorridaTuristaChange} />
+      <ConclusaoAtendimentoMobilidadeListener />
     </div>
   )
 }

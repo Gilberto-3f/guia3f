@@ -12,7 +12,6 @@ import {
   profissionalChegouNaPartida,
   RAIO_CHEGADA_METROS,
 } from '@/lib/mobilidadeChegada'
-import AvaliacaoCorridaMobilidade from '@/components/mobilidade/AvaliacaoCorridaMobilidade'
 import DrawerAtendimentoMobilidade, {
   type OfertaAtendimentoUi,
 } from '@/components/mobilidade/DrawerAtendimentoMobilidade'
@@ -20,6 +19,9 @@ import DrawerAtendimentoAtivoMobilidade, {
   type AtendimentoAtivoUi,
 } from '@/components/mobilidade/DrawerAtendimentoAtivoMobilidade'
 import PopupChegadaProfissionalMobilidade from '@/components/mobilidade/PopupChegadaProfissionalMobilidade'
+import PopupConclusaoAtendimentoMobilidade, {
+  type FaseConclusaoUi,
+} from '@/components/mobilidade/PopupConclusaoAtendimentoMobilidade'
 import {
   avisarCorridaAtivaAtualizada,
   ehAtendimentoImediatoAtivo,
@@ -86,6 +88,9 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
   const [bonus, setBonus] = useState('')
   const [resumoFin, setResumoFin] = useState<string | null>(null)
   const [solicitacaoAvaliar, setSolicitacaoAvaliar] = useState<string | null>(null)
+  const [conclusaoFase, setConclusaoFase] = useState<FaseConclusaoUi>('resumo')
+  const [conclusaoValor, setConclusaoValor] = useState<string | null>(null)
+  const [conclusaoDetalhes, setConclusaoDetalhes] = useState<string[]>([])
   const [erroChegada, setErroChegada] = useState('')
   const [drawerAtivoAberto, setDrawerAtivoAberto] = useState(true)
   const detectandoChegadaRef = useRef(false)
@@ -499,28 +504,39 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
         setErroConcluir(String(json.error ?? t('concluirErro')))
         return
       }
-      if (json.financeiro) {
-        const parts = [
-          json.financeiro.valorCorrida != null
-            ? t('finValorCorrida', { v: formatBrl(json.financeiro.valorCorrida) })
-            : null,
-          json.financeiro.valorRegular != null && json.financeiro.valorRegular > 0
-            ? t('finSuaComissao', { v: formatBrl(json.financeiro.valorRegular) })
-            : null,
-          json.financeiro.bonusVoluntario != null && json.financeiro.bonusVoluntario > 0
-            ? t('finBonus', { v: formatBrl(json.financeiro.bonusVoluntario) })
-            : null,
-        ].filter(Boolean)
-        setResumoFin(parts.join(' · ') || t('corridaConcluida'))
-      } else {
-        setResumoFin(t('corridaConcluida'))
+      const detalhes: string[] = []
+      let valorTxt: string | null = null
+      if (json.financeiro?.valorCorrida != null) {
+        valorTxt = formatBrl(json.financeiro.valorCorrida)
+      } else if (corrida.valor_estimado != null) {
+        valorTxt = formatBrl(corrida.valor_estimado)
       }
+      if (json.financeiro?.valorRegular != null && json.financeiro.valorRegular > 0) {
+        detalhes.push(t('finSuaComissao', { v: formatBrl(json.financeiro.valorRegular) }))
+      }
+      if (json.financeiro?.bonusVoluntario != null && json.financeiro.bonusVoluntario > 0) {
+        detalhes.push(t('finBonus', { v: formatBrl(json.financeiro.bonusVoluntario) }))
+      }
+      if (corrida.pagamento) {
+        try {
+          detalhes.push(
+            `${t('formaPagamento')}: ${t(`pag.${corrida.pagamento}` as 'pag.dinheiro')}`,
+          )
+        } catch {
+          detalhes.push(`${t('formaPagamento')}: ${corrida.pagamento}`)
+        }
+      }
+      setConclusaoValor(valorTxt)
+      setConclusaoDetalhes(detalhes)
+      setConclusaoFase('resumo')
+      setResumoFin(valorTxt || t('corridaConcluida'))
       setSolicitacaoAvaliar(corrida.solicitacao_id)
       setCorrida(null)
       avisarCorridaAtivaAtualizada()
       setErroConcluir('')
       setRecebiDinheiro(false)
       setBonus('')
+      setDrawerAtivoAberto(false)
     } finally {
       setBusy(false)
     }
@@ -528,31 +544,29 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
 
   if (!elegivel) return null
 
-  if (resumoFin) {
+  if (resumoFin && solicitacaoAvaliar) {
     return (
-      <div className="fixed inset-x-3 bottom-24 z-[70] rounded-2xl bg-white p-4 shadow-2xl ring-1 ring-black/10 sm:inset-x-auto sm:right-4 sm:w-96">
-        <p className="text-sm font-bold text-[#00D443]">{t('corridaConcluida')}</p>
-        <p className="mt-2 text-xs text-gray-600">{resumoFin}</p>
-        <p className="mt-1 text-[11px] text-gray-400">{t('finExtratoHint')}</p>
-        {solicitacaoAvaliar ? (
-          <div className="mt-3">
-            <AvaliacaoCorridaMobilidade
-              solicitacaoId={solicitacaoAvaliar}
-              titulo={t('avaliacaoTuristaTitulo')}
-            />
-          </div>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => {
-            setResumoFin(null)
-            setSolicitacaoAvaliar(null)
-          }}
-          className="mt-3 w-full rounded-xl bg-[#0097b2] py-2.5 text-sm font-bold text-white"
-        >
-          {t('fechar')}
-        </button>
-      </div>
+      <PopupConclusaoAtendimentoMobilidade
+        aberto
+        papel="profissional"
+        fase={conclusaoFase}
+        solicitacaoId={solicitacaoAvaliar}
+        valorTexto={conclusaoValor}
+        detalhes={conclusaoDetalhes}
+        onAvancar={() => {
+          void fetch(`/api/mobilidade/solicitar/${solicitacaoAvaliar}/conclusao-ack`, {
+            method: 'POST',
+          }).catch(() => {})
+          setConclusaoFase('avaliar')
+        }}
+        onFechar={() => {
+          setResumoFin(null)
+          setSolicitacaoAvaliar(null)
+          setConclusaoFase('resumo')
+          setConclusaoValor(null)
+          setConclusaoDetalhes([])
+        }}
+      />
     )
   }
 
