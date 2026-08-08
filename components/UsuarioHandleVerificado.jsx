@@ -5,7 +5,7 @@ import { formatarNotaExibicao } from '@/lib/notaMediaAvaliacoes'
 
 /**
  * @username com selo de verificação (feed, atividades, comentários).
- * Nota (★) opcional à frente do handle.
+ * Nota (★) opcional à direita do handle.
  * @param {{
  *   username: string
  *   verificado?: boolean
@@ -30,6 +30,8 @@ export default function UsuarioHandleVerificado({
   const notaTexto = mostrarNota ? formatarNotaExibicao(notaMedia) : null
   const inner = (
     <>
+      {verificado ? <CheckVerificado variant={verificadoTipo} /> : null}
+      <span className="min-w-0 truncate">{handle}</span>
       {mostrarNota ? (
         <span
           className="inline-flex shrink-0 items-center gap-0.5 font-bold text-amber-500"
@@ -39,8 +41,6 @@ export default function UsuarioHandleVerificado({
           {notaTexto}
         </span>
       ) : null}
-      {verificado ? <CheckVerificado variant={verificadoTipo} /> : null}
-      <span className="min-w-0 truncate">{handle}</span>
     </>
   )
 

@@ -169,9 +169,9 @@ export default function DrawerAtendimentoMobilidade({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4" data-modal-scroll-lock-scrollable>
         {/* Card do turista */}
-        <div className="flex flex-col items-center gap-2 text-center">
+        <div className="flex flex-col items-center gap-0.5 text-center">
           <div
-            className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100"
+            className="relative mb-1.5 h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100"
             style={{ boxShadow: `0 0 0 4px ${COR}` }}
           >
             {turista?.foto_url ? (
@@ -184,7 +184,7 @@ export default function DrawerAtendimentoMobilidade({
               />
             ) : null}
           </div>
-          <p className="max-w-md text-lg font-bold text-gray-900">
+          <p className="max-w-md text-lg font-bold leading-tight text-gray-900">
             {turista?.nome || t('atendimentoTuristaFallback')}
           </p>
           <UsuarioHandleVerificado
@@ -193,7 +193,7 @@ export default function DrawerAtendimentoMobilidade({
             verificadoTipo="profissional"
             notaMedia={turista?.nota_media ?? null}
             asButton={false}
-            className="justify-center text-sm font-normal text-gray-600"
+            className="justify-center text-sm font-normal leading-tight text-gray-600"
           />
         </div>
 

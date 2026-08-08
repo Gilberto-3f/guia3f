@@ -611,12 +611,15 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
   if (!oferta) return null
 
   const painelRecusa = mostrarRecusa ? (
-    <div className="mb-2 space-y-2">
-      <p className="text-xs font-semibold text-gray-700">{t('recusaTitulo')}</p>
+    <div
+      className="mb-2 space-y-3 rounded-2xl px-3 py-3 text-white shadow-md"
+      style={{ backgroundColor: '#0097b2' }}
+    >
+      <p className="text-xs font-semibold text-white">{t('recusaTitulo')}</p>
       <ul className="space-y-1.5">
         {JUSTIFICATIVAS_RECUSA_MOBILIDADE.map((id) => (
           <li key={id}>
-            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-gray-200 px-2.5 py-2 text-xs text-gray-700">
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-white/30 bg-white/10 px-2.5 py-2 text-xs text-white">
               <input
                 type="radio"
                 name="just-recusa"
@@ -625,7 +628,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
                   setJustificativa(id)
                   if (id !== 'outro') setJustificativaDetalhe('')
                 }}
-                className="mt-0.5"
+                className="mt-0.5 accent-white"
               />
               <span>{t(`recusa.${id}`)}</span>
             </label>
@@ -633,7 +636,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
         ))}
       </ul>
       {justificativa === 'outro' ? (
-        <label className="block text-xs text-gray-600">
+        <label className="block text-xs text-white/90">
           {t('recusaOutroLabel')}
           <textarea
             value={justificativaDetalhe}
@@ -641,11 +644,11 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
             rows={2}
             maxLength={280}
             placeholder={t('recusaOutroPlaceholder')}
-            className="mt-1 w-full rounded-lg border border-gray-200 px-2.5 py-2 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-[#0097b2]/30"
+            className="mt-1 w-full rounded-lg border border-white/40 bg-white px-2.5 py-2 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-white/50"
           />
         </label>
       ) : null}
-      {erroRecusa ? <p className="text-xs text-rose-600">{erroRecusa}</p> : null}
+      {erroRecusa ? <p className="text-xs font-medium text-amber-200">{erroRecusa}</p> : null}
       <div className="flex gap-2 pt-1">
         <button
           type="button"
@@ -655,7 +658,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
             setErroRecusa('')
             setJustificativaDetalhe('')
           }}
-          className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-700"
+          className="flex-1 rounded-xl bg-white py-2.5 text-sm font-semibold text-[#0097b2] disabled:opacity-50"
         >
           {t('voltar')}
         </button>
@@ -663,7 +666,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
           type="button"
           disabled={busy}
           onClick={() => void confirmarRecusa()}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-rose-600 py-2.5 text-sm font-bold uppercase text-white"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white py-2.5 text-sm font-bold uppercase text-[#0097b2] disabled:opacity-50"
         >
           {t('ofertaRecusar')}
         </button>

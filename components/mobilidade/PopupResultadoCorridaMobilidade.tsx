@@ -281,13 +281,13 @@ export default function PopupResultadoCorridaMobilidade({
                           ? t('chegadaACaminhoTurista')
                           : t('matchAceito')}
                   </p>
-                  <p className="mt-2 font-semibold text-gray-900">{oferta.nome}</p>
+                  <p className="mt-2 font-semibold leading-tight text-gray-900">{oferta.nome}</p>
                   {oferta.username ? (
                     <UsuarioHandleVerificado
                       username={String(oferta.username).replace(/^@+/, '')}
                       notaMedia={oferta.notaMedia ?? null}
                       asButton={false}
-                      className="text-sm text-gray-500"
+                      className="text-sm leading-tight text-gray-500"
                     />
                   ) : null}
                 </div>
