@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Car, Coins, ImagePlus, Info, Paperclip, Trash2 } from 'lucide-react'
+import { Car, Coins, ImagePlus, Paperclip, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { MOEDAS_MOBILIDADE } from '@/lib/mobilidadePopupPesquisa'
 import {
@@ -18,9 +18,6 @@ import AnexarDocumentos from '@/components/perfil/subpaginas/AnexarDocumentos'
 
 const COR = '#0097b2'
 const VERDE = '#00D443'
-
-const TEXTO_INFO_MOBILIDADE =
-  'Cadastro do profissional e do veículo + preferência de recebimento — dados alimentam o algoritmo na busca do turista.'
 
 function ChevronPasta({ titulo, aberto, onToggle, icon: Icon, children }) {
   return (
@@ -59,7 +56,6 @@ export default function MobilidadePerfil({ usuarioId, onDocsConcluido }) {
   const [erro, setErro] = useState('')
   const [elegivel, setElegivel] = useState(false)
   const [ehMotoristaApp, setEhMotoristaApp] = useState(false)
-  const [infoAberta, setInfoAberta] = useState(false)
   const [pastaVeiculo, setPastaVeiculo] = useState(false)
   const [pastaMoeda, setPastaMoeda] = useState(false)
   const [pastaDocs, setPastaDocs] = useState(false)
@@ -212,9 +208,6 @@ export default function MobilidadePerfil({ usuarioId, onDocsConcluido }) {
   if (!elegivel) {
     return (
       <div className="space-y-2 p-4">
-        <h2 className="text-lg font-bold" style={{ color: COR }}>
-          Mobilidade
-        </h2>
         <p className="text-sm text-gray-600">
           Disponível para profissionais de mobilidade (placa vermelha: van, táxi ou guia) e motorista
           de app. Anfitriões de hospedagem não usam este cadastro.
@@ -226,32 +219,14 @@ export default function MobilidadePerfil({ usuarioId, onDocsConcluido }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 border-b border-gray-100 px-4 py-3">
-        <div className="flex items-start gap-2">
-          <h2 className="min-w-0 flex-1 text-lg font-bold" style={{ color: COR }}>
-            Mobilidade
-          </h2>
-          <button
-            type="button"
-            onClick={() => setInfoAberta((v) => !v)}
-            className="shrink-0 rounded-full p-1"
-            style={{ color: COR }}
-            aria-label="Informações sobre o cadastro de mobilidade"
-            aria-expanded={infoAberta}
-          >
-            <Info className="h-5 w-5" aria-hidden />
-          </button>
-        </div>
-        {infoAberta ? (
-          <p className="mt-2 text-xs leading-relaxed text-gray-600">{TEXTO_INFO_MOBILIDADE}</p>
-        ) : null}
-        {ehMotoristaApp ? (
-          <p className="mt-1 text-[11px] text-gray-400">
+      {ehMotoristaApp ? (
+        <div className="shrink-0 border-b border-gray-100 px-4 py-2">
+          <p className="text-[11px] text-gray-400">
             Motorista de app: o atendimento ao turista segue a API do parceiro; estes dados protegem o
             ecossistema.
           </p>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
         <ChevronPasta

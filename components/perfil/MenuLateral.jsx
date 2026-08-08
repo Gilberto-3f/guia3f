@@ -289,10 +289,10 @@ function pastaGuia(ctx) {
     key: 'guia-agencia',
     label: 'Guia de Turismo',
     items: [
-      { Icon: Home, label: 'Guia de Turismo', subpagina: 'guia-modo-social' },
+      { Icon: Home, label: 'Modo GUIA DE TURISMO', subpagina: 'guia-modo-social' },
       {
         Icon: Building2,
-        label: 'Agência de Turismo',
+        label: 'Modo AGÊNCIA DE TURISMO',
         subpagina: ctx.empresaAgenciaId ? 'guia-modo-agencia' : 'cadastrar-agencia-guia',
       },
     ],

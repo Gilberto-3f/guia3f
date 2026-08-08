@@ -1,5 +1,7 @@
 /** Textos de ajuda exibidos no ícone (i) antes do título dos drawers do menu lateral. */
 export const DRAWER_INFO_TEXTO: Record<string, string> = {
+  'mobilidade-perfil':
+    'Cadastro do profissional e do veículo + preferência de recebimento — dados alimentam o algoritmo na busca do turista.',
   tabela:
     'Valores de referência para deslocamento (rotas) da sua categoria (tickets e ingressos de atrativos são negociados à parte).',
   'recomendacoes-feitas':
