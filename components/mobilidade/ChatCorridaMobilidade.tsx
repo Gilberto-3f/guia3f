@@ -15,10 +15,19 @@ type Msg = {
 type Props = {
   conversaId: string
   compact?: boolean
+  /** Se false, só faz poll (útil com chevron fechado para badge). */
+  visivel?: boolean
+  /** Notifica mensagens (para contador de não lidas com chevron fechado). */
+  onMensagensChange?: (msgs: Msg[], meuId: string | null) => void
 }
 
 /** Chat 1:1 temporário da corrida (fora do canal do ecossistema). */
-export default function ChatCorridaMobilidade({ conversaId, compact = false }: Props) {
+export default function ChatCorridaMobilidade({
+  conversaId,
+  compact = false,
+  visivel = true,
+  onMensagensChange,
+}: Props) {
   const t = useTranslations('Mobilidade')
   const [msgs, setMsgs] = useState<Msg[]>([])
   const [texto, setTexto] = useState('')
@@ -26,6 +35,8 @@ export default function ChatCorridaMobilidade({ conversaId, compact = false }: P
   const [meuId, setMeuId] = useState<string | null>(null)
   const [erro, setErro] = useState('')
   const fimRef = useRef<HTMLDivElement | null>(null)
+  const onMsgsRef = useRef(onMensagensChange)
+  onMsgsRef.current = onMensagensChange
 
   useEffect(() => {
     void supabase.auth.getUser().then(({ data }) => {
@@ -41,7 +52,8 @@ export default function ChatCorridaMobilidade({ conversaId, compact = false }: P
         setErro(String(json.error ?? t('chatErro')))
         return
       }
-      setMsgs(Array.isArray(json.mensagens) ? json.mensagens : [])
+      const lista = Array.isArray(json.mensagens) ? json.mensagens : []
+      setMsgs(lista)
       setErro('')
     } catch {
       setErro(t('chatErro'))
@@ -55,8 +67,13 @@ export default function ChatCorridaMobilidade({ conversaId, compact = false }: P
   }, [carregar])
 
   useEffect(() => {
+    onMsgsRef.current?.(msgs, meuId)
+  }, [msgs, meuId])
+
+  useEffect(() => {
+    if (!visivel) return
     fimRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [msgs.length])
+  }, [msgs.length, visivel])
 
   const enviar = async () => {
     const body = texto.trim()
@@ -80,6 +97,8 @@ export default function ChatCorridaMobilidade({ conversaId, compact = false }: P
       setBusy(false)
     }
   }
+
+  if (!visivel) return null
 
   return (
     <div

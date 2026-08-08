@@ -12,11 +12,13 @@ import {
   profissionalChegouNaPartida,
   RAIO_CHEGADA_METROS,
 } from '@/lib/mobilidadeChegada'
-import ChatCorridaMobilidade from '@/components/mobilidade/ChatCorridaMobilidade'
 import AvaliacaoCorridaMobilidade from '@/components/mobilidade/AvaliacaoCorridaMobilidade'
 import DrawerAtendimentoMobilidade, {
   type OfertaAtendimentoUi,
 } from '@/components/mobilidade/DrawerAtendimentoMobilidade'
+import DrawerAtendimentoAtivoMobilidade, {
+  type AtendimentoAtivoUi,
+} from '@/components/mobilidade/DrawerAtendimentoAtivoMobilidade'
 import PopupChegadaProfissionalMobilidade from '@/components/mobilidade/PopupChegadaProfissionalMobilidade'
 
 type Oferta = OfertaAtendimentoUi & {
@@ -32,6 +34,8 @@ export type CorridaAtivaMobilidade = {
   modalidade: string | null
   valor_estimado: number | null
   pagamento: string | null
+  lugares?: number | null
+  data_agendada?: string | null
   conversa_id: string | null
   manifesto_id: string | null
   lat_origem?: number | null
@@ -40,6 +44,14 @@ export type CorridaAtivaMobilidade = {
   lng_destino?: number | null
   prof_lat?: number | null
   prof_lng?: number | null
+  turista?: {
+    usuario_id: string
+    nome: string
+    username: string | null
+    foto_url: string | null
+    verificado: boolean
+    nota_media: number | null
+  } | null
 }
 
 type Props = {
@@ -70,6 +82,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
   const [resumoFin, setResumoFin] = useState<string | null>(null)
   const [solicitacaoAvaliar, setSolicitacaoAvaliar] = useState<string | null>(null)
   const [erroChegada, setErroChegada] = useState('')
+  const [drawerAtivoAberto, setDrawerAtivoAberto] = useState(true)
   const detectandoChegadaRef = useRef(false)
 
   const categoriasProf = (() => {
@@ -90,7 +103,13 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
       if (res.status === 401 || res.status === 403) return 'auth' as const
       const json = (await res.json()) as { corrida?: CorridaAtivaMobilidade | null }
       if (!res.ok) return 'ok' as const
-      setCorrida(json.corrida ?? null)
+      const next = json.corrida ?? null
+      setCorrida((prev) => {
+        if (next?.solicitacao_id && next.solicitacao_id !== prev?.solicitacao_id) {
+          queueMicrotask(() => setDrawerAtivoAberto(true))
+        }
+        return next
+      })
     } catch {
       /* ignore */
     }
@@ -520,83 +539,78 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
 
   if (corrida) {
     const st = String(corrida.status ?? 'a_caminho')
-    const tituloCorrida =
-      st === 'no_local'
-        ? t('chegadaNoLocalTitulo')
-        : st === 'em_viagem'
-          ? t('chegadaEmViagemTitulo')
-          : t('corridaEmAndamento')
+    const atendimentoAtivo: AtendimentoAtivoUi = {
+      solicitacao_id: corrida.solicitacao_id,
+      status: st,
+      origem_nome: corrida.origem_nome,
+      destino_nome: corrida.destino_nome,
+      valor_estimado: corrida.valor_estimado,
+      pagamento: corrida.pagamento,
+      lugares: corrida.lugares ?? null,
+      data_agendada: corrida.data_agendada ?? null,
+      modalidade: corrida.modalidade,
+      conversa_id: corrida.conversa_id,
+      manifesto_id: corrida.manifesto_id,
+      parte: corrida.turista
+        ? {
+            nome: corrida.turista.nome,
+            username: corrida.turista.username,
+            foto_url: corrida.turista.foto_url,
+            verificado: corrida.turista.verificado,
+            nota_media: corrida.turista.nota_media,
+          }
+        : null,
+    }
+
+    const rodapePagamento = (
+      <div className="mb-3 space-y-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+        <label className="flex items-start gap-2 text-xs text-gray-700">
+          <input
+            type="checkbox"
+            checked={recebiDinheiro}
+            onChange={(e) => setRecebiDinheiro(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>{t('pagRecebiDinheiro')}</span>
+        </label>
+        <label className="block text-xs text-gray-600">
+          {t('bonusLabel')}
+          <input
+            type="number"
+            min={0}
+            step="0.01"
+            value={bonus}
+            onChange={(e) => setBonus(e.target.value)}
+            placeholder="0,00"
+            className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+          />
+        </label>
+      </div>
+    )
 
     return (
       <>
-        <div className="fixed inset-x-3 bottom-24 z-[70] rounded-2xl bg-white p-3 shadow-2xl ring-1 ring-black/10 sm:inset-x-auto sm:right-4 sm:w-96">
-          <div className="mb-2">
-            <p className="text-sm font-bold text-[#00D443]">{tituloCorrida}</p>
-            <p className="mt-0.5 text-xs text-gray-500">
-              {corrida.origem_nome || '—'} → {corrida.destino_nome || '—'}
-            </p>
-            {corrida.valor_estimado != null ? (
-              <p className="mt-1 text-sm font-semibold text-gray-800">
-                {formatBrl(corrida.valor_estimado)}
-                {corrida.pagamento ? ` · ${corrida.pagamento}` : ''}
-              </p>
-            ) : null}
-            {corrida.manifesto_id ? (
-              <p className="mt-1 text-[11px] font-medium text-[#0097b2]">{t('manifestoRegistrado')}</p>
-            ) : null}
-          </div>
-          {corrida.conversa_id ? (
-            <ChatCorridaMobilidade conversaId={corrida.conversa_id} compact />
-          ) : null}
-
-          <div className="mt-3 space-y-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
-            <label className="flex items-start gap-2 text-xs text-gray-700">
-              <input
-                type="checkbox"
-                checked={recebiDinheiro}
-                onChange={(e) => setRecebiDinheiro(e.target.checked)}
-                className="mt-0.5"
-              />
-              <span>{t('pagRecebiDinheiro')}</span>
-            </label>
-            <label className="block text-xs text-gray-600">
-              {t('bonusLabel')}
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                value={bonus}
-                onChange={(e) => setBonus(e.target.value)}
-                placeholder="0,00"
-                className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
-              />
-            </label>
-          </div>
-
-          {erroConcluir ? (
-            <div className="mt-2 space-y-1">
-              <p className="text-xs text-rose-600">{erroConcluir}</p>
-              {erroConcluir.toLowerCase().includes('check-in') ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void concluir(true)}
-                  className="text-xs font-semibold text-[#0097b2] underline"
-                >
-                  {t('concluirSemManifesto')}
-                </button>
-              ) : null}
-            </div>
-          ) : null}
+        <DrawerAtendimentoAtivoMobilidade
+          aberto={drawerAtivoAberto}
+          papel="profissional"
+          atendimento={atendimentoAtivo}
+          busy={busy}
+          erroConcluir={erroConcluir || null}
+          rodapeExtra={rodapePagamento}
+          onFechar={() => setDrawerAtivoAberto(false)}
+          onConcluir={() => void concluir(false)}
+          onConcluirSemManifesto={() => void concluir(true)}
+        />
+        {!drawerAtivoAberto ? (
           <button
             type="button"
-            disabled={busy || st === 'no_local'}
-            onClick={() => void concluir(false)}
-            className="mt-3 w-full rounded-xl bg-[#0097b2] py-2.5 text-sm font-bold text-white disabled:opacity-50"
+            onClick={() => setDrawerAtivoAberto(true)}
+            className="fixed inset-x-3 bottom-24 z-[70] rounded-2xl px-4 py-3 text-left text-sm font-bold text-white shadow-2xl sm:inset-x-auto sm:right-4 sm:w-96"
+            style={{ backgroundColor: st === 'em_viagem' || st === 'no_local' ? '#00D443' : '#0097b2' }}
           >
-            {t('concluirCorrida')}
+            {t('drawerAtivoReabrir')}
           </button>
-        </div>
+        ) : null}
         <PopupChegadaProfissionalMobilidade
           aberto={st === 'no_local'}
           busy={busy}

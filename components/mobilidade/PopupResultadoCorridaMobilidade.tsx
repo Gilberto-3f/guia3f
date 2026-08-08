@@ -8,9 +8,7 @@ import {
   MOBILIDADE_OFERTA_TIMEOUT_MS,
   MOBILIDADE_OFERTA_WARN_MS,
 } from '@/lib/mobilidadeMatching'
-import ChatCorridaMobilidade from '@/components/mobilidade/ChatCorridaMobilidade'
 import AvaliacaoCorridaMobilidade from '@/components/mobilidade/AvaliacaoCorridaMobilidade'
-import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 
 export type OfertaResultadoUi = {
   profissionalId: string
@@ -49,13 +47,10 @@ export default function PopupResultadoCorridaMobilidade({
   onReabrirAgendar,
 }: Props) {
   const t = useTranslations('Mobilidade')
-  useModalScrollLock(aberto)
-
   const [matchStatus, setMatchStatus] = useState<string | null>(null)
   const [oferta, setOferta] = useState<OfertaResultadoUi | null>(null)
   const [buscando, setBuscando] = useState(false)
   const [segRestantes, setSegRestantes] = useState<number | null>(null)
-  const [conversaId, setConversaId] = useState<string | null>(null)
   const [matchErro, setMatchErro] = useState('')
 
   const statusAtivo =
@@ -64,12 +59,20 @@ export default function PopupResultadoCorridaMobilidade({
     matchStatus === 'no_local' ||
     matchStatus === 'em_viagem'
 
+  useModalScrollLock(aberto && !statusAtivo)
+
+  /** Após aceite: drawer full-screen fica no listener do turista. */
+  useEffect(() => {
+    if (!aberto || !statusAtivo) return
+    window.dispatchEvent(new Event('mobilidade:corrida-ativa'))
+    onFechar()
+  }, [aberto, statusAtivo, onFechar])
+
   useEffect(() => {
     if (!aberto || !resultado) return
     setMatchStatus(resultado.status)
     setOferta(resultado.oferta)
     setMatchErro(resultado.matchErro ?? '')
-    setConversaId(null)
     const st = resultado.status
     setBuscando(
       Boolean(resultado.oferta) &&
@@ -87,45 +90,7 @@ export default function PopupResultadoCorridaMobilidade({
     if (!aberto || !resultado?.solicitacaoId) return
     const solicitacaoId = resultado.solicitacaoId
     if (matchStatus === 'sem_profissional' || matchStatus === 'cancelada') return
-
-    if (statusAtivo) {
-      if (!conversaId) {
-        void fetch('/api/mobilidade/chat/abrir', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ solicitacao_id: solicitacaoId }),
-        })
-          .then((r) => r.json())
-          .then((j: { conversa_id?: string }) => {
-            if (j.conversa_id) setConversaId(String(j.conversa_id))
-          })
-          .catch(() => {})
-      }
-      let cancelled = false
-      const pollAtiva = async () => {
-        try {
-          const res = await fetch(`/api/mobilidade/solicitar/${solicitacaoId}`)
-          const json = (await res.json()) as Record<string, unknown>
-          if (cancelled || !res.ok) return
-          const st = String(json.status ?? '')
-          setMatchStatus(st)
-          setBuscando(false)
-          const of = json.oferta as OfertaResultadoUi | null
-          if (of && of.profissionalId) setOferta(of)
-          const cid = json.conversa_id != null ? String(json.conversa_id).trim() : ''
-          if (cid) setConversaId(cid)
-          if (st === 'concluida' || st === 'cancelada') setBuscando(false)
-        } catch {
-          /* ignore */
-        }
-      }
-      void pollAtiva()
-      const id = setInterval(() => void pollAtiva(), 4000)
-      return () => {
-        cancelled = true
-        clearInterval(id)
-      }
-    }
+    if (statusAtivo) return
 
     let cancelled = false
     const poll = async () => {
@@ -147,13 +112,6 @@ export default function PopupResultadoCorridaMobilidade({
           setBuscando(false)
         }
         if (st === 'oferecida') setBuscando(true)
-        const cid = json.conversa_id != null ? String(json.conversa_id).trim() : ''
-        if (
-          (st === 'aceita' || st === 'a_caminho' || st === 'no_local' || st === 'em_viagem') &&
-          cid
-        ) {
-          setConversaId(cid)
-        }
       } catch {
         /* ignore */
       }
@@ -165,7 +123,7 @@ export default function PopupResultadoCorridaMobilidade({
       cancelled = true
       clearInterval(id)
     }
-  }, [aberto, resultado?.solicitacaoId, matchStatus, conversaId, statusAtivo])
+  }, [aberto, resultado?.solicitacaoId, matchStatus, statusAtivo])
 
   useEffect(() => {
     if (!oferta?.expiraEm || matchStatus !== 'oferecida') {
@@ -181,7 +139,7 @@ export default function PopupResultadoCorridaMobilidade({
     return () => clearInterval(id)
   }, [oferta?.expiraEm, matchStatus])
 
-  if (!aberto || !resultado) return null
+  if (!aberto || !resultado || statusAtivo) return null
 
   const dataHora = resultado.dataHoraAgendada ?? ''
   const warnAmarelo =
@@ -189,10 +147,6 @@ export default function PopupResultadoCorridaMobilidade({
     segRestantes * 1000 <= MOBILIDADE_OFERTA_TIMEOUT_MS - MOBILIDADE_OFERTA_WARN_MS
 
   const mostrarFechar =
-    matchStatus === 'aceita' ||
-    matchStatus === 'a_caminho' ||
-    matchStatus === 'no_local' ||
-    matchStatus === 'em_viagem' ||
     matchStatus === 'sem_profissional' ||
     matchStatus === 'concluida' ||
     matchStatus === 'agendada' ||
@@ -266,32 +220,6 @@ export default function PopupResultadoCorridaMobilidade({
                 {resultado.solicitacaoId ? (
                   <AvaliacaoCorridaMobilidade solicitacaoId={resultado.solicitacaoId} />
                 ) : null}
-              </div>
-            ) : null}
-
-            {statusAtivo && oferta ? (
-              <div className="space-y-3 text-left">
-                <div className="rounded-xl border-2 border-[#00D443] bg-green-50 px-3 py-4">
-                  <p className="text-center text-sm font-bold text-[#00D443]">
-                    {matchStatus === 'em_viagem'
-                      ? t('chegadaEmViagemTitulo')
-                      : matchStatus === 'no_local'
-                        ? t('chegadaProTitulo')
-                        : matchStatus === 'a_caminho'
-                          ? t('chegadaACaminhoTurista')
-                          : t('matchAceito')}
-                  </p>
-                  <p className="mt-2 font-semibold leading-tight text-gray-900">{oferta.nome}</p>
-                  {oferta.username ? (
-                    <UsuarioHandleVerificado
-                      username={String(oferta.username).replace(/^@+/, '')}
-                      notaMedia={oferta.notaMedia ?? null}
-                      asButton={false}
-                      className="text-sm leading-tight text-gray-500"
-                    />
-                  ) : null}
-                </div>
-                {conversaId ? <ChatCorridaMobilidade conversaId={conversaId} /> : null}
               </div>
             ) : null}
 

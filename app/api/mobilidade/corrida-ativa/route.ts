@@ -41,6 +41,8 @@ export async function GET() {
           modalidade: ativa.modalidade,
           valor_estimado: ativa.valorEstimado,
           pagamento: ativa.pagamento,
+          lugares: ativa.lugares,
+          data_agendada: ativa.dataAgendada,
           conversa_id: ativa.conversaId,
           manifesto_id: ativa.manifestoId,
           lat_origem: ativa.latOrigem,
@@ -49,6 +51,16 @@ export async function GET() {
           lng_destino: ativa.lngDestino,
           prof_lat: ativa.profLat,
           prof_lng: ativa.profLng,
+          turista: ativa.turista
+            ? {
+                usuario_id: ativa.turista.usuarioId,
+                nome: ativa.turista.nome,
+                username: ativa.turista.username,
+                foto_url: ativa.turista.fotoUrl,
+                verificado: ativa.turista.verificado,
+                nota_media: ativa.turista.notaMedia,
+              }
+            : null,
         }
       : null,
   })

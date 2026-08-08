@@ -240,6 +240,8 @@ export async function buscarCorridaAtivaProfissional(
   modalidade: string | null
   valorEstimado: number | null
   pagamento: string | null
+  lugares: number | null
+  dataAgendada: string | null
   conversaId: string | null
   manifestoId: string | null
   latOrigem: number | null
@@ -248,11 +250,19 @@ export async function buscarCorridaAtivaProfissional(
   lngDestino: number | null
   profLat: number | null
   profLng: number | null
+  turista: {
+    usuarioId: string
+    nome: string
+    username: string | null
+    fotoUrl: string | null
+    verificado: boolean
+    notaMedia: number | null
+  } | null
 } | null> {
   const { data: row } = await admin
     .from('solicitacao_mobilidade')
     .select(
-      'id, status, origem_nome, destino_nome, modalidade, valor_estimado, pagamento, metadata, lat_origem, lng_origem, lat_destino, lng_destino',
+      'id, status, turista_id, origem_nome, destino_nome, modalidade, valor_estimado, pagamento, lugares, data_agendada, metadata, lat_origem, lng_origem, lat_destino, lng_destino',
     )
     .eq('profissional_id', profissionalId)
     .in('status', ['aceita', 'a_caminho', 'no_local', 'em_viagem'])
@@ -280,6 +290,51 @@ export async function buscarCorridaAtivaProfissional(
     return Number.isFinite(n) ? n : null
   }
 
+  let turista: {
+    usuarioId: string
+    nome: string
+    username: string | null
+    fotoUrl: string | null
+    verificado: boolean
+    notaMedia: number | null
+  } | null = null
+
+  const turistaId = row.turista_id != null ? String(row.turista_id) : ''
+  if (turistaId) {
+    const { data: tur } = await admin
+      .from('turistas')
+      .select('nome_completo, nome_usuario, foto_perfil_url, foto_url, docs_verificado')
+      .eq('usuario_id', turistaId)
+      .maybeSingle()
+
+    let notaMedia: number | null = null
+    const { data: avs } = await admin
+      .from('avaliacoes')
+      .select('nota')
+      .eq('alvo_tipo', 'turista')
+      .eq('alvo_id', turistaId)
+    if (avs && avs.length > 0) {
+      const soma = avs.reduce((acc, a) => acc + Number(a.nota || 0), 0)
+      notaMedia = Math.round((soma / avs.length) * 10) / 10
+    }
+
+    const foto =
+      tur?.foto_perfil_url != null && String(tur.foto_perfil_url).trim()
+        ? String(tur.foto_perfil_url)
+        : tur?.foto_url != null && String(tur.foto_url).trim()
+          ? String(tur.foto_url)
+          : null
+
+    turista = {
+      usuarioId: turistaId,
+      nome: String(tur?.nome_completo ?? 'Turista'),
+      username: tur?.nome_usuario != null ? String(tur.nome_usuario).replace(/^@+/, '') : null,
+      fotoUrl: foto,
+      verificado: Boolean(tur?.docs_verificado),
+      notaMedia,
+    }
+  }
+
   return {
     solicitacaoId: String(row.id),
     status: String(row.status ?? 'a_caminho'),
@@ -288,6 +343,8 @@ export async function buscarCorridaAtivaProfissional(
     modalidade: row.modalidade != null ? String(row.modalidade) : null,
     valorEstimado: row.valor_estimado != null ? Number(row.valor_estimado) : null,
     pagamento: row.pagamento != null ? String(row.pagamento) : null,
+    lugares: row.lugares != null ? Number(row.lugares) : null,
+    dataAgendada: row.data_agendada != null ? String(row.data_agendada) : null,
     conversaId: conv?.id != null ? String(conv.id) : null,
     manifestoId: meta.manifesto_id != null ? String(meta.manifesto_id) : null,
     latOrigem: numOrNull(row.lat_origem),
@@ -296,5 +353,6 @@ export async function buscarCorridaAtivaProfissional(
     lngDestino: numOrNull(row.lng_destino),
     profLat: numOrNull(prof?.mobilidade_lat),
     profLng: numOrNull(prof?.mobilidade_lng),
+    turista,
   }
 }
