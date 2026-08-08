@@ -20,6 +20,11 @@ import DrawerAtendimentoAtivoMobilidade, {
   type AtendimentoAtivoUi,
 } from '@/components/mobilidade/DrawerAtendimentoAtivoMobilidade'
 import PopupChegadaProfissionalMobilidade from '@/components/mobilidade/PopupChegadaProfissionalMobilidade'
+import {
+  avisarCorridaAtivaAtualizada,
+  ehAtendimentoImediatoAtivo,
+  MOBILIDADE_ABRIR_DRAWER_ATIVO,
+} from '@/lib/mobilidadeAtendimentoAtivoEventos'
 
 type Oferta = OfertaAtendimentoUi & {
   /** Marcador interno: confirmação de agendamento (API dedicada). */
@@ -250,6 +255,13 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
     if (!elegivel) onCorridaChange?.(null)
   }, [elegivel, onCorridaChange])
 
+  useEffect(() => {
+    if (!corrida) return
+    const onAbrir = () => setDrawerAtivoAberto(true)
+    window.addEventListener(MOBILIDADE_ABRIR_DRAWER_ATIVO, onAbrir)
+    return () => window.removeEventListener(MOBILIDADE_ABRIR_DRAWER_ATIVO, onAbrir)
+  }, [corrida])
+
   /** GPS automático: a_caminho → detectar proximidade da partida. */
   useEffect(() => {
     const st = String(corrida?.status ?? '')
@@ -330,10 +342,12 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
       }
       if (!recebido) {
         setCorrida(null)
+        avisarCorridaAtivaAtualizada()
         void carregarOferta()
         return
       }
       await carregarCorrida()
+      avisarCorridaAtivaAtualizada()
     } finally {
       setBusy(false)
     }
@@ -355,6 +369,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
       }
       setOferta(null)
       await carregarCorrida()
+      avisarCorridaAtivaAtualizada()
       return true
     }
 
@@ -373,6 +388,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
     }
     setOferta(null)
     await carregarCorrida()
+    avisarCorridaAtivaAtualizada()
     return true
   }
 
@@ -499,6 +515,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
       }
       setSolicitacaoAvaliar(corrida.solicitacao_id)
       setCorrida(null)
+      avisarCorridaAtivaAtualizada()
       setErroConcluir('')
       setRecebiDinheiro(false)
       setBonus('')
@@ -601,7 +618,11 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
           onConcluir={() => void concluir(false)}
           onConcluirSemManifesto={() => void concluir(true)}
         />
-        {!drawerAtivoAberto ? (
+        {!drawerAtivoAberto &&
+        !ehAtendimentoImediatoAtivo({
+          status: st,
+          data_agendada: corrida.data_agendada,
+        }) ? (
           <button
             type="button"
             onClick={() => setDrawerAtivoAberto(true)}

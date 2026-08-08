@@ -8,7 +8,7 @@ import {
   MOBILIDADE_OFERTA_TIMEOUT_MS,
   MOBILIDADE_OFERTA_WARN_MS,
 } from '@/lib/mobilidadeMatching'
-import AvaliacaoCorridaMobilidade from '@/components/mobilidade/AvaliacaoCorridaMobilidade'
+import { avisarCorridaAtivaAtualizada } from '@/lib/mobilidadeAtendimentoAtivoEventos'
 
 export type OfertaResultadoUi = {
   profissionalId: string
@@ -64,7 +64,7 @@ export default function PopupResultadoCorridaMobilidade({
   /** Após aceite: drawer full-screen fica no listener do turista. */
   useEffect(() => {
     if (!aberto || !statusAtivo) return
-    window.dispatchEvent(new Event('mobilidade:corrida-ativa'))
+    avisarCorridaAtivaAtualizada()
     onFechar()
   }, [aberto, statusAtivo, onFechar])
 

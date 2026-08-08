@@ -1,13 +1,20 @@
 'use client'
 
 import { useCallback, useEffect, useState, type SVGProps } from 'react'
-import { Briefcase, ChevronDown, ChevronUp, Smile } from 'lucide-react'
+import { Briefcase, ChevronDown, ChevronUp, Navigation, Smile } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import ToggleStatusMobilidade from '@/components/mobilidade/ToggleStatusMobilidade'
 import DrawerEspacoProfissionalMobilidade from '@/components/mobilidade/DrawerEspacoProfissionalMobilidade'
+import CardParteAtendimentoFlutuante from '@/components/mobilidade/CardParteAtendimentoFlutuante'
 import type { MobilidadeStatusId } from '@/lib/mobilidadeStatusProfissional'
+import {
+  ehAtendimentoImediatoAtivo,
+  MOBILIDADE_CORRIDA_ATIVA,
+  pedirAbrirDrawerAtendimentoAtivo,
+} from '@/lib/mobilidadeAtendimentoAtivoEventos'
 
 const COR = '#0097b2'
+const VERDE = '#00D443'
 
 /** Ícone zZz (sono) — offline profissional. */
 function IconZzz(props: SVGProps<SVGSVGElement>) {
@@ -29,6 +36,21 @@ function IconZzz(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+type TuristaCorrida = {
+  nome: string
+  username: string | null
+  foto_url: string | null
+  verificado: boolean
+  nota_media: number | null
+}
+
+type CorridaAtivaResumo = {
+  solicitacao_id: string
+  status: string
+  data_agendada?: string | null
+  turista?: TuristaCorrida | null
+}
+
 type Props = {
   className?: string
   /** Força o card recolhido (ex.: drawer de atendimento aberto). */
@@ -37,7 +59,7 @@ type Props = {
 
 /**
  * Card flutuante do profissional na Mobilidade:
- * título ONLINE/OFFLINE, toggle no chevron, Espaço Profissional.
+ * ONLINE/OFFLINE → em atendimento imediato: header verde + card do turista.
  */
 export default function CardStatusProfissionalMobilidade({
   className = '',
@@ -48,6 +70,21 @@ export default function CardStatusProfissionalMobilidade({
   const [status, setStatus] = useState<MobilidadeStatusId>('offline')
   const [toastOffline, setToastOffline] = useState(false)
   const [espacoAberto, setEspacoAberto] = useState(false)
+  const [corrida, setCorrida] = useState<CorridaAtivaResumo | null>(null)
+
+  const carregarCorrida = useCallback(async () => {
+    try {
+      const res = await fetch('/api/mobilidade/corrida-ativa')
+      if (!res.ok) {
+        setCorrida(null)
+        return
+      }
+      const json = (await res.json()) as { corrida?: CorridaAtivaResumo | null }
+      setCorrida(json.corrida ?? null)
+    } catch {
+      /* ignore */
+    }
+  }, [])
 
   useEffect(() => {
     if (forcarRecolhido) setAberto(false)
@@ -59,15 +96,48 @@ export default function CardStatusProfissionalMobilidade({
     return () => window.clearTimeout(id)
   }, [toastOffline])
 
+  useEffect(() => {
+    void carregarCorrida()
+    const id = window.setInterval(() => void carregarCorrida(), 4_000)
+    const onRefresh = () => void carregarCorrida()
+    window.addEventListener(MOBILIDADE_CORRIDA_ATIVA, onRefresh)
+    return () => {
+      window.clearInterval(id)
+      window.removeEventListener(MOBILIDADE_CORRIDA_ATIVA, onRefresh)
+    }
+  }, [carregarCorrida])
+
   const onStatusChange = useCallback((prev: MobilidadeStatusId, next: MobilidadeStatusId) => {
     setStatus(next)
     if (next === 'offline' && prev !== 'offline') setToastOffline(true)
     if (next === 'online' || next === 'em_atendimento') setToastOffline(false)
   }, [])
 
+  const emAtendimento = Boolean(
+    corrida &&
+      ehAtendimentoImediatoAtivo({
+        status: corrida.status,
+        data_agendada: corrida.data_agendada,
+      }),
+  )
+
+  useEffect(() => {
+    if (emAtendimento && !forcarRecolhido) setAberto(true)
+  }, [emAtendimento, corrida?.solicitacao_id, forcarRecolhido])
+
   const painelAberto = aberto && !forcarRecolhido
-  const online = status === 'online' || status === 'em_atendimento'
-  const titulo = online ? t('statusOnline') : t('statusOffline')
+  const online = status === 'online' || status === 'em_atendimento' || emAtendimento
+
+  const st = String(corrida?.status ?? '')
+  const tituloAtendimento =
+    st === 'em_viagem'
+      ? t('drawerAtivoInicio')
+      : st === 'no_local'
+        ? t('chegadaNoLocalTitulo')
+        : t('drawerAtivoEmAndamento')
+
+  const titulo = emAtendimento ? tituloAtendimento : online ? t('statusOnline') : t('statusOffline')
+  const headerCor = emAtendimento ? VERDE : COR
 
   return (
     <>
@@ -86,12 +156,14 @@ export default function CardStatusProfissionalMobilidade({
             className={`flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-white ${
               painelAberto ? 'rounded-t-2xl' : 'rounded-2xl'
             }`}
-            style={{ backgroundColor: COR }}
+            style={{ backgroundColor: headerCor }}
             aria-expanded={painelAberto}
             aria-label={titulo}
           >
             <div className="flex min-w-0 items-center gap-2.5">
-              {online ? (
+              {emAtendimento ? (
+                <Navigation className="h-5 w-5 shrink-0 text-white" aria-hidden strokeWidth={2} />
+              ) : online ? (
                 <Smile className="h-5 w-5 shrink-0 text-white" aria-hidden strokeWidth={2} />
               ) : (
                 <IconZzz className="h-5 w-5 shrink-0 text-white" />
@@ -105,35 +177,55 @@ export default function CardStatusProfissionalMobilidade({
             )}
           </button>
 
-          {/* Toggle sempre montado (evita flash de loading ao abrir o chevron). */}
           <div
             className={painelAberto ? 'space-y-3 px-4 py-4' : 'hidden'}
             aria-hidden={!painelAberto}
           >
-            <ToggleStatusMobilidade
-              variant="card"
-              corOffline={COR}
-              onStatusChange={onStatusChange}
-            />
+            {emAtendimento ? (
+              <CardParteAtendimentoFlutuante
+                parte={
+                  corrida?.turista
+                    ? {
+                        nome: corrida.turista.nome,
+                        username: corrida.turista.username,
+                        foto_url: corrida.turista.foto_url,
+                        verificado: corrida.turista.verificado,
+                        nota_media: corrida.turista.nota_media,
+                      }
+                    : null
+                }
+                fallbackNome={t('atendimentoTuristaFallback')}
+                onAbrir={pedirAbrirDrawerAtendimentoAtivo}
+                ariaLabel={t('drawerAtivoAbrirDetalhe')}
+              />
+            ) : (
+              <>
+                <ToggleStatusMobilidade
+                  variant="card"
+                  corOffline={COR}
+                  onStatusChange={onStatusChange}
+                />
 
-            <button
-              type="button"
-              onClick={() => setEspacoAberto(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold uppercase tracking-wide text-white shadow-sm transition-opacity hover:opacity-95"
-              style={{ backgroundColor: COR }}
-            >
-              <Briefcase className="h-4 w-4 shrink-0" aria-hidden strokeWidth={2.5} />
-              {t('espacoProfissionalBotao')}
-            </button>
+                <button
+                  type="button"
+                  onClick={() => setEspacoAberto(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold uppercase tracking-wide text-white shadow-sm transition-opacity hover:opacity-95"
+                  style={{ backgroundColor: COR }}
+                >
+                  <Briefcase className="h-4 w-4 shrink-0" aria-hidden strokeWidth={2.5} />
+                  {t('espacoProfissionalBotao')}
+                </button>
 
-            {toastOffline ? (
-              <div
-                className="rounded-xl px-3 py-3 text-center text-sm font-semibold text-white shadow"
-                style={{ backgroundColor: COR }}
-              >
-                {t('toastOffline')}
-              </div>
-            ) : null}
+                {toastOffline ? (
+                  <div
+                    className="rounded-xl px-3 py-3 text-center text-sm font-semibold text-white shadow"
+                    style={{ backgroundColor: COR }}
+                  >
+                    {t('toastOffline')}
+                  </div>
+                ) : null}
+              </>
+            )}
           </div>
         </div>
       </div>

@@ -20,8 +20,30 @@ import {
   sugerirDestinosMobilidade,
   type SugestaoDestinoMobilidade,
 } from '@/lib/mobilidadePopupPesquisa'
+import CardParteAtendimentoFlutuante from '@/components/mobilidade/CardParteAtendimentoFlutuante'
+import {
+  ehAtendimentoImediatoAtivo,
+  MOBILIDADE_CORRIDA_ATIVA,
+  pedirAbrirDrawerAtendimentoAtivo,
+} from '@/lib/mobilidadeAtendimentoAtivoEventos'
 
 const TECLADO_BOTTOM_BAR_EVENT = 'guia-criar-keyboard'
+const VERDE = '#00D443'
+
+type ProfissionalCorrida = {
+  nome: string
+  username: string | null
+  foto_url: string | null
+  verificado: boolean
+  nota_media: number | null
+}
+
+type CorridaTuristaResumo = {
+  solicitacao_id: string
+  status: string
+  data_agendada?: string | null
+  profissional?: ProfissionalCorrida | null
+}
 
 type Props = {
   destinoInicial?: MobilidadePonto | null
@@ -105,6 +127,32 @@ export default function CardParaOndeMobilidade({
   const [campoFocado, setCampoFocado] = useState(false)
   const [gpsStatus, setGpsStatus] = useState<'idle' | 'loading' | 'ok' | 'denied' | 'error'>('idle')
   const [erro, setErro] = useState('')
+  const [corridaAtiva, setCorridaAtiva] = useState<CorridaTuristaResumo | null>(null)
+
+  const carregarCorridaAtiva = useCallback(async () => {
+    try {
+      const res = await fetch('/api/mobilidade/corrida-ativa-turista')
+      if (!res.ok) {
+        setCorridaAtiva(null)
+        return
+      }
+      const json = (await res.json()) as { corrida?: CorridaTuristaResumo | null }
+      setCorridaAtiva(json.corrida ?? null)
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  useEffect(() => {
+    void carregarCorridaAtiva()
+    const id = window.setInterval(() => void carregarCorridaAtiva(), 4_000)
+    const onRefresh = () => void carregarCorridaAtiva()
+    window.addEventListener(MOBILIDADE_CORRIDA_ATIVA, onRefresh)
+    return () => {
+      window.clearInterval(id)
+      window.removeEventListener(MOBILIDADE_CORRIDA_ATIVA, onRefresh)
+    }
+  }, [carregarCorridaAtiva])
 
   /** Chamar corrida / fechar drawer: aplica ou limpa o destino sem remount (preserva GPS). */
   useEffect(() => {
@@ -177,6 +225,18 @@ export default function CardParaOndeMobilidade({
   useEffect(() => {
     if (forcarRecolhido) setAberto(false)
   }, [forcarRecolhido])
+
+  const emAtendimento = Boolean(
+    corridaAtiva &&
+      ehAtendimentoImediatoAtivo({
+        status: corridaAtiva.status,
+        data_agendada: corridaAtiva.data_agendada,
+      }),
+  )
+
+  useEffect(() => {
+    if (emAtendimento && !forcarRecolhido) setAberto(true)
+  }, [emAtendimento, corridaAtiva?.solicitacao_id, forcarRecolhido])
 
   useEffect(() => {
     if (origemInicial?.lat != null && origemInicial?.lng != null) {
@@ -312,6 +372,73 @@ export default function CardParaOndeMobilidade({
 
   const painelAberto = aberto && !forcarRecolhido
   const resumoDestino = destino.nome.trim() || t('paraOndePlaceholder')
+
+  if (emAtendimento) {
+    const st = String(corridaAtiva?.status ?? '')
+    const titulo =
+      st === 'em_viagem'
+        ? t('drawerAtivoInicio')
+        : st === 'no_local'
+          ? t('chegadaProTitulo')
+          : st === 'a_caminho'
+            ? t('drawerAtivoMotoristaACaminho')
+            : t('drawerAtivoEmAndamento')
+
+    return (
+      <div className={`w-full max-w-lg ${className}`}>
+        <div
+          className={`bg-white shadow-lg ring-1 ring-black/10 ${
+            painelAberto ? 'rounded-2xl' : 'overflow-hidden rounded-2xl'
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              if (forcarRecolhido) return
+              setAberto((v) => !v)
+            }}
+            className={`flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-white ${
+              painelAberto ? 'rounded-t-2xl' : 'rounded-2xl'
+            }`}
+            style={{ backgroundColor: VERDE }}
+            aria-expanded={painelAberto}
+            aria-label={titulo}
+          >
+            <div className="flex min-w-0 items-center gap-2.5">
+              <Car className="h-5 w-5 shrink-0 text-white" aria-hidden strokeWidth={2} />
+              <p className="text-base font-extrabold uppercase tracking-wide text-white">{titulo}</p>
+            </div>
+            {painelAberto ? (
+              <ChevronUp className="h-5 w-5 shrink-0 text-white" aria-hidden />
+            ) : (
+              <ChevronDown className="h-5 w-5 shrink-0 text-white" aria-hidden />
+            )}
+          </button>
+
+          {painelAberto ? (
+            <div className="space-y-3 rounded-b-2xl bg-white px-4 pb-4 pt-3">
+              <CardParteAtendimentoFlutuante
+                parte={
+                  corridaAtiva?.profissional
+                    ? {
+                        nome: corridaAtiva.profissional.nome,
+                        username: corridaAtiva.profissional.username,
+                        foto_url: corridaAtiva.profissional.foto_url,
+                        verificado: corridaAtiva.profissional.verificado,
+                        nota_media: corridaAtiva.profissional.nota_media,
+                      }
+                    : null
+                }
+                fallbackNome={t('atendimentoProfissionalFallback')}
+                onAbrir={pedirAbrirDrawerAtendimentoAtivo}
+                ariaLabel={t('drawerAtivoAbrirDetalhe')}
+              />
+            </div>
+          ) : null}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={`w-full max-w-lg ${className}`}>

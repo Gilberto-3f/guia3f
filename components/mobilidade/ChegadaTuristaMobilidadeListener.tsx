@@ -7,6 +7,11 @@ import DrawerAtendimentoAtivoMobilidade, {
   type AtendimentoAtivoUi,
 } from '@/components/mobilidade/DrawerAtendimentoAtivoMobilidade'
 import PopupChegadaTuristaMobilidade from '@/components/mobilidade/PopupChegadaTuristaMobilidade'
+import {
+  ehAtendimentoImediatoAtivo,
+  MOBILIDADE_ABRIR_DRAWER_ATIVO,
+  MOBILIDADE_CORRIDA_ATIVA,
+} from '@/lib/mobilidadeAtendimentoAtivoEventos'
 
 type ProfissionalCorrida = {
   usuario_id: string
@@ -38,7 +43,7 @@ const STATUS_ATIVO = new Set(['aceita', 'a_caminho', 'no_local', 'em_viagem'])
 
 /**
  * Drawer de atendimento ativo do turista + popup "Profissional CHEGOU!!!".
- * Reabre após fechar o popup de matching (ou se o usuário fechar o drawer).
+ * Reabre pelo card flutuante (imediato) ou barra inferior (agendado).
  */
 export default function ChegadaTuristaMobilidadeListener() {
   const t = useTranslations('Mobilidade')
@@ -99,14 +104,21 @@ export default function ChegadaTuristaMobilidadeListener() {
     }, 400)
     const id = setInterval(() => void carregar(), 4_000)
     const onRefresh = () => void carregar()
-    window.addEventListener('mobilidade:corrida-ativa', onRefresh)
+    window.addEventListener(MOBILIDADE_CORRIDA_ATIVA, onRefresh)
     return () => {
       ativo = false
       window.clearTimeout(boot)
       clearInterval(id)
-      window.removeEventListener('mobilidade:corrida-ativa', onRefresh)
+      window.removeEventListener(MOBILIDADE_CORRIDA_ATIVA, onRefresh)
     }
   }, [elegivel, carregar])
+
+  useEffect(() => {
+    if (!corrida) return
+    const onAbrir = () => setDrawerAberto(true)
+    window.addEventListener(MOBILIDADE_ABRIR_DRAWER_ATIVO, onAbrir)
+    return () => window.removeEventListener(MOBILIDADE_ABRIR_DRAWER_ATIVO, onAbrir)
+  }, [corrida])
 
   if (!elegivel || !corrida) return null
   if (!STATUS_ATIVO.has(String(corrida.status))) return null
@@ -137,6 +149,10 @@ export default function ChegadaTuristaMobilidadeListener() {
   const st = String(corrida.status)
   const mostrarChegada =
     st === 'no_local' && chegadaDismissedId !== corrida.solicitacao_id
+  const imediato = ehAtendimentoImediatoAtivo({
+    status: st,
+    data_agendada: corrida.data_agendada,
+  })
 
   return (
     <>
@@ -146,7 +162,7 @@ export default function ChegadaTuristaMobilidadeListener() {
         atendimento={atendimento}
         onFechar={() => setDrawerAberto(false)}
       />
-      {!drawerAberto ? (
+      {!drawerAberto && !imediato ? (
         <button
           type="button"
           onClick={() => setDrawerAberto(true)}
