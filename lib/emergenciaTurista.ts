@@ -25,7 +25,7 @@ export async function fetchUltimosProfissionaisAtendimentoTurista(
 
   const { data: rows, error } = await supabase
     .from('solicitacao_mobilidade')
-    .select('id, profissional_id, status, created_at, updated_at')
+    .select('id, profissional_id, status, created_at')
     .eq('turista_id', uid)
     .not('profissional_id', 'is', null)
     .order('created_at', { ascending: false })
@@ -45,7 +45,7 @@ export async function fetchUltimosProfissionaisAtendimentoTurista(
     vistos.add(pid)
     profIds.push({
       profissional_id: pid,
-      atendimento_em: String(r.updated_at ?? r.created_at ?? ''),
+      atendimento_em: String(r.created_at ?? ''),
       status: String(r.status ?? ''),
     })
     if (profIds.length >= limit) break

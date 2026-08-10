@@ -70,30 +70,42 @@ export async function avaliarCorridaMobilidade(
       return { ok: true, avaliacaoId: String(ja.id) }
     }
 
-    const { data: av, error } = await admin
-      .from('avaliacoes')
-      .insert({
-        usuario_id: params.avaliadorUsuarioId,
-        empresa_id: null,
-        alvo_id: row.profissional_id,
-        alvo_tipo: 'profissional',
-        nota,
-        feedback: feedback || null,
-        avaliador_tipo: 'turista',
-      })
-      .select('id')
-      .maybeSingle()
+    const { data: avId, error } = await admin.rpc('svc_inserir_avaliacao', {
+      p_usuario_id: params.avaliadorUsuarioId,
+      p_alvo_id: row.profissional_id,
+      p_alvo_tipo: 'profissional',
+      p_nota: nota,
+      p_feedback: feedback || null,
+      p_avaliador_tipo: 'turista',
+    })
 
-    if (error || !av?.id) {
-      return { ok: false, error: error?.message ?? 'Falha ao salvar avaliação.' }
+    let avaliacaoId = avId != null ? String(avId) : ''
+    if (!avaliacaoId) {
+      const { data: av, error: insErr } = await admin
+        .from('avaliacoes')
+        .insert({
+          usuario_id: params.avaliadorUsuarioId,
+          empresa_id: null,
+          alvo_id: row.profissional_id,
+          alvo_tipo: 'profissional',
+          nota,
+          feedback: feedback || null,
+          avaliador_tipo: 'turista',
+        })
+        .select('id')
+        .maybeSingle()
+      if (insErr || !av?.id) {
+        return { ok: false, error: error?.message ?? insErr?.message ?? 'Falha ao salvar avaliação.' }
+      }
+      avaliacaoId = String(av.id)
     }
 
     await patchMeta(admin, params.solicitacaoId, meta, {
-      avaliacao_turista_id: String(av.id),
+      avaliacao_turista_id: avaliacaoId,
       avaliacao_turista_em: new Date().toISOString(),
       avaliacao_turista_nota: nota,
     })
-    return { ok: true, avaliacaoId: String(av.id) }
+    return { ok: true, avaliacaoId }
   }
 
   // profissional avalia turista
@@ -128,30 +140,42 @@ export async function avaliarCorridaMobilidade(
     return { ok: true, avaliacaoId: String(jaT.id) }
   }
 
-  const { data: av, error } = await admin
-    .from('avaliacoes')
-    .insert({
-      usuario_id: params.avaliadorUsuarioId,
-      empresa_id: null,
-      alvo_id: turistaUsuarioId,
-      alvo_tipo: 'turista',
-      nota,
-      feedback: feedback || null,
-      avaliador_tipo: 'profissional',
-    })
-    .select('id')
-    .maybeSingle()
+  const { data: avId, error } = await admin.rpc('svc_inserir_avaliacao', {
+    p_usuario_id: params.avaliadorUsuarioId,
+    p_alvo_id: turistaUsuarioId,
+    p_alvo_tipo: 'turista',
+    p_nota: nota,
+    p_feedback: feedback || null,
+    p_avaliador_tipo: 'profissional',
+  })
 
-  if (error || !av?.id) {
-    return { ok: false, error: error?.message ?? 'Falha ao salvar avaliação.' }
+  let avaliacaoId = avId != null ? String(avId) : ''
+  if (!avaliacaoId) {
+    const { data: av, error: insErr } = await admin
+      .from('avaliacoes')
+      .insert({
+        usuario_id: params.avaliadorUsuarioId,
+        empresa_id: null,
+        alvo_id: turistaUsuarioId,
+        alvo_tipo: 'turista',
+        nota,
+        feedback: feedback || null,
+        avaliador_tipo: 'profissional',
+      })
+      .select('id')
+      .maybeSingle()
+    if (insErr || !av?.id) {
+      return { ok: false, error: error?.message ?? insErr?.message ?? 'Falha ao salvar avaliação.' }
+    }
+    avaliacaoId = String(av.id)
   }
 
   await patchMeta(admin, params.solicitacaoId, meta, {
-    avaliacao_profissional_id: String(av.id),
+    avaliacao_profissional_id: avaliacaoId,
     avaliacao_profissional_em: new Date().toISOString(),
     avaliacao_profissional_nota: nota,
   })
-  return { ok: true, avaliacaoId: String(av.id) }
+  return { ok: true, avaliacaoId }
 }
 
 async function patchMeta(

@@ -12,7 +12,7 @@ const JANELA_MS = 24 * 60 * 60 * 1000
 
 /**
  * Corrida concluída recente ainda sem ack de UI (popup verde) / avaliação.
- * Turista e profissional.
+ * Usa `created_at` + `metadata.concluido_em` (não há `updated_at` na tabela).
  */
 export async function GET() {
   const auth = await assertUserSession()
@@ -40,11 +40,11 @@ export async function GET() {
   let query = admin
     .from('solicitacao_mobilidade')
     .select(
-      'id, status, valor_estimado, pagamento, metadata, turista_id, profissional_id, updated_at',
+      'id, status, valor_estimado, pagamento, metadata, turista_id, profissional_id, created_at',
     )
     .eq('status', 'concluida')
-    .order('updated_at', { ascending: false })
-    .limit(5)
+    .order('created_at', { ascending: false })
+    .limit(8)
 
   if (papel === 'turista') {
     query = query.eq('turista_id', auth.userId)
@@ -68,8 +68,8 @@ export async function GET() {
     const concluidoEm =
       meta.concluido_em != null
         ? new Date(String(meta.concluido_em)).getTime()
-        : row.updated_at
-          ? new Date(String(row.updated_at)).getTime()
+        : row.created_at
+          ? new Date(String(row.created_at)).getTime()
           : 0
     if (!Number.isFinite(concluidoEm) || agora - concluidoEm > JANELA_MS) continue
 
@@ -79,13 +79,7 @@ export async function GET() {
     const jaAvaliou = Boolean(meta[avalKey])
     const jaAck = Boolean(meta[ackKey])
 
-    // Sem ack → mostrar resumo; com ack e sem avaliação → mostrar avaliar
     if (jaAck && jaAvaliou) continue
-    if (jaAck && !jaAvaliou) {
-      // ainda pode avaliar — devolve fase avaliar
-    } else if (jaAck) {
-      continue
-    }
 
     const valorCorrida =
       meta.financeiro_valor_corrida != null

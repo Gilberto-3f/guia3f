@@ -105,40 +105,28 @@ export async function GET(req: Request) {
   >()
 
   if (turistaIds.length) {
-    const [{ data: turistas }, { data: usuarios }] = await Promise.all([
-      admin
-        .from('turistas')
-        .select('usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url')
-        .in('usuario_id', turistaIds),
-      admin.from('usuarios').select('id, nome, username').in('id', turistaIds),
-    ])
+    const { data: turistas } = await admin
+      .from('turistas')
+      .select('usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url')
+      .in('usuario_id', turistaIds)
 
-    for (const u of usuarios ?? []) {
-      const id = String(u.id)
-      perfilByUser.set(id, {
-        nome: u.nome != null ? String(u.nome) : null,
-        username: u.username != null ? String(u.username) : null,
-        foto: null,
-      })
-    }
     for (const t of turistas ?? []) {
       const id = String(t.usuario_id)
-      const prev = perfilByUser.get(id) ?? { nome: null, username: null, foto: null }
       perfilByUser.set(id, {
         nome:
           t.nome_completo != null && String(t.nome_completo).trim()
             ? String(t.nome_completo)
-            : prev.nome,
+            : null,
         username:
           t.nome_usuario != null && String(t.nome_usuario).trim()
             ? String(t.nome_usuario)
-            : prev.username,
+            : null,
         foto:
           t.foto_perfil_url != null
             ? String(t.foto_perfil_url)
             : t.foto_url != null
               ? String(t.foto_url)
-              : prev.foto,
+              : null,
       })
     }
   }
