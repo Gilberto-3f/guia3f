@@ -105,7 +105,7 @@ export default function EmpresaPage() {
     empresa && empresa.plano != null ? String(empresa.plano) : null
   const { featurePublicaLiberada } = useEmpresaServicosPlano(planoEmpresa, empresaId || null, {
     aguardarEmpresa: loading,
-    somenteAnfitriao: Boolean(empresa?.somente_anfitriao),
+    somenteAnfitriao: Boolean(empresa?.somente_anfitriao || empresa?.somente_guia),
   })
   const empresaVerificada =
     empresa != null && contaVerificadaDocumentacao('empresa', empresa as { docs_verificado?: boolean | null; status?: string | null })

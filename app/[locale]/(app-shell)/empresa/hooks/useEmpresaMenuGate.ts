@@ -98,12 +98,14 @@ export function useEmpresaMenuGate(): EmpresaMenuGate {
     window.addEventListener('empresa-gate-refresh', onRef)
     window.addEventListener('perfil-atualizado', onRef)
     window.addEventListener('anfitriao-modo-change', onRef)
+    window.addEventListener('guia-modo-change', onRef)
 
     return () => {
       ativo = false
       window.removeEventListener('empresa-gate-refresh', onRef)
       window.removeEventListener('perfil-atualizado', onRef)
       window.removeEventListener('anfitriao-modo-change', onRef)
+      window.removeEventListener('guia-modo-change', onRef)
     }
   }, [])
 

@@ -157,11 +157,20 @@ function empresaMenuHospedagemVisivel(ctx) {
 
 /** Botão Dinâmico: liberado pelo plano (lojas CDE e BR/AR usam catálogo). */
 function empresaBotaoDinamicoVisivel(ctx) {
+  if (ctx.somenteGuia || ctx.guiaModoAgencia || ctx.somenteAnfitriao || ctx.anfitriaoModoHospedagem) {
+    return true
+  }
   return menuEmpresaLiberado('botao-dinamico', ctx.empresaServicos ?? [])
 }
 
 function empresaMenuServico(id) {
-  return (ctx) => menuEmpresaLiberado(id, ctx.empresaServicos ?? [])
+  return (ctx) => {
+    /** Modo agência / anfitrião: pasta Empresa gratuita — não bloqueia por plano. */
+    if (ctx.somenteGuia || ctx.guiaModoAgencia || ctx.somenteAnfitriao || ctx.anfitriaoModoHospedagem) {
+      return true
+    }
+    return menuEmpresaLiberado(id, ctx.empresaServicos ?? [])
+  }
 }
 
 function empresaMenuVisivel(id) {

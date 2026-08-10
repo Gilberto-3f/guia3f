@@ -1968,9 +1968,20 @@ export default function AtividadesPage() {
   )
 
   const listaAtividadesFiltrada = useMemo(() => {
-    /* Minha Conta: inclui inbound direto + interações no meu conteúdo vindas da lista Seguindo (ex.: repost). */
+    /* Minha Conta: inclui inbound direto + interações no meu conteúdo vindas da lista Seguindo (ex.: repost).
+       Modo agência/hospedagem: NÃO mistura listaAmigos (conteúdo pessoal do profissional). */
     const raw =
-      aba === 'minha' ? mergeAtividadesPorId(listaMinha, listaAmigos) : listaAmigos
+      aba === 'minha'
+        ? operaComoEmpresaHospedagem
+          ? listaMinha
+          : mergeAtividadesPorId(listaMinha, listaAmigos)
+        : listaAmigos
+    const empresaIdsModo =
+      operaComoEmpresaHospedagem
+        ? [empresaAgenciaId, empresaHospedagemId].filter(
+            (id): id is string => id != null && String(id).trim() !== '',
+          )
+        : null
     const ctxModo = {
       postMetaMap,
       storyMetaMap,
@@ -1984,7 +1995,9 @@ export default function AtividadesPage() {
       if (aba === 'minha' && meuId) {
         let okMinha = false
         if (operaComoEmpresaHospedagem) {
-          okMinha = atividadeVisivelMinhaContaModoHospedagem(r, meuId, ctxModo)
+          okMinha = atividadeVisivelMinhaContaModoHospedagem(r, meuId, ctxModo, {
+            empresaIds: empresaIdsModo,
+          })
         } else if (ehAnfitriao && meuRole === 'profissional') {
           okMinha = atividadeVisivelMinhaContaModoAnfitriao(r, meuId, ctxModo)
         } else if (meuRole === 'empresa') {
@@ -2070,6 +2083,8 @@ export default function AtividadesPage() {
     storyMetaMap,
     meuId,
     operaComoEmpresaHospedagem,
+    empresaAgenciaId,
+    empresaHospedagemId,
     ehAnfitriao,
     meuRole,
   ])

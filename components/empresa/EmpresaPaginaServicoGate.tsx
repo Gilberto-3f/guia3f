@@ -25,7 +25,8 @@ export default function EmpresaPaginaServicoGate({
   const { dados, loading: empresaLoading } = useDashboardEmpresa()
   const { servicos, loading: loadingPlano } = useEmpresaServicosPlano(dados?.plano, dados?.id, {
     aguardarEmpresa: empresaLoading || dados?.id == null,
-    somenteAnfitriao: Boolean(dados?.somente_anfitriao),
+    /** Anfitrião e agência de guia: pasta empresa gratuita (sem plano pago). */
+    somenteAnfitriao: Boolean(dados?.somente_anfitriao || dados?.somente_guia),
   })
 
   const aguardandoLiberacao = gate === 'loading' || empresaLoading || loadingPlano || dados?.id == null
