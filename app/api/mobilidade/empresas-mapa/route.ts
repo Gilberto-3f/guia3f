@@ -4,8 +4,8 @@ import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { buscarEmpresasMapaMobilidade } from '@/lib/mobilidadeMapaEmpresas'
 
 /**
- * Pins do mapa — query única + cache curto.
- * Geocode NÃO roda aqui (cadastro já grava coords; evita timeouts 57014).
+ * Pins do mapa — mesma elegibilidade do guia (presença pública).
+ * Se faltar lat/lng, backfill geocode (limitado) + persiste; evita timeout em massa.
  */
 export async function GET() {
   const auth = await assertUserSessionLight()
@@ -32,7 +32,8 @@ export async function GET() {
     { ok: true, empresas: lista },
     {
       headers: {
-        'Cache-Control': 'private, max-age=60, stale-while-revalidate=120',
+        // Curto: backfill de coords precisa refletir rápido no cliente
+        'Cache-Control': 'private, max-age=15, stale-while-revalidate=60',
       },
     },
   )

@@ -2,6 +2,7 @@ import {
   aplicarFiltroEmpresasGuiaPlanoOuDegustacao,
 } from '@/lib/empresaGuiaVisibilidade'
 import { buscarIdsEmpresaPresencaPublicaVigente } from '@/lib/empresaPresencaPublica'
+import { backfillCoordsEmpresas } from '@/lib/empresaCoordsBackfill'
 import {
   CATEGORIA_DB_PARA_SLUG,
   CIDADE_POR_PAIS_GUIA,
@@ -11,13 +12,15 @@ import {
   categoriaDbParaSlug,
 } from '@/lib/segmentosEmpresaGuia'
 
-/** Colunas mínimas para pin + card do mapa + autocomplete. */
+/** Colunas para pin + card + backfill de coords. */
 const COLUNAS_MAPA =
-  'id, nome_fantasia, nome_usuario, categoria, cidade, endereco, latitude, longitude, foto_url, nota_media, plano, somente_anfitriao'
+  'id, nome_fantasia, nome_usuario, categoria, cidade, endereco, bairro, latitude, longitude, foto_url, nota_media, plano, somente_anfitriao'
 
 /** Mesmo universo do guia (presença pública); sem cap baixo que esconda regulares. */
 const LIMITE_MAPA = 500
 const CHUNK_IDS = 80
+/** Geocode/persist por request — cobre lacunas Guia→mapa sem timeout. */
+const MAX_BACKFILL_COORDS = 25
 
 export type EmpresaMapaMobilidade = {
   id: string
@@ -78,7 +81,7 @@ function mapRow(row: Record<string, unknown>): EmpresaMapaMobilidade | null {
     categoria,
     cidade: String(row.cidade ?? ''),
     endereco: row.endereco != null && String(row.endereco).trim() ? String(row.endereco).trim() : null,
-    bairro: null,
+    bairro: row.bairro != null && String(row.bairro).trim() ? String(row.bairro).trim() : null,
     status: null,
     docs_verificado: null,
     nota_media: row.nota_media != null ? Number(row.nota_media) : null,
@@ -96,9 +99,43 @@ function mapRow(row: Record<string, unknown>): EmpresaMapaMobilidade | null {
   }
 }
 
+async function fetchEmpresasPresencaChunks(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  ids: string[],
+): Promise<{ rows: Record<string, unknown>[]; error: string | null }> {
+  const rows: Record<string, unknown>[] = []
+
+  for (let i = 0; i < ids.length; i += CHUNK_IDS) {
+    const slice = ids.slice(i, i + CHUNK_IDS)
+
+    const run = async (comPreview: boolean) => {
+      const q = aplicarFiltroEmpresasGuiaPlanoOuDegustacao(
+        supabase.from('empresas').select(COLUNAS_MAPA).in('id', slice),
+        { comPreviewFilter: comPreview },
+      )
+      return q.order('nota_media', { ascending: false })
+    }
+
+    let res = await run(true)
+    const previewMsg = String(res.error?.message ?? '').toLowerCase()
+    if (previewMsg.includes('somente_modo_apresentacao')) {
+      res = await run(false)
+    }
+    if (res.error) {
+      return { rows: [], error: String(res.error.message ?? 'Falha ao carregar atrativos do mapa.') }
+    }
+    for (const row of (res.data ?? []) as Record<string, unknown>[]) {
+      rows.push(row)
+    }
+  }
+
+  return { rows, error: null }
+}
+
 /**
- * Mesma elegibilidade do guia (ciclo regular / presença pública vigente):
- * assinatura, degustação ativa ou anfitrião — + foto + coordenadas para o pin.
+ * Mesma elegibilidade do guia (ciclo regular / presença pública vigente).
+ * Se faltar lat/lng, geocodifica e persiste (backfill limitado) para o pin aparecer.
  */
 export async function buscarEmpresasMapaMobilidade(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -110,38 +147,35 @@ export async function buscarEmpresasMapaMobilidade(
     return { lista: [], error: null }
   }
 
+  const { rows, error } = await fetchEmpresasPresencaChunks(supabase, ids)
+  if (error) return { lista: [], error }
+
+  const semCoords = rows.filter((r) => !temCoords(r))
+  if (semCoords.length > 0) {
+    const preenchidos = await backfillCoordsEmpresas(
+      supabase,
+      semCoords.map((r) => ({
+        id: String(r.id),
+        endereco: r.endereco != null ? String(r.endereco) : null,
+        bairro: r.bairro != null ? String(r.bairro) : null,
+        cidade: r.cidade != null ? String(r.cidade) : null,
+      })),
+      { maxPorRequest: MAX_BACKFILL_COORDS },
+    )
+    for (const row of rows) {
+      const id = String(row.id ?? '')
+      const geo = preenchidos.get(id)
+      if (geo) {
+        row.latitude = geo.lat
+        row.longitude = geo.lng
+      }
+    }
+  }
+
   const byId = new Map<string, EmpresaMapaMobilidade>()
-
-  for (let i = 0; i < ids.length; i += CHUNK_IDS) {
-    const slice = ids.slice(i, i + CHUNK_IDS)
-
-    const run = async (comPreview: boolean) => {
-      const q = aplicarFiltroEmpresasGuiaPlanoOuDegustacao(
-        supabase
-          .from('empresas')
-          .select(COLUNAS_MAPA)
-          .in('id', slice)
-          .not('latitude', 'is', null)
-          .not('longitude', 'is', null),
-        { comPreviewFilter: comPreview },
-      )
-      return q.order('nota_media', { ascending: false })
-    }
-
-    let res = await run(true)
-    const previewMsg = String(res.error?.message ?? '').toLowerCase()
-    if (previewMsg.includes('somente_modo_apresentacao')) {
-      res = await run(false)
-    }
-
-    if (res.error) {
-      return { lista: [], error: String(res.error.message ?? 'Falha ao carregar atrativos do mapa.') }
-    }
-
-    for (const row of (res.data ?? []) as Record<string, unknown>[]) {
-      const mapped = mapRow(row)
-      if (mapped) byId.set(mapped.id, mapped)
-    }
+  for (const row of rows) {
+    const mapped = mapRow(row)
+    if (mapped) byId.set(mapped.id, mapped)
   }
 
   const lista = [...byId.values()]
