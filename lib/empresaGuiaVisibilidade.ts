@@ -1,9 +1,6 @@
 /** Status de empresa elegível no guia turístico (verificadas / operacionais). */
 import { aliasesCategoriaDbGuia, aliasesCidadeGuia } from '@/lib/segmentosEmpresaGuia'
-import {
-  assinaturaContratadaVigente,
-  buscarAssinaturasPresencaPublica,
-} from '@/lib/empresaAssinatura'
+import { buscarIdsEmpresaPresencaPublicaVigente } from '@/lib/empresaPresencaPublica'
 
 export const STATUS_EMPRESA_GUIA_PUBLICO = ['aprovado', 'ativo'] as const
 
@@ -61,14 +58,13 @@ const COLUNAS_EMPRESA_GUIA =
 const COLUNAS_EMPRESA_GUIA_SEM_PALAVRAS =
   'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, docs_verificado, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria, plano, somente_anfitriao, hospedagem_disponibilidade'
 
-/** Lista empresas do guia por categoria/cidade, incluindo verificadas em degustação ativa. */
+/** Lista empresas do guia por categoria/cidade (mesma elegibilidade do mapa: presença pública vigente). */
 export async function buscarEmpresasListagemGuia(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   opts: { categoria: string; cidade: string },
 ): Promise<{ lista: Record<string, unknown>[]; error: string | null }> {
   const { categoria, cidade } = opts
-  const agora = new Date().toISOString()
   const categorias = aliasesCategoriaDbGuia(categoria)
   const cidades = aliasesCidadeGuia(cidade)
 
@@ -76,90 +72,66 @@ export async function buscarEmpresasListagemGuia(
     return { lista: [], error: null }
   }
 
-  const [{ data: degRows }, assRows] = await Promise.all([
+  const idsSet = await buscarIdsEmpresaPresencaPublicaVigente(supabase)
+  const ids = [...idsSet]
+  if (ids.length === 0) {
+    return { lista: [], error: null }
+  }
+
+  const base = (select: string, slice: string[]) =>
     supabase
-      .from('empresa_degustacoes')
-      .select('empresa_id')
-      .eq('status', 'ativa')
-      .gt('expira_em', agora),
-    // RPC: turista/pro veem empresas com ciclo regular (RLS direto só libera dono/admin).
-    buscarAssinaturasPresencaPublica(supabase),
-  ])
-
-  const degIds = [...new Set((degRows ?? []).map((r: { empresa_id: string }) => String(r.empresa_id)).filter(Boolean))]
-
-  const assIds = [
-    ...new Set(
-      assRows
-        .filter((r) => assinaturaContratadaVigente(r))
-        .map((r) => r.empresa_id)
-        .filter(Boolean),
-    ),
-  ]
-
-  const base = (select: string) =>
-    supabase.from('empresas').select(select).in('categoria', categorias).in('cidade', cidades)
+      .from('empresas')
+      .select(select)
+      .in('id', slice)
+      .in('categoria', categorias)
+      .in('cidade', cidades)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ordenar = (q: any) =>
     q.order('nota_media', { ascending: false }).order('total_avaliacoes', { ascending: false })
 
-  /** Anfitrião verificado — sem exigir assinatura paga. */
-  async function queryAnfitriao(select: string, comPreview: boolean) {
+  async function queryChunk(select: string, slice: string[], comPreview: boolean) {
     return ordenar(
-      aplicarFiltroEmpresasGuiaPublico(base(select).eq('somente_anfitriao', true), {
+      aplicarFiltroEmpresasGuiaPlanoOuDegustacao(base(select, slice), {
         comPreviewFilter: comPreview,
       }),
     )
   }
 
-  async function queryDegustacao(select: string, comPreview: boolean) {
-    if (degIds.length === 0) return { data: [], error: null }
-    return ordenar(
-      aplicarFiltroEmpresasGuiaPlanoOuDegustacao(base(select).in('id', degIds), {
-        comPreviewFilter: comPreview,
-      }),
-    )
-  }
-
-  async function queryAssinaturaAtiva(select: string, comPreview: boolean) {
-    if (assIds.length === 0) return { data: [], error: null }
-    return ordenar(
-      aplicarFiltroEmpresasGuiaPlanoOuDegustacao(base(select).in('id', assIds), {
-        comPreviewFilter: comPreview,
-      }),
-    )
-  }
-
+  const CHUNK = 80
   let select = COLUNAS_EMPRESA_GUIA
-  let anfRes = await queryAnfitriao(select, true)
-  let degRes = await queryDegustacao(select, true)
-  let assRes = await queryAssinaturaAtiva(select, true)
-
-  const msg = String(anfRes.error?.message ?? '').toLowerCase()
-  if (msg.includes('palavras_chave') && (msg.includes('column') || msg.includes('does not exist'))) {
-    select = COLUNAS_EMPRESA_GUIA_SEM_PALAVRAS
-    anfRes = await queryAnfitriao(select, true)
-    degRes = await queryDegustacao(select, true)
-    assRes = await queryAssinaturaAtiva(select, true)
-  }
-
-  const previewMsg = String(anfRes.error?.message ?? degRes.error?.message ?? assRes.error?.message ?? '').toLowerCase()
-  if (previewMsg.includes('somente_modo_apresentacao')) {
-    anfRes = await queryAnfitriao(select, false)
-    degRes = await queryDegustacao(select, false)
-    assRes = await queryAssinaturaAtiva(select, false)
-  }
-
-  if (anfRes.error) {
-    return { lista: [], error: String(anfRes.error.message) }
-  }
-
   const byId = new Map<string, Record<string, unknown>>()
-  for (const row of [...(anfRes.data ?? []), ...(degRes.data ?? []), ...(assRes.data ?? [])]) {
-    const id = String((row as { id: unknown }).id ?? '')
-    if (id) byId.set(id, row as Record<string, unknown>)
+
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const slice = ids.slice(i, i + CHUNK)
+
+    let res = await queryChunk(select, slice, true)
+    const msg = String(res.error?.message ?? '').toLowerCase()
+    if (msg.includes('palavras_chave') && (msg.includes('column') || msg.includes('does not exist'))) {
+      select = COLUNAS_EMPRESA_GUIA_SEM_PALAVRAS
+      res = await queryChunk(select, slice, true)
+    }
+    const previewMsg = String(res.error?.message ?? '').toLowerCase()
+    if (previewMsg.includes('somente_modo_apresentacao')) {
+      res = await queryChunk(select, slice, false)
+    }
+
+    if (res.error) {
+      return { lista: [], error: String(res.error.message) }
+    }
+
+    for (const row of res.data ?? []) {
+      const id = String((row as { id: unknown }).id ?? '')
+      if (id) byId.set(id, row as Record<string, unknown>)
+    }
   }
 
-  return { lista: [...byId.values()], error: null }
+  const lista = [...byId.values()].sort((a, b) => {
+    const na = Number(a.nota_media) || 0
+    const nb = Number(b.nota_media) || 0
+    if (nb !== na) return nb - na
+    return (Number(b.total_avaliacoes) || 0) - (Number(a.total_avaliacoes) || 0)
+  })
+
+  return { lista, error: null }
 }

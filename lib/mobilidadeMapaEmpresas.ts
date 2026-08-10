@@ -1,6 +1,7 @@
 import {
-  aplicarFiltroEmpresasGuiaPublico,
+  aplicarFiltroEmpresasGuiaPlanoOuDegustacao,
 } from '@/lib/empresaGuiaVisibilidade'
+import { buscarIdsEmpresaPresencaPublicaVigente } from '@/lib/empresaPresencaPublica'
 import {
   CATEGORIA_DB_PARA_SLUG,
   CIDADE_POR_PAIS_GUIA,
@@ -14,8 +15,9 @@ import {
 const COLUNAS_MAPA =
   'id, nome_fantasia, nome_usuario, categoria, cidade, endereco, latitude, longitude, foto_url, nota_media, plano, somente_anfitriao'
 
-/** Limite alinhado aos pins HTML no cliente (evita scan de 400 linhas). */
-const LIMITE_MAPA = 120
+/** Mesmo universo do guia (presença pública); sem cap baixo que esconda regulares. */
+const LIMITE_MAPA = 500
+const CHUNK_IDS = 80
 
 export type EmpresaMapaMobilidade = {
   id: string
@@ -95,41 +97,58 @@ function mapRow(row: Record<string, unknown>): EmpresaMapaMobilidade | null {
 }
 
 /**
- * Uma query leve (service role). Sem retry em timeout — retry piora cascata 57014.
+ * Mesma elegibilidade do guia (ciclo regular / presença pública vigente):
+ * assinatura, degustação ativa ou anfitrião — + foto + coordenadas para o pin.
  */
 export async function buscarEmpresasMapaMobilidade(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
 ): Promise<{ lista: EmpresaMapaMobilidade[]; error: string | null }> {
-  const run = async (comPreview: boolean) => {
-    const q = aplicarFiltroEmpresasGuiaPublico(
-      supabase
-        .from('empresas')
-        .select(COLUNAS_MAPA)
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null),
-      { comPreviewFilter: comPreview },
-    )
-    return q.order('nota_media', { ascending: false }).limit(LIMITE_MAPA)
-  }
-
-  let res = await run(true)
-  const previewMsg = String(res.error?.message ?? '').toLowerCase()
-  if (previewMsg.includes('somente_modo_apresentacao')) {
-    res = await run(false)
-  }
-
-  if (res.error) {
-    return { lista: [], error: String(res.error.message ?? 'Falha ao carregar atrativos do mapa.') }
+  const idsSet = await buscarIdsEmpresaPresencaPublicaVigente(supabase)
+  const ids = [...idsSet]
+  if (ids.length === 0) {
+    return { lista: [], error: null }
   }
 
   const byId = new Map<string, EmpresaMapaMobilidade>()
-  for (const row of (res.data ?? []) as Record<string, unknown>[]) {
-    const mapped = mapRow(row)
-    if (mapped) byId.set(mapped.id, mapped)
+
+  for (let i = 0; i < ids.length; i += CHUNK_IDS) {
+    const slice = ids.slice(i, i + CHUNK_IDS)
+
+    const run = async (comPreview: boolean) => {
+      const q = aplicarFiltroEmpresasGuiaPlanoOuDegustacao(
+        supabase
+          .from('empresas')
+          .select(COLUNAS_MAPA)
+          .in('id', slice)
+          .not('latitude', 'is', null)
+          .not('longitude', 'is', null),
+        { comPreviewFilter: comPreview },
+      )
+      return q.order('nota_media', { ascending: false })
+    }
+
+    let res = await run(true)
+    const previewMsg = String(res.error?.message ?? '').toLowerCase()
+    if (previewMsg.includes('somente_modo_apresentacao')) {
+      res = await run(false)
+    }
+
+    if (res.error) {
+      return { lista: [], error: String(res.error.message ?? 'Falha ao carregar atrativos do mapa.') }
+    }
+
+    for (const row of (res.data ?? []) as Record<string, unknown>[]) {
+      const mapped = mapRow(row)
+      if (mapped) byId.set(mapped.id, mapped)
+    }
   }
 
-  return { lista: [...byId.values()], error: null }
+  const lista = [...byId.values()]
+    .sort((a, b) => (Number(b.nota_media) || 0) - (Number(a.nota_media) || 0))
+    .slice(0, LIMITE_MAPA)
+
+  return { lista, error: null }
 }
 
 export function filtrarEmpresasMapa(

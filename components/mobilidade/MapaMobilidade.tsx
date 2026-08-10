@@ -18,7 +18,7 @@ const LAYER_PROFS = 'profissionais-unclustered'
 const SOURCE_TRAJETO = 'trajeto-corrida-mobilidade'
 const LAYER_TRAJETO = 'trajeto-corrida-linha'
 /** Limite de pins HTML para manter o mapa leve. */
-const MAX_PINS_EMPRESA = 120
+const MAX_PINS_EMPRESA = 500
 
 type Ponto = { lat: number; lng: number; label?: string }
 
