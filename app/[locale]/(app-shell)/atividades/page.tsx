@@ -1610,6 +1610,10 @@ export default function AtividadesPage() {
     modoEfetivo,
     empresaHospedagemId,
     empresaHospedagemLiberada,
+    ehGuia,
+    modoGuiaEfetivo,
+    empresaAgenciaId,
+    empresaAgenciaLiberada,
   ])
 
   const carregarMaisAtividades = useCallback(async () => {
@@ -1732,7 +1736,11 @@ export default function AtividadesPage() {
       void recarregar()
     }
     window.addEventListener('anfitriao-modo-change', onModoAnfitriao)
-    return () => window.removeEventListener('anfitriao-modo-change', onModoAnfitriao)
+    window.addEventListener('guia-modo-change', onModoAnfitriao)
+    return () => {
+      window.removeEventListener('anfitriao-modo-change', onModoAnfitriao)
+      window.removeEventListener('guia-modo-change', onModoAnfitriao)
+    }
   }, [recarregar])
 
   useEffect(() => {

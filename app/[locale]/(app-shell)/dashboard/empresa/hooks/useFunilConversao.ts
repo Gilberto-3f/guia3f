@@ -140,22 +140,42 @@ async function contarInteracoesPaginaEmpresa(
   let qAval = supabase.from('avaliacoes').select('*', { count: 'exact', head: true }).eq('empresa_id', empresaId)
   if (dataLimite) qAval = qAval.gte('created_at', dataLimite)
 
-  if (!empresaUsuarioId) return contar(qAval)
+  // Só conteúdo da página da empresa (não posts pessoais do gestor/profissional).
+  let postQuery = supabase
+    .from('posts')
+    .select('id, total_compartilhamentos')
+    .eq('empresa_id', empresaId)
+    .is('deleted_at', null)
 
-  const [avaliacoes, postRes] = await Promise.all([
-    contar(qAval),
-    supabase
-      .from('posts')
-      .select('id, total_compartilhamentos')
-      .eq('autor_id', empresaUsuarioId)
-      .is('deleted_at', null),
-  ])
+  const [avaliacoes, postRes] = await Promise.all([contar(qAval), postQuery])
 
   let total = avaliacoes
   const { data: postRows, error: postErr } = postRes
+
+  if (postErr && isColunaInexistente(postErr) && empresaUsuarioId) {
+    // Fallback legado: autor_tipo=empresa (sem coluna empresa_id).
+    const fb = await supabase
+      .from('posts')
+      .select('id, total_compartilhamentos')
+      .eq('autor_id', empresaUsuarioId)
+      .eq('autor_tipo', 'empresa')
+      .is('deleted_at', null)
+    if (fb.error && !isTabelaInexistente(fb.error)) throw fb.error
+    return contarInteracoesSobrePosts(avaliacoes, fb.data ?? [], dataLimite)
+  }
+
   if (postErr && !isTabelaInexistente(postErr)) throw postErr
 
-  const postIds = (postRows ?? []).map((r) => String((r as { id: string }).id))
+  return contarInteracoesSobrePosts(avaliacoes, postRows ?? [], dataLimite)
+}
+
+async function contarInteracoesSobrePosts(
+  avaliacoes: number,
+  postRows: unknown[],
+  dataLimite: string | null,
+): Promise<number> {
+  let total = avaliacoes
+  const postIds = postRows.map((r) => String((r as { id: string }).id))
   if (postIds.length === 0) return total
 
   let qCurtPosts = supabase.from('curtidas').select('*', { count: 'exact', head: true }).in('post_id', postIds)
@@ -196,7 +216,7 @@ async function contarInteracoesPaginaEmpresa(
     total += await contar(qCurtCom)
   }
 
-  for (const row of postRows ?? []) {
+  for (const row of postRows) {
     const r = row as { total_compartilhamentos?: number | null }
     const n =
       typeof r.total_compartilhamentos === 'number' ? r.total_compartilhamentos : Number(r.total_compartilhamentos) || 0

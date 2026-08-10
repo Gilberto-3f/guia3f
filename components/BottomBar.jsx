@@ -290,7 +290,7 @@ export default function BottomBar() {
       }
 
       let total = 0
-      if (roleContagem === 'empresa') {
+      if (roleContagem === 'empresa' || operaComoEmpresaDual(userRole)) {
         total = await withTimeout(
           contarAtividadesMinhaContaNaoLidasLocal(usuarioIdContagemAtividades, {
             modoHospedagem: true,
@@ -326,7 +326,7 @@ export default function BottomBar() {
       clearInterval(pollId)
       window.removeEventListener(GUIA_ATIVIDADES_BADGE_EVENT, onBadge)
     }
-  }, [authUserId, userRole, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId])
+  }, [authUserId, userRole, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada, ehGuia, modoGuiaEfetivo, empresaAgenciaId, empresaAgenciaLiberada])
 
   useEffect(() => {
     if (!authUserId) {

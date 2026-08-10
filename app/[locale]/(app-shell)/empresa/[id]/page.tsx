@@ -114,7 +114,8 @@ export default function EmpresaPage() {
     empresa != null &&
     String(empresa.usuario_id ?? '') === usuarioId &&
     (meuRole === 'empresa' ||
-      (meuRole === 'profissional' && Boolean(empresa.somente_anfitriao)))
+      (meuRole === 'profissional' &&
+        (Boolean(empresa.somente_anfitriao) || Boolean(empresa.somente_guia))))
   /**
    * Aba do botão dinâmico: só depende do plano da empresa (e página carregada).
    * Não usa gate de compra/verificação do visitante — a ação dentro do drawer já bloqueia se preciso.
@@ -161,7 +162,8 @@ export default function EmpresaPage() {
     empresa != null &&
     String(empresa.usuario_id ?? '') === usuarioId &&
     (meuRole === 'empresa' ||
-      (meuRole === 'profissional' && Boolean(empresa.somente_anfitriao)))
+      (meuRole === 'profissional' &&
+        (Boolean(empresa.somente_anfitriao) || Boolean(empresa.somente_guia))))
 
   const ehPaginaHospedagem =
     empresa != null &&
@@ -276,7 +278,7 @@ export default function EmpresaPage() {
       const { data: empresaRaw, error } = await supabase
         .from('empresas')
         .select(
-          'id, usuario_id, nome_fantasia, nome_usuario, categoria, cidade, bairro, endereco, foto_url, fotos_url, fotos_360_url, tour_config, descricao_curta, descricao_longa, palavras_chave, whatsapp, whatsapp_comercial, horarios, nota_media, total_avaliacoes, plano, status, docs_verificado, aprovado_em, verificado_em, somente_anfitriao, somente_modo_apresentacao, moeda_padrao, preco_ticket_inteira, preco_ticket_meia, preco_diaria, latitude, longitude, telefone, website, redes_sociais',
+          'id, usuario_id, nome_fantasia, nome_usuario, categoria, cidade, bairro, endereco, foto_url, fotos_url, fotos_360_url, tour_config, descricao_curta, descricao_longa, palavras_chave, whatsapp, whatsapp_comercial, horarios, nota_media, total_avaliacoes, plano, status, docs_verificado, aprovado_em, verificado_em, somente_anfitriao, somente_guia, somente_modo_apresentacao, moeda_padrao, preco_ticket_inteira, preco_ticket_meia, preco_diaria, latitude, longitude, telefone, website, redes_sociais',
         )
         .eq('id', empresaId)
         .single()
@@ -448,7 +450,7 @@ export default function EmpresaPage() {
     (usuarioId != null &&
       String(empresa.usuario_id ?? '') === usuarioId &&
       meuRole === 'profissional' &&
-      Boolean(empresa.somente_anfitriao))
+      (Boolean(empresa.somente_anfitriao) || Boolean(empresa.somente_guia)))
   const podeAbrirMenu =
     donoEmpresa || (meuRole === 'admin' && typeof adminLevel === 'number' && adminLevel === 1 && modoAtivo)
   /** Apenas admin altera fotos 360° na página pública da empresa. */
