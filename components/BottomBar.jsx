@@ -23,6 +23,7 @@ import { GUIA_CANAIS_BADGE_EVENT } from '@/lib/canais-badge-events'
 import { GUIA_FUNIL_BADGE_EVENT } from '@/lib/dashboard-funil-badge-events'
 import { contarMensagensNaoLidasCanais, invalidarCacheBadgeCanais } from '@/lib/canalBadge'
 import { contarNaoLidasFunilEmpresa } from '@/lib/dashboardFunilBadge'
+import { subscribeRecomendacoesEmpresa } from '@/lib/funilRecomendacoesRealtime'
 import { empresaGestorTemPresencaVigenteCached } from '@/lib/empresaPresencaPublica'
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
@@ -79,7 +80,7 @@ const BADGE_DEFER_MS = 2500
 /** Fallback leve quando o utilizador não está em /canal (evita postgres_changes sem filtro). */
 const CANAIS_BADGE_POLL_MS = 180_000
 const ATIVIDADES_BADGE_POLL_MS = 180_000
-const FUNIL_BADGE_POLL_MS = 180_000
+const FUNIL_BADGE_POLL_MS = 30_000
 /** Timeout curto — se o Postgres estiver saturado, desiste sem segurar a UI. */
 const BADGE_QUERY_TIMEOUT_MS = 4_000
 
@@ -426,6 +427,41 @@ export default function BottomBar() {
     }
     window.addEventListener(GUIA_FUNIL_BADGE_EVENT, onFunil)
 
+    let debounceRt = null
+    const onRealtime = () => {
+      if (debounceRt) clearTimeout(debounceRt)
+      debounceRt = setTimeout(() => {
+        debounceRt = null
+        void refresh()
+      }, 200)
+    }
+
+    const chRec = subscribeRecomendacoesEmpresa(
+      supabase,
+      empId,
+      `bottombar-funil-rec-${empId}-${authUserId}`,
+      onRealtime,
+    )
+
+    const chExtra = supabase
+      .channel(`bottombar-funil-extra-${empId}-${authUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'manifesto',
+          filter: `empresa_destino_id=eq.${empId}`,
+        },
+        onRealtime,
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'comissao', filter: `empresa_id=eq.${empId}` },
+        onRealtime,
+      )
+      .subscribe()
+
     const pollFunilId = setInterval(() => {
       if (document.visibilityState === 'visible') void refresh()
     }, FUNIL_BADGE_POLL_MS)
@@ -434,7 +470,10 @@ export default function BottomBar() {
       cancelled = true
       clearTimeout(deferId)
       clearInterval(pollFunilId)
+      if (debounceRt) clearTimeout(debounceRt)
       window.removeEventListener(GUIA_FUNIL_BADGE_EVENT, onFunil)
+      void supabase.removeChannel(chRec)
+      void supabase.removeChannel(chExtra)
     }
   }, [authUserId, userRole, empresaId, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada, ehGuia, modoGuiaEfetivo, empresaAgenciaId, empresaAgenciaLiberada, empresaIdDual])
 

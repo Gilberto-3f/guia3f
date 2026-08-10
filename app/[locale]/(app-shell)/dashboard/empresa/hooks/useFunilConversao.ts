@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
+import { GUIA_FUNIL_METRICAS_EVENT } from '@/lib/dashboard-funil-badge-events'
+import { subscribeRecomendacoesEmpresa } from '@/lib/funilRecomendacoesRealtime'
 import { normalizarCategoriaProfissionalSlug } from '../components/funil-conversao/categoriasProfissionalFunil'
 import type {
   DadosFunil,
@@ -1072,6 +1074,32 @@ export function useFunilConversao(
     }
   }, [dataLimite, empresaId, empresaUsuarioId, prefetchTodosDetalhes, resetDetalhes])
 
+  /** Atualização rápida só da etapa recomendações (evita recontar interações). */
+  const softRefreshRecomendacoes = useCallback(async () => {
+    if (!empresaId) return
+    try {
+      const recomendacoes = await contarRecomendacoes(empresaId, dataLimite)
+      setDados((prev) => (prev ? { ...prev, recomendacoes } : prev))
+
+      detalhesCarregados.current.delete('recomendacoes')
+      const [pagina, produtos, pratos, servicos, tickets] = await Promise.all([
+        buscarRecomendacoesPorProfissional(empresaId, dataLimite),
+        buscarRecomendacoesProdutoPorProfissional(empresaId, dataLimite),
+        buscarRecomendacoesPratoPorProfissional(empresaId, dataLimite),
+        buscarRecomendacoesServicoPorProfissional(empresaId, dataLimite),
+        buscarRecomendacoesTicketPorProfissional(empresaId, dataLimite),
+      ])
+      setRecomendacoesPorProfissional(pagina)
+      setRecomendacoesProdutoPorProfissional(produtos)
+      setRecomendacoesPratoPorProfissional(pratos)
+      setRecomendacoesServicoPorProfissional(servicos)
+      setRecomendacoesTicketPorProfissional(tickets)
+      detalhesCarregados.current.add('recomendacoes')
+    } catch {
+      /* silencioso — próximo fetchMetricas corrige */
+    }
+  }, [dataLimite, empresaId])
+
   const carregarDetalhes = useCallback(
     async (etapa: DetalheFunilEtapa) => {
       if (!empresaId) return
@@ -1144,6 +1172,35 @@ export function useFunilConversao(
   useEffect(() => {
     void fetchMetricas()
   }, [fetchMetricas])
+
+  useEffect(() => {
+    if (!empresaId) return
+
+    let debounceId: ReturnType<typeof setTimeout> | null = null
+    const schedule = () => {
+      if (debounceId) clearTimeout(debounceId)
+      debounceId = setTimeout(() => {
+        debounceId = null
+        void softRefreshRecomendacoes()
+      }, 250)
+    }
+
+    const onMetricas = () => schedule()
+    window.addEventListener(GUIA_FUNIL_METRICAS_EVENT, onMetricas)
+
+    const ch = subscribeRecomendacoesEmpresa(
+      supabase,
+      empresaId,
+      `funil-metricas-${empresaId}`,
+      schedule,
+    )
+
+    return () => {
+      window.removeEventListener(GUIA_FUNIL_METRICAS_EVENT, onMetricas)
+      if (debounceId) clearTimeout(debounceId)
+      void supabase.removeChannel(ch)
+    }
+  }, [empresaId, softRefreshRecomendacoes])
 
   return {
     dados,
