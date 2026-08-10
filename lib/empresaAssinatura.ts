@@ -145,10 +145,57 @@ export type AssinaturaPresencaPublicaRow = {
   vencimento_em: string | null
 }
 
+function mapRowsAssinaturaPresenca(data: unknown): AssinaturaPresencaPublicaRow[] {
+  const out: AssinaturaPresencaPublicaRow[] = []
+  const seen = new Set<string>()
+  for (const row of (Array.isArray(data) ? data : []) as Record<string, unknown>[]) {
+    const empId = row?.empresa_id != null ? String(row.empresa_id).trim() : ''
+    if (!empId || seen.has(empId)) continue
+    seen.add(empId)
+    out.push({
+      empresa_id: empId,
+      plano_id: row?.plano_id != null ? String(row.plano_id) : null,
+      status: row?.status != null ? String(row.status) : 'ativo',
+      vencimento_em: row?.vencimento_em != null ? String(row.vencimento_em) : null,
+    })
+  }
+  return out
+}
+
+/**
+ * Fallback com SELECT direto (service_role / admin bypassa RLS).
+ * Necessário quando a RPC não tem GRANT para service_role.
+ */
+async function buscarAssinaturasPresencaPublicaDireto(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient | any,
+  empresaIds: string[],
+): Promise<AssinaturaPresencaPublicaRow[]> {
+  const agora = new Date().toISOString()
+  let q = supabase
+    .from('empresa_assinaturas')
+    .select('empresa_id, plano_id, status, vencimento_em')
+    .eq('status', 'ativo')
+    .or(`vencimento_em.is.null,vencimento_em.gte."${agora}"`)
+    .order('vencimento_em', { ascending: false, nullsFirst: false })
+
+  if (empresaIds.length > 0) {
+    q = q.in('empresa_id', empresaIds)
+  }
+
+  const { data, error } = await q
+  if (error) {
+    console.warn('[empresaAssinatura] fallback direto assinaturas:', error.message)
+    return []
+  }
+  return mapRowsAssinaturaPresenca(data).filter((r) => assinaturaContratadaVigente(r))
+}
+
 /**
  * Assinaturas no ciclo regular (ativo + não vencido).
  * Usa RPC SECURITY DEFINER — turista/profissional enxergam IDs vigentes
  * sem SELECT direto em `empresa_assinaturas` (RLS só dono/admin).
+ * Fallback SELECT: mapa da mobilidade usa service_role (admin).
  */
 export async function buscarAssinaturasPresencaPublica(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -162,21 +209,20 @@ export async function buscarAssinaturasPresencaPublica(
     p_empresa_ids: ids.length ? ids : null,
   })
   if (error) {
-    console.warn('[empresaAssinatura] buscarAssinaturasPresencaPublica:', error.message)
-    return []
+    console.warn(
+      '[empresaAssinatura] buscarAssinaturasPresencaPublica RPC:',
+      error.message,
+      '— usando SELECT direto',
+    )
+    return buscarAssinaturasPresencaPublicaDireto(supabase, ids)
   }
-  const out: AssinaturaPresencaPublicaRow[] = []
-  for (const row of data ?? []) {
-    const empId = row?.empresa_id != null ? String(row.empresa_id).trim() : ''
-    if (!empId) continue
-    out.push({
-      empresa_id: empId,
-      plano_id: row?.plano_id != null ? String(row.plano_id) : null,
-      status: row?.status != null ? String(row.status) : 'ativo',
-      vencimento_em: row?.vencimento_em != null ? String(row.vencimento_em) : null,
-    })
+  const mapped = mapRowsAssinaturaPresenca(data)
+  // RPC vazia com service_role sem grant às vezes retorna [] sem error — tenta direto.
+  if (mapped.length === 0) {
+    const direto = await buscarAssinaturasPresencaPublicaDireto(supabase, ids)
+    if (direto.length > 0) return direto
   }
-  return out
+  return mapped
 }
 
 /** Empresa deve ver lembrete de renovação (5 dias antes do vencimento). */
