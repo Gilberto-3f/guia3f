@@ -253,3 +253,192 @@ body {
 .canal-chat-date-separator {
   background-color: #0097b2;
 }
+
+/* =============================================================================
+ * Modo noturno (html.dark) — global
+ * Fundo #000 · painéis #111/#1a1a · texto/ícones claros · marca #0097b2/#00D443
+ * Mapas Mapbox: não forçar fundo (só chrome ao redor)
+ * ============================================================================= */
+@custom-variant dark (&:where(.dark, .dark *));
+
+html.dark {
+  color-scheme: dark;
+  background: #000000 !important;
+  --background: #000000;
+  --foreground: #ffffff;
+}
+
+html.dark body {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+html.dark .app-shell-backdrop {
+  background: #000000 !important;
+}
+
+@media (max-width: 599px) {
+  html.dark .app-shell-backdrop {
+    background: #000000 !important;
+  }
+}
+
+/* Superfícies claras → painéis escuros */
+html.dark .bg-white,
+html.dark .bg-gray-50,
+html.dark .bg-gray-100,
+html.dark .bg-stone-50,
+html.dark .bg-stone-100,
+html.dark .bg-zinc-50,
+html.dark .bg-neutral-50,
+html.dark .bg-\[\#f5f5f5\],
+html.dark .bg-\[\#F5F5F5\],
+html.dark .bg-\[\#e8f4f6\],
+html.dark .bg-\[\#e6f7fa\],
+html.dark .bg-\[\#faf8f3\],
+html.dark .bg-\[\#F9FAFB\] {
+  background-color: #1a1a1a !important;
+}
+
+html.dark .bg-gray-200,
+html.dark .bg-stone-200,
+html.dark .bg-zinc-100 {
+  background-color: #222222 !important;
+}
+
+html.dark .bg-black\/5,
+html.dark .bg-black\/\[0\.03\] {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Textos escuros → claros */
+html.dark .text-gray-900,
+html.dark .text-gray-800,
+html.dark .text-gray-700,
+html.dark .text-zinc-900,
+html.dark .text-zinc-800,
+html.dark .text-stone-900,
+html.dark .text-stone-800,
+html.dark .text-neutral-900,
+html.dark .text-black,
+html.dark .text-\[\#001f3f\],
+html.dark .text-\[\#111827\],
+html.dark .text-\[\#171717\] {
+  color: #ffffff !important;
+}
+
+html.dark .text-gray-600,
+html.dark .text-gray-500,
+html.dark .text-zinc-600,
+html.dark .text-zinc-500,
+html.dark .text-\[\#666666\],
+html.dark .text-\[\#6b7280\] {
+  color: #d1d5db !important;
+}
+
+html.dark .text-gray-400,
+html.dark .text-zinc-400 {
+  color: #9ca3af !important;
+}
+
+/* Bordas */
+html.dark .border-gray-100,
+html.dark .border-gray-200,
+html.dark .border-gray-300,
+html.dark .border-zinc-100,
+html.dark .border-zinc-200,
+html.dark .border-stone-200,
+html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #333333 !important;
+}
+
+/* Hover / rings */
+html.dark .hover\:bg-gray-50:hover,
+html.dark .hover\:bg-gray-100:hover,
+html.dark .hover\:bg-stone-50:hover {
+  background-color: #222222 !important;
+}
+
+html.dark .ring-gray-200,
+html.dark .ring-gray-100 {
+  --tw-ring-color: #333333 !important;
+}
+
+html.dark .shadow-sm,
+html.dark .shadow,
+html.dark .shadow-md,
+html.dark .shadow-lg {
+  --tw-shadow-color: rgba(0, 0, 0, 0.55);
+}
+
+/* Gradientes claros do shell → fundo preto */
+html.dark .from-\[\#faf8f3\],
+html.dark .via-white,
+html.dark .to-stone-300 {
+  --tw-gradient-from: #111111 !important;
+  --tw-gradient-via: #1a1a1a !important;
+  --tw-gradient-to: #000000 !important;
+}
+
+/* Canais */
+html.dark .canal-chat,
+html.dark .canal-chat-messages {
+  background-color: #000000 !important;
+}
+
+html.dark .canal-bubble-own {
+  background-color: #0a3d47 !important;
+  color: #ffffff !important;
+}
+
+html.dark .canal-bubble-other {
+  background-color: #1a1a1a !important;
+  color: #ffffff !important;
+}
+
+html.dark .canal-financeiro-ui input,
+html.dark .canal-financeiro-ui textarea {
+  color: #ffffff !important;
+  background-color: #1a1a1a !important;
+}
+
+html.dark .canal-financeiro-ui input::placeholder,
+html.dark .canal-financeiro-ui textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+/* Inputs / placeholders genéricos */
+html.dark input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+html.dark textarea,
+html.dark select {
+  color-scheme: dark;
+}
+
+html.dark .placeholder\:text-gray-400::placeholder,
+html.dark .placeholder-gray-400::placeholder,
+html.dark .placeholder-white\/70::placeholder {
+  color: #9ca3af !important;
+}
+
+/* Scrollbar menu */
+html.dark .scrollbar-perfil {
+  scrollbar-color: #0097b2 #1a1a1a;
+}
+
+html.dark .scrollbar-perfil::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+/* Mapbox: não forçar fundo dos tiles (chrome ao redor já herda) */
+html.dark .mapboxgl-map,
+html.dark .mapboxgl-canvas-container {
+  background-color: transparent !important;
+}
+
+/* Mantém contraste em botões com texto branco sobre marca */
+html.dark .bg-\[\#0097b2\].text-white,
+html.dark .bg-\[\#00D443\].text-white,
+html.dark .text-white {
+  color: #ffffff !important;
+}

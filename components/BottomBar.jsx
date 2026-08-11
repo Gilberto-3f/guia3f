@@ -662,7 +662,7 @@ export default function BottomBar() {
   return (
     <div
       ref={rootRef}
-      className="fixed bottom-0 left-0 right-0 z-50 mx-auto w-full max-w-[var(--app-column)] border-t border-gray-200 bg-white shadow-lg"
+      className="fixed bottom-0 left-0 right-0 z-50 mx-auto w-full max-w-[var(--app-column)] border-t border-gray-200 bg-white shadow-lg dark:border-[#333] dark:bg-[#111]"
     >
       <div className="flex items-center justify-around pt-2 pb-1">
         <Link

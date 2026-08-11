@@ -12,7 +12,7 @@ export default function GuiaAuthShell({ children, footer = null, largeHeaderLogo
       <header className="shrink-0 bg-[#0097b2]">
         <Logo variant="header" largeHeader={largeHeaderLogo} />
       </header>
-      <main className="flex min-h-0 flex-1 flex-col rounded-t-2xl bg-white shadow-[0_-8px_30px_rgba(0,0,0,0.08)]">
+      <main className="flex min-h-0 flex-1 flex-col rounded-t-2xl bg-white shadow-[0_-8px_30px_rgba(0,0,0,0.08)] dark:bg-[#1a1a1a] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.45)]">
         <div className="mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col px-5 py-6 pb-10 sm:px-6">
           {children}
         </div>

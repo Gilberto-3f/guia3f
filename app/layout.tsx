@@ -3,6 +3,7 @@ import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import type { ReactNode } from "react";
+import { MODO_NOTURNO_BOOT_SCRIPT } from "@/lib/modoNoturno";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -35,6 +36,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="pt" suppressHydrationWarning className={`${inter.className} h-full antialiased`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: MODO_NOTURNO_BOOT_SCRIPT }} />
+      </head>
       <body suppressHydrationWarning className="min-h-full">
         {children}
       </body>

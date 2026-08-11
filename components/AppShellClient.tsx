@@ -55,10 +55,10 @@ function shellClasses(pathname: string, tecladoOcultaBarra: boolean) {
           : 'pb-20'
   const fundoShell =
     pathname.includes('/feed/criar') && !isStoryCriar
-      ? 'bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300'
+      ? 'bg-gradient-to-br from-[#faf8f3] from-[12%] via-white via-[48%] to-stone-300 dark:from-[#111] dark:via-[#1a1a1a] dark:to-black'
       : isStoryCriar
         ? 'bg-black'
-        : 'bg-gray-50'
+        : 'bg-gray-50 dark:bg-black'
   return { hideBottomBar, paddingInferior, fundoShell, isGuiaOuMobilidade, telaMensageiro }
 }
 

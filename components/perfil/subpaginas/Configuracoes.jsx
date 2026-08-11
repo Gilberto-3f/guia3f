@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useLocale } from 'next-intl'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { setCookie } from 'cookies-next'
 import {
   BellOff,
@@ -16,6 +16,7 @@ import {
   Moon,
   Trash2,
 } from 'lucide-react'
+import { useModoNoturno } from '@/context/ModoNoturnoContext'
 
 const IDIOMAS = [
   { codigo: 'pt', label: 'Português', bandeira: '🇧🇷' },
@@ -32,7 +33,7 @@ const IDIOMAS = [
 export default function Configuracoes({ variant = 'turista', onAbrirRegras }) {
   const router = useRouter()
   const locale = useLocale()
-  const [modoNoturno, setModoNoturno] = useState(false)
+  const { modoNoturno, setModoNoturno } = useModoNoturno()
   const [notificacoes, setNotificacoes] = useState(true)
   const [idiomaAberto, setIdiomaAberto] = useState(false)
 
@@ -74,7 +75,9 @@ export default function Configuracoes({ variant = 'turista', onAbrirRegras }) {
                 type="button"
                 onClick={() => mudarIdioma(item.codigo)}
                 className={`mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition ${
-                  locale === item.codigo ? 'bg-[#e6f7fa] font-semibold text-[#007d94]' : 'text-gray-700 hover:bg-gray-50'
+                  locale === item.codigo
+                    ? 'bg-[#e6f7fa] font-semibold text-[#007d94]'
+                    : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 <span aria-hidden>{item.bandeira}</span>
@@ -139,7 +142,9 @@ export default function Configuracoes({ variant = 'turista', onAbrirRegras }) {
 
         <button
           type="button"
-          onClick={() => window.alert('Fluxo de exclusão de conta: em breve com confirmação por e-mail.')}
+          onClick={() =>
+            window.alert('Fluxo de exclusão de conta: em breve com confirmação por e-mail.')
+          }
           className="flex w-full items-center gap-3 px-3 py-3 text-left transition hover:bg-gray-50"
         >
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-600">
