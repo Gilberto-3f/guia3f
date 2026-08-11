@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server'
 import { assertUserSession } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { carregarBloqueiosMobilidade, hojeIsoLocal } from '@/lib/mobilidadeBloqueiosCalendario'
 
-/** Lista / cria / remove disponibilidade (placa vermelha). */
+/**
+ * Calendário do profissional (placa vermelha):
+ * GET — lista datas bloqueadas (demais dias = disponíveis).
+ * POST — bloquear / desbloquear datas ({ acao, datas[] }).
+ * DELETE — ?data=YYYY-MM-DD remove um bloqueio.
+ */
 export async function GET() {
   const auth = await assertUserSession()
   if (!auth.ok) return auth.error
@@ -24,31 +30,15 @@ export async function GET() {
     return NextResponse.json({ error: 'Acesso restrito a placa vermelha.' }, { status: 403 })
   }
 
-  const hoje = new Date()
-  const ymd = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`
-
-  const { data, error } = await admin
-    .from('mobilidade_disponibilidade')
-    .select('id, data, hora_inicio, hora_fim, vagas_total, vagas_ocupadas, ativo')
-    .eq('profissional_id', prof.id)
-    .gte('data', ymd)
-    .order('data', { ascending: true })
-    .order('hora_inicio', { ascending: true })
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  const bloqueios = await carregarBloqueiosMobilidade(admin, String(prof.id), {
+    aPartirDe: hojeIsoLocal(),
+  })
 
   return NextResponse.json({
     ok: true,
-    slots: (data ?? []).map((s) => ({
-      id: String(s.id),
-      data: String(s.data),
-      hora_inicio: String(s.hora_inicio).slice(0, 5),
-      hora_fim: String(s.hora_fim).slice(0, 5),
-      vagas_total: Number(s.vagas_total),
-      vagas_ocupadas: Number(s.vagas_ocupadas),
-      vagas_livres: Number(s.vagas_total) - Number(s.vagas_ocupadas),
-      ativo: Boolean(s.ativo),
-    })),
+    bloqueios,
+    /** Compat: UI antiga lia `slots` — vazio no modelo de bloqueio. */
+    slots: [],
   })
 }
 
@@ -80,51 +70,49 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Acesso restrito a placa vermelha.' }, { status: 403 })
   }
 
-  const data = String(body.data ?? '').trim()
-  const horaInicio = String(body.hora_inicio ?? '08:00').trim().slice(0, 5)
-  const horaFim = String(body.hora_fim ?? '20:00').trim().slice(0, 5)
-  const vagas = Math.max(1, Math.min(50, Number(body.vagas_total) || 1))
+  const acao = String(body.acao ?? 'bloquear').trim().toLowerCase()
+  const datasRaw = Array.isArray(body.datas) ? body.datas : body.data != null ? [body.data] : []
+  const datas = [
+    ...new Set(
+      datasRaw
+        .map((d) => String(d ?? '').trim().slice(0, 10))
+        .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)),
+    ),
+  ]
+  const hoje = hojeIsoLocal()
+  const futuras = datas.filter((d) => d >= hoje)
 
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) {
-    return NextResponse.json({ error: 'Data inválida (YYYY-MM-DD).' }, { status: 400 })
-  }
-  if (horaFim <= horaInicio) {
-    return NextResponse.json({ error: 'hora_fim deve ser após hora_inicio.' }, { status: 400 })
-  }
-
-  const { data: row, error } = await admin
-    .from('mobilidade_disponibilidade')
-    .upsert(
-      {
-        profissional_id: prof.id,
-        data,
-        hora_inicio: horaInicio,
-        hora_fim: horaFim,
-        vagas_total: vagas,
-        ativo: true,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'profissional_id,data,hora_inicio' },
-    )
-    .select('id, data, hora_inicio, hora_fim, vagas_total, vagas_ocupadas, ativo')
-    .maybeSingle()
-
-  if (error || !row) {
-    return NextResponse.json({ error: error?.message ?? 'Falha ao salvar.' }, { status: 400 })
+  if (futuras.length === 0) {
+    return NextResponse.json({ error: 'Selecione ao menos uma data futura válida.' }, { status: 400 })
   }
 
-  return NextResponse.json({
-    ok: true,
-    slot: {
-      id: String(row.id),
-      data: String(row.data),
-      hora_inicio: String(row.hora_inicio).slice(0, 5),
-      hora_fim: String(row.hora_fim).slice(0, 5),
-      vagas_total: Number(row.vagas_total),
-      vagas_ocupadas: Number(row.vagas_ocupadas),
-      ativo: Boolean(row.ativo),
-    },
+  const profId = String(prof.id)
+
+  if (acao === 'desbloquear') {
+    const { error } = await admin
+      .from('mobilidade_bloqueios_calendario')
+      .delete()
+      .eq('profissional_id', profId)
+      .in('data', futuras)
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json({ ok: true, desbloqueadas: futuras.length })
+  }
+
+  // Compat legado: POST com hora_inicio ainda cria slot — ignorado no novo modelo;
+  // se vier só `data`+horas, trata como bloquear essa data.
+  const rows = futuras.map((data) => ({
+    profissional_id: profId,
+    data,
+    motivo: 'Bloqueio manual (indisponível)',
+  }))
+
+  const { error } = await admin.from('mobilidade_bloqueios_calendario').upsert(rows, {
+    onConflict: 'profissional_id,data',
+    ignoreDuplicates: true,
   })
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  return NextResponse.json({ ok: true, bloqueadas: futuras.length })
 }
 
 export async function DELETE(req: Request) {
@@ -132,8 +120,8 @@ export async function DELETE(req: Request) {
   if (!auth.ok) return auth.error
 
   const url = new URL(req.url)
+  const data = String(url.searchParams.get('data') ?? '').trim().slice(0, 10)
   const id = String(url.searchParams.get('id') ?? '').trim()
-  if (!id) return NextResponse.json({ error: 'id obrigatório.' }, { status: 400 })
 
   let admin
   try {
@@ -152,22 +140,26 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: 'Acesso restrito a placa vermelha.' }, { status: 403 })
   }
 
-  const { data: slot } = await admin
-    .from('mobilidade_disponibilidade')
-    .select('id, vagas_ocupadas')
-    .eq('id', id)
-    .eq('profissional_id', prof.id)
-    .maybeSingle()
+  const profId = String(prof.id)
 
-  if (!slot) return NextResponse.json({ error: 'Slot não encontrado.' }, { status: 404 })
-  if (Number(slot.vagas_ocupadas) > 0) {
+  if (id) {
     await admin
-      .from('mobilidade_disponibilidade')
-      .update({ ativo: false, updated_at: new Date().toISOString() })
+      .from('mobilidade_bloqueios_calendario')
+      .delete()
       .eq('id', id)
-    return NextResponse.json({ ok: true, desativado: true })
+      .eq('profissional_id', profId)
+    return NextResponse.json({ ok: true, removido: true })
   }
 
-  await admin.from('mobilidade_disponibilidade').delete().eq('id', id)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) {
+    return NextResponse.json({ error: 'data ou id obrigatório.' }, { status: 400 })
+  }
+
+  await admin
+    .from('mobilidade_bloqueios_calendario')
+    .delete()
+    .eq('profissional_id', profId)
+    .eq('data', data)
+
   return NextResponse.json({ ok: true, removido: true })
 }

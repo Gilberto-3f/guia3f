@@ -116,6 +116,7 @@ export default function DrawerEspacoProfissionalMobilidade({
   const [ecossistemaAberto, setEcossistemaAberto] = useState(false)
   const [historicoAtendAberto, setHistoricoAtendAberto] = useState(false)
   const [historicoParcAberto, setHistoricoParcAberto] = useState(false)
+  const [historicoParcAba, setHistoricoParcAba] = useState<'andamento' | 'historico'>('andamento')
   const [cidadesAtuacao, setCidadesAtuacao] = useState<unknown>(null)
 
   const handleAcao = useCallback(
@@ -373,14 +374,21 @@ export default function DrawerEspacoProfissionalMobilidade({
       <DrawerEcossistemaEspaco
         aberto={ecossistemaAberto}
         onFechar={() => setEcossistemaAberto(false)}
+        onSolicitadoSucesso={() => {
+          setEcossistemaAberto(false)
+          setHistoricoParcAba('andamento')
+          setHistoricoParcAberto(true)
+        }}
       />
       <DrawerHistoricoAtendimentosEspaco
         aberto={historicoAtendAberto}
         onFechar={() => setHistoricoAtendAberto(false)}
       />
       <DrawerHistoricoParceriasEspaco
+        key={`hist-parc-${historicoParcAba}-${historicoParcAberto ? '1' : '0'}`}
         aberto={historicoParcAberto}
         onFechar={() => setHistoricoParcAberto(false)}
+        abaInicial={historicoParcAba}
       />
     </>,
     document.body,

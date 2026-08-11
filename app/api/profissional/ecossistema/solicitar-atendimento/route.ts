@@ -3,6 +3,7 @@ import { assertUserSession } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { criarSolicitacaoEOfertar } from '@/lib/mobilidadeMatching'
 import { modalidadeDeCategoriasProfissional } from '@/lib/mobilidadePopupPesquisa'
+import { abrirParceriaEmAndamentoPorRecomendacao } from '@/lib/parceriaRecomendacaoContratacao'
 import { profissionalRecursosLiberados } from '@/lib/verificacao-documentos'
 
 /**
@@ -172,10 +173,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: result.error, recomendacao_id: recomendacaoId }, { status: 400 })
   }
 
+  const parceria = await abrirParceriaEmAndamentoPorRecomendacao(admin, {
+    recomendacaoId,
+    indicadorId,
+    indicadoId: profissionalIndicadoId,
+    turistaUsuarioId,
+  })
+
   return NextResponse.json({
     ok: true,
     recomendacao_id: recomendacaoId,
     solicitacao_id: result.solicitacaoId,
+    parceria_id: parceria.parceriaId ?? null,
     status: result.status,
     oferta: result.oferta,
     turista_nome: String(turista.nome_completo ?? 'Turista'),

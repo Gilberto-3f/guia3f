@@ -23,6 +23,9 @@ function statusAtualParceria(p: ParceriaRow): { label: string; className: string
   if (p.pagamento_confirmado) {
     return { label: 'Rec. pendente', className: 'bg-amber-50 text-amber-800' }
   }
+  if (!p.contratado_em) {
+    return { label: 'Aguardando aceite', className: 'bg-amber-50 text-amber-800' }
+  }
   const atendimentoConcluido =
     String(p.status) !== 'em_andamento' ||
     p.atrativos.some((a) => a.visitado || a.status === 'visitado')
@@ -36,11 +39,13 @@ type AbaParcerias = 'andamento' | 'historico'
 
 type Props = {
   compact?: boolean
+  /** Aba inicial ao montar (ex.: após solicitação do Ecossistema). */
+  abaInicial?: AbaParcerias
 }
 
 /** Parcerias — em andamento / histórico + confirmação bilateral de pagamento. */
-export default function ParceriasProfissional({ compact = false }: Props) {
-  const [aba, setAba] = useState<AbaParcerias>('andamento')
+export default function ParceriasProfissional({ compact = false, abaInicial = 'andamento' }: Props) {
+  const [aba, setAba] = useState<AbaParcerias>(abaInicial)
   const [parcerias, setParcerias] = useState<ParceriaRow[]>([])
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState<string | null>(null)

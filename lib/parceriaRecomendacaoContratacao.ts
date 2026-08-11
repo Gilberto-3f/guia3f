@@ -67,6 +67,60 @@ async function buscarDadosTurista(
 }
 
 /**
+ * Abre (ou reativa) parceria em andamento a partir de uma recomendação do Ecossistema,
+ * sem marcar `contratado_em` — o indicador acompanha se o indicado aceitou.
+ */
+export async function abrirParceriaEmAndamentoPorRecomendacao(
+  supabase: SupabaseClient,
+  params: {
+    recomendacaoId: string
+    indicadorId: string
+    indicadoId: string
+    turistaUsuarioId: string
+  },
+): Promise<{ ok: boolean; parceriaId?: string; error?: string }> {
+  const [profA, profB] = parProfissionaisOrdenado(params.indicadorId, params.indicadoId)
+
+  const { data: parExistente } = await supabase
+    .from('parcerias_profissionais')
+    .select('id, status')
+    .eq('profissional_a_id', profA)
+    .eq('profissional_b_id', profB)
+    .maybeSingle()
+
+  if (parExistente?.id) {
+    const parceriaId = String(parExistente.id)
+    await supabase
+      .from('parcerias_profissionais')
+      .update({
+        status: 'em_andamento',
+        recomendacao_id: params.recomendacaoId,
+        turista_usuario_id: params.turistaUsuarioId,
+      })
+      .eq('id', parceriaId)
+    return { ok: true, parceriaId }
+  }
+
+  const { data: novaPar, error: parErr } = await supabase
+    .from('parcerias_profissionais')
+    .insert({
+      profissional_a_id: profA,
+      profissional_b_id: profB,
+      status: 'em_andamento',
+      recomendacao_id: params.recomendacaoId,
+      turista_usuario_id: params.turistaUsuarioId,
+    })
+    .select('id')
+    .maybeSingle()
+
+  if (parErr) return { ok: false, error: parErr.message }
+  return {
+    ok: true,
+    parceriaId: novaPar?.id != null ? String(novaPar.id) : undefined,
+  }
+}
+
+/**
  * Turista contrata profissional recomendado: registra parceria em andamento,
  * manifesto com dados do turista e avisos no canal financeiro.
  */

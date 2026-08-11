@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Bus,
-  CalendarDays,
   Car,
   ChevronLeft,
   ChevronRight,
@@ -20,34 +19,24 @@ import { useTranslations } from 'next-intl'
 import AvatarImage from '@/components/AvatarImage'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
+import { listarDatasDoMes } from '@/lib/hospedagemCalendario'
 import {
-  COR_AZUL_LOGO,
-  COR_VERDE_BOTAO,
-  listarDatasDoMes,
-} from '@/lib/hospedagemCalendario'
+  corStatusDiaMobilidade,
+  statusDiaMobilidade,
+  type BloqueioMobilidade,
+} from '@/lib/mobilidadeBloqueiosCalendario'
 import { rotuloCategoriaProfissionalRecomendacao } from '@/lib/recomendarProfissional'
 import type { ProfissionalEcossistemaRow } from '@/app/api/profissional/buscar-ecossistema/route'
 import type { ClienteEcossistemaRow } from '@/app/api/profissional/buscar-cliente-ecossistema/route'
 
 const COR = '#0097b2'
 const VERDE = '#00D443'
-const COR_SEM_SLOT = '#e8e8e8'
-const COR_PASSADO = '#c4c4c4'
-
-type Slot = {
-  id: string
-  data: string
-  hora_inicio: string
-  hora_fim: string
-  vagas_total: number
-  vagas_ocupadas: number
-  vagas_livres?: number
-  ativo: boolean
-}
 
 type Props = {
   aberto: boolean
   onFechar: () => void
+  /** Após solicitação direcionada com sucesso — fecha Ecossistema e abre Histórico. */
+  onSolicitadoSucesso?: () => void
 }
 
 type Etapa = 'escolha' | 'manual' | 'algoritmo'
@@ -68,26 +57,6 @@ function hojeIsoLocal(): string {
   return `${y}-${m}-${day}`
 }
 
-type StatusDia = 'passado' | 'livre' | 'lotado' | 'vazio'
-
-function statusDia(iso: string, slotsDoDia: Slot[], hoje: string): StatusDia {
-  if (iso < hoje) return 'passado'
-  const ativos = slotsDoDia.filter((s) => s.ativo)
-  if (ativos.length === 0) return 'vazio'
-  const livres = ativos.reduce(
-    (acc, s) => acc + (s.vagas_livres ?? s.vagas_total - s.vagas_ocupadas),
-    0,
-  )
-  return livres > 0 ? 'livre' : 'lotado'
-}
-
-function corStatus(st: StatusDia): string {
-  if (st === 'passado') return COR_PASSADO
-  if (st === 'livre') return COR_VERDE_BOTAO
-  if (st === 'lotado') return COR_AZUL_LOGO
-  return COR_SEM_SLOT
-}
-
 function lerGps(): Promise<{ lat: number; lng: number } | null> {
   return new Promise((resolve) => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -105,7 +74,11 @@ function lerGps(): Promise<{ lat: number; lng: number } | null> {
 /**
  * Drawer Ecossistema: Manual / ONLINE AGORA → parceiro → cliente → solicitar atendimento.
  */
-export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
+export default function DrawerEcossistemaEspaco({
+  aberto,
+  onFechar,
+  onSolicitadoSucesso,
+}: Props) {
   const t = useTranslations('Mobilidade')
   useModalScrollLock(aberto)
 
@@ -117,9 +90,9 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
   const [erro, setErro] = useState('')
   const [resultados, setResultados] = useState<ProfissionalEcossistemaRow[]>([])
   const [selecionado, setSelecionado] = useState<ProfissionalEcossistemaRow | null>(null)
-  const [slots, setSlots] = useState<Slot[]>([])
-  const [slotsLoading, setSlotsLoading] = useState(false)
-  const [slotsMsg, setSlotsMsg] = useState('')
+  const [bloqueios, setBloqueios] = useState<BloqueioMobilidade[]>([])
+  const [agendaLoading, setAgendaLoading] = useState(false)
+  const [agendaMsg, setAgendaMsg] = useState('')
   /** Após escolher parceiro: agenda → localizar cliente. */
   const [faseParceiro, setFaseParceiro] = useState<'agenda' | 'cliente'>('agenda')
   const [termoCliente, setTermoCliente] = useState('')
@@ -131,7 +104,6 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
   const [okSolic, setOkSolic] = useState('')
   /** null = ainda não escolheu; imediato | pre */
   const [tipoAtendimento, setTipoAtendimento] = useState<'imediato' | 'pre' | null>(null)
-  const [agendaAberta, setAgendaAberta] = useState(false)
   const [erroAgenda, setErroAgenda] = useState('')
 
   const hoje = hojeIsoLocal()
@@ -147,8 +119,8 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
     setTermo('')
     setResultados([])
     setSelecionado(null)
-    setSlots([])
-    setSlotsMsg('')
+    setBloqueios([])
+    setAgendaMsg('')
     setErro('')
     setDiaSlot(null)
     setBuscando(false)
@@ -161,7 +133,6 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
     setOkSolic('')
     setBuscandoCliente(false)
     setTipoAtendimento(null)
-    setAgendaAberta(false)
     setErroAgenda('')
   }, [])
 
@@ -247,33 +218,30 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
     void buscarOnline()
   }
 
-  const carregarSlots = useCallback(
+  const carregarAgenda = useCallback(
     async (profId: string) => {
-      setSlotsLoading(true)
-      setSlotsMsg('')
-      setSlots([])
+      setAgendaLoading(true)
+      setAgendaMsg('')
+      setBloqueios([])
       try {
         const res = await fetch(
           `/api/mobilidade/disponibilidade?profissional_id=${encodeURIComponent(profId)}`,
         )
         const json = (await res.json()) as {
-          slots?: Slot[]
+          bloqueios?: BloqueioMobilidade[]
           placa_vermelha?: boolean
           mensagem?: string
           error?: string
         }
         if (!res.ok) {
-          setSlotsMsg(String(json.error ?? t('ecossistemaErroAgenda')))
+          setAgendaMsg(String(json.error ?? t('ecossistemaErroAgenda')))
           return
         }
-        setSlots(Array.isArray(json.slots) ? json.slots : [])
-        if (json.mensagem) setSlotsMsg(String(json.mensagem))
-        else if (!json.placa_vermelha) setSlotsMsg(t('ecossistemaSemPlaca'))
-        else if (!(json.slots ?? []).length) setSlotsMsg(t('ecossistemaSemAgenda'))
+        setBloqueios(Array.isArray(json.bloqueios) ? json.bloqueios : [])
       } catch {
-        setSlotsMsg(t('ecossistemaErroAgenda'))
+        setAgendaMsg(t('ecossistemaErroAgenda'))
       } finally {
-        setSlotsLoading(false)
+        setAgendaLoading(false)
       }
     },
     [t],
@@ -289,10 +257,9 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
     setErroCliente('')
     setOkSolic('')
     setTipoAtendimento(null)
-    setAgendaAberta(false)
     setErroAgenda('')
-    setSlots([])
-    setSlotsMsg('')
+    setBloqueios([])
+    setAgendaMsg('')
   }
 
   const selecionarTipoAtendimento = (tipo: 'imediato' | 'pre') => {
@@ -300,12 +267,10 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
     setErroAgenda('')
     if (tipo === 'imediato') {
       setDiaSlot(null)
-      setAgendaAberta(false)
       return
     }
-    setAgendaAberta(true)
-    if (selecionado && slots.length === 0 && !slotsLoading) {
-      void carregarSlots(selecionado.id)
+    if (selecionado) {
+      void carregarAgenda(selecionado.id)
     }
   }
 
@@ -316,7 +281,6 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
     }
     if (tipoAtendimento === 'pre' && !diaSlot) {
       setErroAgenda(t('ecossistemaEscolhaData'))
-      setAgendaAberta(true)
       return
     }
     setErroAgenda('')
@@ -363,16 +327,14 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
     return () => window.clearTimeout(id)
   }, [aberto, selecionado, faseParceiro, termoCliente, clienteSel, t])
 
-  const slotsPorData = useMemo(() => {
-    const map = new Map<string, Slot[]>()
-    for (const s of slots) {
-      const d = String(s.data).slice(0, 10)
-      const cur = map.get(d) ?? []
-      cur.push(s)
-      map.set(d, cur)
+  const bloqueadosSet = useMemo(() => {
+    const s = new Set<string>()
+    for (const b of bloqueios) {
+      const d = String(b.data).slice(0, 10)
+      if (d) s.add(d)
     }
-    return map
-  }, [slots])
+    return s
+  }, [bloqueios])
 
   const cells = useMemo(() => listarDatasDoMes(ano, mes), [ano, mes])
   const tituloMes = useMemo(
@@ -384,19 +346,11 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
     [ano, mes],
   )
 
-  const slotsDoDia = useMemo(() => {
-    if (!diaSlot) return []
-    return slotsPorData.get(diaSlot) ?? []
-  }, [diaSlot, slotsPorData])
-
   const dataAgendadaIso = useMemo(() => {
     if (tipoAtendimento !== 'pre' || !diaSlot) return null
-    const slot = slotsDoDia[0]
-    const hora = slot?.hora_inicio != null ? String(slot.hora_inicio).slice(0, 5) : '09:00'
-    const [hh, mm] = hora.split(':').map((x) => Number(x))
-    if (!Number.isFinite(hh) || !Number.isFinite(mm)) return `${diaSlot}T12:00:00`
-    return `${diaSlot}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00`
-  }, [tipoAtendimento, diaSlot, slotsDoDia])
+    // Meio-dia local — evita falhar o mínimo de 2h em dias futuros.
+    return `${diaSlot}T12:00:00`
+  }, [tipoAtendimento, diaSlot])
 
   const solicitarAtendimento = async () => {
     if (!selecionado || !clienteSel) {
@@ -424,6 +378,7 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
         return
       }
       setOkSolic(t('ecossistemaSolicitadoOk'))
+      onSolicitadoSucesso?.()
     } catch {
       setErroCliente(t('ecossistemaErroSolicitar'))
     } finally {
@@ -445,13 +400,12 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
     }
     if (selecionado) {
       setSelecionado(null)
-      setSlots([])
-      setSlotsMsg('')
+      setBloqueios([])
+      setAgendaMsg('')
       setDiaSlot(null)
       setFaseParceiro('agenda')
       setClienteSel(null)
       setTipoAtendimento(null)
-      setAgendaAberta(false)
       setErroAgenda('')
       return
     }
@@ -580,143 +534,89 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
               </div>
 
               {tipoAtendimento === 'pre' ? (
-                <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = !agendaAberta
-                      setAgendaAberta(next)
-                      if (next && selecionado && slots.length === 0 && !slotsLoading) {
-                        void carregarSlots(selecionado.id)
-                      }
-                    }}
-                    className="flex w-full items-center gap-2 px-3 py-3 text-left"
-                  >
-                    <CalendarDays className="h-5 w-5 shrink-0 text-[#0097b2]" aria-hidden />
-                    <span className="min-w-0 flex-1 text-sm font-bold uppercase tracking-wide text-[#0097b2]">
-                      {t('ecossistemaAgendaChevron')}
-                    </span>
-                    {diaSlot ? (
-                      <span className="shrink-0 text-xs font-semibold text-gray-600">
-                        {diaSlot.slice(8, 10)}/{diaSlot.slice(5, 7)}
-                      </span>
-                    ) : null}
-                    <span className="text-xs text-gray-400">{agendaAberta ? '▲' : '▼'}</span>
-                  </button>
-                  {agendaAberta ? (
-                    <div className="border-t border-gray-100 px-3 pb-3 pt-2">
-                      <p className="mb-3 text-xs text-gray-500">{t('ecossistemaAgendaHint')}</p>
-                      {slotsLoading ? (
-                        <p className="animate-pulse py-6 text-center text-sm text-gray-400">…</p>
-                      ) : (
-                        <>
-                          {slotsMsg ? (
-                            <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-center text-xs text-amber-800">
-                              {slotsMsg}
-                            </p>
-                          ) : null}
+                <div className="rounded-xl border border-gray-200 bg-white p-3">
+                  {agendaLoading ? (
+                    <p className="animate-pulse py-6 text-center text-sm text-gray-400">…</p>
+                  ) : (
+                    <>
+                      {agendaMsg ? (
+                        <p className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-center text-xs text-red-700">
+                          {agendaMsg}
+                        </p>
+                      ) : null}
 
-                          <div className="rounded-xl border border-gray-200 bg-white p-3">
-                            <div className="mb-3 flex items-center justify-between">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (mes === 0) {
-                                    setMes(11)
-                                    setAno((a) => a - 1)
-                                  } else setMes((m) => m - 1)
-                                }}
-                                className="rounded-lg p-1.5 text-[#0097b2] hover:bg-[#0097b2]/10"
-                                aria-label={t('calendarioMesAnterior')}
-                              >
-                                <ChevronLeft className="h-5 w-5" aria-hidden />
-                              </button>
-                              <p className="text-sm font-bold capitalize text-[#001f3f]">{tituloMes}</p>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (mes === 11) {
-                                    setMes(0)
-                                    setAno((a) => a + 1)
-                                  } else setMes((m) => m + 1)
-                                }}
-                                className="rounded-lg p-1.5 text-[#0097b2] hover:bg-[#0097b2]/10"
-                                aria-label={t('calendarioProximoMes')}
-                              >
-                                <ChevronRight className="h-5 w-5" aria-hidden />
-                              </button>
-                            </div>
+                      <div className="mb-3 flex items-center justify-between">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (mes === 0) {
+                              setMes(11)
+                              setAno((a) => a - 1)
+                            } else setMes((m) => m - 1)
+                          }}
+                          className="rounded-lg p-1.5 text-[#0097b2] hover:bg-[#0097b2]/10"
+                          aria-label={t('calendarioMesAnterior')}
+                        >
+                          <ChevronLeft className="h-5 w-5" aria-hidden />
+                        </button>
+                        <p className="text-sm font-bold capitalize text-[#001f3f]">{tituloMes}</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (mes === 11) {
+                              setMes(0)
+                              setAno((a) => a + 1)
+                            } else setMes((m) => m + 1)
+                          }}
+                          className="rounded-lg p-1.5 text-[#0097b2] hover:bg-[#0097b2]/10"
+                          aria-label={t('calendarioProximoMes')}
+                        >
+                          <ChevronRight className="h-5 w-5" aria-hidden />
+                        </button>
+                      </div>
 
-                            <div className="mb-1 grid grid-cols-7 gap-1">
-                              {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((d) => (
-                                <div
-                                  key={d}
-                                  className="text-center text-[10px] font-semibold text-gray-500"
-                                >
-                                  {d}
-                                </div>
-                              ))}
-                            </div>
-
-                            <div className="grid grid-cols-7 gap-1">
-                              {cells.map((iso, idx) => {
-                                if (!iso) return <div key={`e-${idx}`} className="aspect-square" />
-                                const st = statusDia(iso, slotsPorData.get(iso) ?? [], hoje)
-                                const clicavel = st === 'livre' || st === 'lotado'
-                                const textColor = st === 'vazio' ? '#666666' : '#ffffff'
-                                return (
-                                  <button
-                                    key={iso}
-                                    type="button"
-                                    disabled={!clicavel}
-                                    onClick={() => {
-                                      if (!clicavel) return
-                                      setDiaSlot(iso)
-                                      setErroAgenda('')
-                                    }}
-                                    className="aspect-square rounded-md text-[11px] font-semibold disabled:cursor-default"
-                                    style={{
-                                      backgroundColor: corStatus(st),
-                                      color: textColor,
-                                      outline: diaSlot === iso ? '2px solid #001f3f' : undefined,
-                                      outlineOffset: 1,
-                                    }}
-                                  >
-                                    {Number(iso.slice(8, 10))}
-                                  </button>
-                                )
-                              })}
-                            </div>
+                      <div className="mb-1 grid grid-cols-7 gap-1">
+                        {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((d) => (
+                          <div
+                            key={d}
+                            className="text-center text-[10px] font-semibold text-gray-500"
+                          >
+                            {d}
                           </div>
+                        ))}
+                      </div>
 
-                          {diaSlot && slotsDoDia.length > 0 ? (
-                            <ul className="mt-3 space-y-2">
-                              {slotsDoDia.map((s) => {
-                                const livres =
-                                  s.vagas_livres ?? s.vagas_total - s.vagas_ocupadas
-                                return (
-                                  <li
-                                    key={s.id}
-                                    className="rounded-xl border border-gray-100 bg-[#f5f5f5] px-3 py-2 text-sm"
-                                  >
-                                    <span className="font-semibold text-gray-900">
-                                      {s.hora_inicio} – {s.hora_fim}
-                                    </span>
-                                    <span className="ml-2 text-xs text-gray-500">
-                                      {t('calendarioVagasResumo', {
-                                        livres,
-                                        total: s.vagas_total,
-                                      })}
-                                    </span>
-                                  </li>
-                                )
-                              })}
-                            </ul>
-                          ) : null}
-                        </>
-                      )}
-                    </div>
-                  ) : null}
+                      <div className="grid grid-cols-7 gap-1">
+                        {cells.map((iso, idx) => {
+                          if (!iso) return <div key={`e-${idx}`} className="aspect-square" />
+                          const st = statusDiaMobilidade(iso, bloqueadosSet, hoje)
+                          const clicavel = st === 'livre'
+                          const textColor = st === 'passado' ? '#666666' : '#ffffff'
+                          return (
+                            <button
+                              key={iso}
+                              type="button"
+                              disabled={!clicavel}
+                              onClick={() => {
+                                if (!clicavel) return
+                                setDiaSlot(iso)
+                                setErroAgenda('')
+                              }}
+                              className="aspect-square rounded-md text-[11px] font-semibold disabled:cursor-default"
+                              style={{
+                                backgroundColor: corStatusDiaMobilidade(st),
+                                color: textColor,
+                                outline: diaSlot === iso ? '2px solid #001f3f' : undefined,
+                                outlineOffset: 1,
+                              }}
+                            >
+                              {Number(iso.slice(8, 10))}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : null}
 
@@ -739,41 +639,27 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
             <div className="space-y-4">
               {clienteSel ? (
                 <>
-                  <div className="flex items-center gap-3 rounded-xl border border-[#0097b2]/30 bg-[#0097b2]/5 px-3 py-3">
-                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-white">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100">
                       {clienteSel.foto_url ? (
                         <AvatarImage
                           src={clienteSel.foto_url}
                           alt=""
                           fill
                           className="object-cover"
-                          sizes="56px"
+                          sizes="80px"
                         />
                       ) : (
-                        <span className="flex h-full w-full items-center justify-center text-lg font-bold text-[#0097b2]">
+                        <span className="flex h-full w-full items-center justify-center text-2xl font-bold text-[#0097b2]">
                           {clienteSel.nome.charAt(0).toUpperCase()}
                         </span>
                       )}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-gray-900">{clienteSel.nome}</p>
-                      {clienteSel.username ? (
-                        <p className="truncate text-xs text-gray-500">@{clienteSel.username}</p>
-                      ) : null}
-                    </div>
+                    <p className="mt-3 text-sm font-bold text-gray-900">{clienteSel.nome}</p>
+                    {clienteSel.username ? (
+                      <p className="mt-0.5 text-xs text-gray-500">@{clienteSel.username}</p>
+                    ) : null}
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setClienteSel(null)
-                      setOkSolic('')
-                      setErroCliente('')
-                    }}
-                    className="w-full text-center text-xs font-semibold text-[#0097b2] underline"
-                  >
-                    {t('ecossistemaTrocarCliente')}
-                  </button>
 
                   {erroCliente ? (
                     <p className="rounded-xl bg-red-50 px-3 py-2 text-center text-xs text-red-700">
@@ -795,13 +681,24 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
                   >
                     {enviandoSolic ? t('ecossistemaSolicitando') : t('ecossistemaSolicitarAtendimento')}
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setClienteSel(null)
+                      setOkSolic('')
+                      setErroCliente('')
+                    }}
+                    className="w-full text-center text-xs font-semibold text-[#0097b2] underline"
+                  >
+                    {t('ecossistemaTrocarCliente')}
+                  </button>
                 </>
               ) : (
                 <>
-                  <div>
-                    <p className="text-sm font-bold text-[#0097b2]">{t('ecossistemaBuscaClienteTitulo')}</p>
-                    <p className="mt-1 text-xs text-gray-500">{t('ecossistemaBuscaClienteHint')}</p>
-                  </div>
+                  <p className="text-sm font-bold text-[#0097b2]">
+                    {t('ecossistemaLocalizeCliente')}
+                  </p>
 
                   <label className="relative block">
                     <Search
@@ -923,21 +820,26 @@ export default function DrawerEcossistemaEspaco({ aberto, onFechar }: Props) {
           ) : (
             <div className="space-y-4">
               {etapa === 'manual' ? (
-                <label className="relative block">
-                  <Search
-                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-                    aria-hidden
-                  />
-                  <input
-                    type="search"
-                    value={termo}
-                    onChange={(e) => setTermo(e.target.value)}
-                    placeholder={t('ecossistemaBuscaPlaceholder')}
-                    className="w-full rounded-xl border border-gray-200 bg-[#f5f5f5] py-3 pl-10 pr-3 text-sm outline-none ring-[#0097b2] focus:bg-white focus:ring-2"
-                    autoComplete="off"
-                    autoFocus
-                  />
-                </label>
+                <div className="space-y-2">
+                  <p className="text-sm font-bold text-[#0097b2]">
+                    {t('ecossistemaLocalizeParceiro')}
+                  </p>
+                  <label className="relative block">
+                    <Search
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                      aria-hidden
+                    />
+                    <input
+                      type="search"
+                      value={termo}
+                      onChange={(e) => setTermo(e.target.value)}
+                      placeholder={t('ecossistemaBuscaPlaceholder')}
+                      className="w-full rounded-xl border border-gray-200 bg-[#f5f5f5] py-3 pl-10 pr-3 text-sm outline-none ring-[#0097b2] focus:bg-white focus:ring-2"
+                      autoComplete="off"
+                      autoFocus
+                    />
+                  </label>
+                </div>
               ) : (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-2">

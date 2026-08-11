@@ -206,6 +206,87 @@ export async function criarSolicitacaoAgendada(
     profissionalFixadoId: input.profissionalFixadoId,
   })
 
+  // Modelo hospedagem: com profissional fixado, agenda livre salvo datas bloqueadas.
+  if (!slots.length && input.profissionalFixadoId) {
+    const { diaEstaBloqueadoMobilidade } = await import('@/lib/mobilidadeBloqueiosCalendario')
+    const ymd = `${quando.getFullYear()}-${String(quando.getMonth() + 1).padStart(2, '0')}-${String(quando.getDate()).padStart(2, '0')}`
+    if (await diaEstaBloqueadoMobilidade(admin, input.profissionalFixadoId, ymd)) {
+      return { ok: false, error: 'Este profissional está indisponível nessa data. Escolha outro dia.' }
+    }
+
+    const { data: profFix } = await admin
+      .from('profissionais')
+      .select('id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url')
+      .eq('id', input.profissionalFixadoId)
+      .maybeSingle()
+
+    if (!profFix?.id) {
+      return { ok: false, error: 'Profissional não encontrado para o agendamento.' }
+    }
+
+    const { data: row, error } = await admin
+      .from('solicitacao_mobilidade')
+      .insert({
+        turista_id: input.turistaUsuarioId,
+        profissional_id: String(profFix.id),
+        status: 'agendada',
+        tipo_servico: 'mobilidade',
+        modalidade: input.modalidade,
+        origem_nome: input.origemNome,
+        destino_nome: input.destinoNome,
+        lat_origem: input.origemLat,
+        lng_origem: input.origemLng,
+        lat_destino: input.destinoLat,
+        lng_destino: input.destinoLng,
+        destino_empresa_id: input.destinoEmpresaId,
+        cruzamento_fronteira: input.cruzamentoFronteira,
+        valor_estimado: input.valorEstimado,
+        pagamento: input.pagamento,
+        lugares: input.lugares,
+        acompanhamento_guia: input.acompanhamentoGuia,
+        data_agendada: quando.toISOString(),
+        recomendacao_id: input.recomendacaoId,
+        disponibilidade_id: null,
+        oferta_profissional_id: String(profFix.id),
+        metadata: {
+          agendamento: true,
+          agenda_livre: true,
+          lugares_reservados: Math.max(1, input.lugares),
+          contratacao_direcionada: true,
+          profissional_fixado_id: input.profissionalFixadoId,
+          recomendacao_id: input.recomendacaoId,
+        },
+      })
+      .select('id')
+      .maybeSingle()
+
+    if (error || !row?.id) {
+      return { ok: false, error: error?.message ?? 'Falha ao criar agendamento.' }
+    }
+
+    const foto =
+      profFix.foto_perfil_url != null && String(profFix.foto_perfil_url).trim()
+        ? String(profFix.foto_perfil_url)
+        : profFix.foto_url != null && String(profFix.foto_url).trim()
+          ? String(profFix.foto_url)
+          : null
+
+    return {
+      ok: true,
+      solicitacaoId: String(row.id),
+      status: 'agendada',
+      oferta: {
+        profissionalId: String(profFix.id),
+        nome: String(profFix.nome_completo ?? 'Profissional'),
+        username: profFix.nome_usuario != null ? String(profFix.nome_usuario) : null,
+        fotoUrl: foto,
+        distanciaKm: 0,
+        expiraEm: new Date(Date.now() + 45 * 60 * 1000).toISOString(),
+      },
+      backupsOcultos: 0,
+    }
+  }
+
   if (!slots.length) {
     return {
       ok: false,

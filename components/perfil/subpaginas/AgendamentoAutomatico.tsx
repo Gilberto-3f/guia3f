@@ -1,17 +1,16 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Ban, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import { listarDatasDoMes } from '@/lib/hospedagemCalendario'
+import {
+  corStatusDiaMobilidade,
+  statusDiaMobilidade,
+  type BloqueioMobilidade,
+} from '@/lib/mobilidadeBloqueiosCalendario'
 
-type Slot = {
-  id: string
-  data: string
-  hora_inicio: string
-  hora_fim: string
-  vagas_total: number
-  vagas_ocupadas: number
-  vagas_livres?: number
-  ativo: boolean
-}
+const COR = '#0097b2'
 
 type Agendamento = {
   solicitacao_id: string
@@ -23,18 +22,28 @@ type Agendamento = {
   lugares: number
 }
 
-/** Agenda de disponibilidade + confirmações (placa vermelha). */
+function hojeIsoLocal(): string {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/** Agenda: bloqueios (modelo hospedagem) + confirmações de corridas agendadas. */
 export default function AgendamentoAutomatico() {
-  const [slots, setSlots] = useState<Slot[]>([])
+  const t = useTranslations('Mobilidade')
+  const hoje = hojeIsoLocal()
+  const now = new Date()
+  const [ano, setAno] = useState(now.getFullYear())
+  const [mes, setMes] = useState(now.getMonth())
+  const [bloqueios, setBloqueios] = useState<BloqueioMobilidade[]>([])
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([])
+  const [selecao, setSelecao] = useState<Set<string>>(() => new Set())
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [erro, setErro] = useState('')
   const [msg, setMsg] = useState('')
-  const [data, setData] = useState('')
-  const [horaInicio, setHoraInicio] = useState('08:00')
-  const [horaFim, setHoraFim] = useState('20:00')
-  const [vagas, setVagas] = useState(4)
 
   const carregar = useCallback(async () => {
     setErro('')
@@ -43,28 +52,61 @@ export default function AgendamentoAutomatico() {
         fetch('/api/profissional/mobilidade-disponibilidade'),
         fetch('/api/mobilidade/agendamentos-pendentes'),
       ])
-      const j1 = (await r1.json()) as { slots?: Slot[]; error?: string }
+      const j1 = (await r1.json()) as { bloqueios?: BloqueioMobilidade[]; error?: string }
       const j2 = (await r2.json()) as { agendamentos?: Agendamento[]; error?: string }
       if (!r1.ok) {
-        setErro(String(j1.error ?? 'Não foi possível carregar a agenda.'))
+        setErro(String(j1.error ?? t('calendarioErro')))
+        setBloqueios([])
         return
       }
-      setSlots(Array.isArray(j1.slots) ? j1.slots : [])
+      setBloqueios(Array.isArray(j1.bloqueios) ? j1.bloqueios : [])
       if (r2.ok) setAgendamentos(Array.isArray(j2.agendamentos) ? j2.agendamentos : [])
     } catch {
-      setErro('Falha de rede ao carregar agenda.')
+      setErro(t('calendarioErro'))
+      setBloqueios([])
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     void carregar()
   }, [carregar])
 
-  const salvar = async () => {
-    if (!data) {
-      setErro('Informe a data.')
+  const bloqueadosSet = useMemo(() => {
+    const s = new Set<string>()
+    for (const b of bloqueios) {
+      const d = String(b.data).slice(0, 10)
+      if (d) s.add(d)
+    }
+    return s
+  }, [bloqueios])
+
+  const cells = useMemo(() => listarDatasDoMes(ano, mes), [ano, mes])
+  const tituloMes = useMemo(
+    () =>
+      new Date(ano, mes, 1).toLocaleDateString('pt-BR', {
+        month: 'long',
+        year: 'numeric',
+      }),
+    [ano, mes],
+  )
+
+  const toggleDia = (iso: string) => {
+    if (iso < hoje) return
+    setSelecao((prev) => {
+      const next = new Set(prev)
+      if (next.has(iso)) next.delete(iso)
+      else next.add(iso)
+      return next
+    })
+    setMsg('')
+    setErro('')
+  }
+
+  const aplicar = async (acao: 'bloquear' | 'desbloquear') => {
+    if (selecao.size === 0 || busy) {
+      setErro(t('calendarioSelecioneDatas'))
       return
     }
     setBusy(true)
@@ -74,33 +116,18 @@ export default function AgendamentoAutomatico() {
       const res = await fetch('/api/profissional/mobilidade-disponibilidade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          data,
-          hora_inicio: horaInicio,
-          hora_fim: horaFim,
-          vagas_total: vagas,
-        }),
+        body: JSON.stringify({ acao, datas: [...selecao] }),
       })
       const json = (await res.json()) as { error?: string }
       if (!res.ok) {
-        setErro(String(json.error ?? 'Falha ao salvar.'))
+        setErro(String(json.error ?? t('calendarioErroSalvar')))
         return
       }
-      setMsg('Disponibilidade salva.')
-      setData('')
+      setMsg(acao === 'bloquear' ? t('calendarioDatasBloqueadas') : t('calendarioDatasDesbloqueadas'))
+      setSelecao(new Set())
       await carregar()
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const remover = async (id: string) => {
-    setBusy(true)
-    try {
-      await fetch(`/api/profissional/mobilidade-disponibilidade?id=${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-      })
-      await carregar()
+    } catch {
+      setErro(t('calendarioErroSalvar'))
     } finally {
       setBusy(false)
     }
@@ -133,101 +160,113 @@ export default function AgendamentoAutomatico() {
   return (
     <div className="space-y-5 px-1 pb-2">
       <div>
-        <h3 className="text-sm font-bold text-[#0097b2]">Disponibilidade</h3>
-        <p className="mt-1 text-xs text-gray-500">
-          Publique datas e vagas. Turistas só conseguem agendar em horários com vaga livre (placa
-          vermelha).
-        </p>
+        <h3 className="text-sm font-bold text-[#0097b2]">{t('espacoAcao.calendario.titulo')}</h3>
+        <p className="mt-1 text-xs text-gray-500">{t('calendarioHintBloqueio')}</p>
       </div>
 
-      <div className="space-y-2 rounded-xl border border-gray-200 bg-white p-3">
-        <label className="block text-xs text-gray-600">
-          Data
-          <input
-            type="date"
-            value={data}
-            onChange={(e) => setData(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-          />
-        </label>
-        <div className="flex gap-2">
-          <label className="flex-1 text-xs text-gray-600">
-            Início
-            <input
-              type="time"
-              value={horaInicio}
-              onChange={(e) => setHoraInicio(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-            />
-          </label>
-          <label className="flex-1 text-xs text-gray-600">
-            Fim
-            <input
-              type="time"
-              value={horaFim}
-              onChange={(e) => setHoraFim(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-            />
-          </label>
-          <label className="w-20 text-xs text-gray-600">
-            Vagas
-            <input
-              type="number"
-              min={1}
-              max={50}
-              value={vagas}
-              onChange={(e) => setVagas(Math.max(1, Number(e.target.value) || 1))}
-              className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-2 text-sm"
-            />
-          </label>
+      <div className="rounded-xl border border-gray-200 bg-white p-3">
+        <div className="mb-3 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => {
+              if (mes === 0) {
+                setMes(11)
+                setAno((a) => a - 1)
+              } else setMes((m) => m - 1)
+            }}
+            className="rounded-lg p-1.5 text-[#0097b2] hover:bg-[#0097b2]/10"
+            aria-label={t('calendarioMesAnterior')}
+          >
+            <ChevronLeft className="h-5 w-5" aria-hidden />
+          </button>
+          <p className="text-sm font-bold capitalize text-[#001f3f]">{tituloMes}</p>
+          <button
+            type="button"
+            onClick={() => {
+              if (mes === 11) {
+                setMes(0)
+                setAno((a) => a + 1)
+              } else setMes((m) => m + 1)
+            }}
+            className="rounded-lg p-1.5 text-[#0097b2] hover:bg-[#0097b2]/10"
+            aria-label={t('calendarioProximoMes')}
+          >
+            <ChevronRight className="h-5 w-5" aria-hidden />
+          </button>
         </div>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void salvar()}
-          className="w-full rounded-xl bg-[#00D443] py-2.5 text-sm font-bold text-white disabled:opacity-50"
-        >
-          Salvar disponibilidade
-        </button>
+
+        <div className="mb-1 grid grid-cols-7 gap-1">
+          {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((d) => (
+            <div key={d} className="text-center text-[10px] font-semibold text-gray-500">
+              {d}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-1">
+          {cells.map((iso, idx) => {
+            if (!iso) return <div key={`e-${idx}`} className="aspect-square" />
+            const st = statusDiaMobilidade(iso, bloqueadosSet, hoje)
+            const selecionado = selecao.has(iso)
+            const clicavel = st !== 'passado'
+            const bg = selecionado ? '#001f3f' : corStatusDiaMobilidade(st)
+            const textColor = st === 'passado' && !selecionado ? '#666666' : '#ffffff'
+            return (
+              <button
+                key={iso}
+                type="button"
+                disabled={!clicavel}
+                onClick={() => toggleDia(iso)}
+                className="aspect-square rounded-md text-[11px] font-semibold disabled:cursor-default"
+                style={{
+                  backgroundColor: bg,
+                  color: textColor,
+                  outline: selecionado ? '2px solid #00D443' : undefined,
+                  outlineOffset: 1,
+                }}
+              >
+                {Number(iso.slice(8, 10))}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3 text-[11px] text-gray-600">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-sm bg-[#00D443]" /> {t('calendarioLegendaLivre')}
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-sm bg-[#0097b2]" /> {t('calendarioLegendaBloqueado')}
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-sm bg-[#001f3f]" /> {t('calendarioLegendaSelecao')}
+        </span>
       </div>
 
       {erro ? <p className="text-xs text-rose-600">{erro}</p> : null}
-      {msg ? <p className="text-xs text-[#00D443]">{msg}</p> : null}
+      {msg ? <p className="text-xs font-semibold text-[#00D443]">{msg}</p> : null}
 
-      <ul className="space-y-2">
-        {slots.length === 0 ? (
-          <li className="rounded-xl border border-dashed border-gray-200 px-3 py-6 text-center text-sm text-gray-500">
-            Nenhuma data publicada ainda.
-          </li>
-        ) : (
-          slots.map((s) => (
-            <li
-              key={s.id}
-              className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-sm ${
-                s.ativo ? 'border-gray-200 bg-white' : 'border-amber-200 bg-amber-50'
-              }`}
-            >
-              <div>
-                <p className="font-semibold text-gray-900">
-                  {s.data} · {s.hora_inicio}–{s.hora_fim}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {s.vagas_ocupadas}/{s.vagas_total} ocupadas
-                  {!s.ativo ? ' · inativo' : ''}
-                </p>
-              </div>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void remover(s.id)}
-                className="text-xs font-semibold text-rose-600"
-              >
-                Remover
-              </button>
-            </li>
-          ))
-        )}
-      </ul>
+      <div className="flex flex-col gap-2">
+        <button
+          type="button"
+          disabled={busy || selecao.size === 0}
+          onClick={() => void aplicar('bloquear')}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white disabled:opacity-50"
+          style={{ backgroundColor: COR }}
+        >
+          <Ban className="h-4 w-4" aria-hidden />
+          {t('calendarioBloquearSelecionadas')}
+        </button>
+        <button
+          type="button"
+          disabled={busy || selecao.size === 0}
+          onClick={() => void aplicar('desbloquear')}
+          className="w-full rounded-xl border border-[#0097b2] py-3 text-sm font-bold text-[#0097b2] disabled:opacity-50"
+        >
+          {t('calendarioDesbloquearSelecionadas')}
+        </button>
+      </div>
 
       {agendamentos.length > 0 ? (
         <div className="space-y-2">
@@ -241,10 +280,8 @@ export default function AgendamentoAutomatico() {
                 {a.origem_nome || '—'} → {a.destino_nome || '—'}
               </p>
               <p className="text-xs text-gray-500">
-                {a.data_agendada
-                  ? new Date(a.data_agendada).toLocaleString('pt-BR')
-                  : '—'}{' '}
-                · {a.lugares} pax
+                {a.data_agendada ? new Date(a.data_agendada).toLocaleString('pt-BR') : '—'} ·{' '}
+                {a.lugares} pax
               </p>
               <div className="mt-2 flex gap-2">
                 {a.status === 'aguardando_confirmacao' || a.status === 'agendada' ? (

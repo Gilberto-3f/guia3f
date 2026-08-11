@@ -11,10 +11,16 @@ const COR = '#0097b2'
 type Props = {
   aberto: boolean
   onFechar: () => void
+  /** Aba inicial do histórico de parcerias. */
+  abaInicial?: 'andamento' | 'historico'
 }
 
 /** Drawer Histórico vendas + parcerias no Espaço Profissional. */
-export default function DrawerHistoricoParceriasEspaco({ aberto, onFechar }: Props) {
+export default function DrawerHistoricoParceriasEspaco({
+  aberto,
+  onFechar,
+  abaInicial = 'andamento',
+}: Props) {
   const t = useTranslations('Mobilidade')
   useModalScrollLock(aberto)
 
@@ -49,7 +55,7 @@ export default function DrawerHistoricoParceriasEspaco({ aberto, onFechar }: Pro
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4" data-modal-scroll-lock-scrollable>
-        <ParceriasProfissional compact />
+        <ParceriasProfissional compact abaInicial={abaInicial} />
       </div>
     </div>,
     document.body,
