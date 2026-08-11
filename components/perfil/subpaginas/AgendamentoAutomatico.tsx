@@ -234,15 +234,16 @@ export default function AgendamentoAutomatico() {
 
       <div className="flex flex-wrap gap-3 text-[11px] text-gray-600">
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-sm bg-[#00D443]" /> {t('calendarioLegendaLivre')}
+          <span className="h-3 w-3 rounded-sm bg-[#00D443]" aria-hidden /> {t('calendarioLegendaLivre')}
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-sm bg-[#0097b2]" /> {t('calendarioLegendaBloqueado')}
+          <span className="h-3 w-3 rounded-sm bg-[#0097b2]" aria-hidden /> {t('calendarioLegendaBloqueado')}
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-sm bg-[#001f3f]" /> {t('calendarioLegendaSelecao')}
+          <span className="h-3 w-3 rounded-sm bg-[#001f3f]" aria-hidden /> {t('calendarioLegendaSelecao')}
         </span>
       </div>
+      <p className="text-[10px] text-gray-500">{t('calendarioHintLegenda')}</p>
 
       {erro ? <p className="text-xs text-rose-600">{erro}</p> : null}
       {msg ? <p className="text-xs font-semibold text-[#00D443]">{msg}</p> : null}

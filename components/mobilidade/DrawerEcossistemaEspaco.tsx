@@ -615,6 +615,22 @@ export default function DrawerEcossistemaEspaco({
                           )
                         })}
                       </div>
+
+                      <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-gray-600">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="h-3 w-3 shrink-0 rounded-sm bg-[#00D443]" aria-hidden />
+                          {t('calendarioLegendaLivre')}
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="h-3 w-3 shrink-0 rounded-sm bg-[#0097b2]" aria-hidden />
+                          {t('calendarioLegendaBloqueado')}
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="h-3 w-3 shrink-0 rounded-sm bg-[#c4c4c4]" aria-hidden />
+                          {t('calendarioLegendaPassado')}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[10px] text-gray-500">{t('calendarioHintLegenda')}</p>
                     </>
                   )}
                 </div>

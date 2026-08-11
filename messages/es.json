@@ -428,6 +428,8 @@
     "calendarioLegendaPassado": "Pasado",
     "calendarioLegendaBloqueado": "Bloqueado",
     "calendarioLegendaSelecao": "Seleccionado",
+    "calendarioErroTabela": "Falta la tabla de bloqueos. Aplique la migration mobilidade_bloqueios_calendario en Supabase.",
+    "calendarioHintLegenda": "Verde = disponible · Azul = bloqueado",
     "ecossistemaHint": "Busca un profesional del ecosistema para ver su agenda y recomendar con precisión.",
     "ecossistemaProcurarPor": "Buscar por:",
     "ecossistemaBtnManual": "Búsqueda manual",

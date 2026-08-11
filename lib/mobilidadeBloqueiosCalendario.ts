@@ -59,6 +59,15 @@ export async function carregarBloqueiosMobilidade(
   }))
 }
 
+/** Detecta erro de migration não aplicada (PostgREST schema cache). */
+export function erroTabelaBloqueiosAusente(message: string | null | undefined): boolean {
+  const msg = String(message ?? '')
+  return (
+    /mobilidade_bloqueios_calendario/i.test(msg) &&
+    (/schema cache/i.test(msg) || /does not exist/i.test(msg) || /could not find/i.test(msg))
+  )
+}
+
 export async function diaEstaBloqueadoMobilidade(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient | any,

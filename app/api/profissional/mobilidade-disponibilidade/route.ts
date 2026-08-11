@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server'
 import { assertUserSession } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
-import { carregarBloqueiosMobilidade, hojeIsoLocal } from '@/lib/mobilidadeBloqueiosCalendario'
+import {
+  carregarBloqueiosMobilidade,
+  erroTabelaBloqueiosAusente,
+  hojeIsoLocal,
+} from '@/lib/mobilidadeBloqueiosCalendario'
+
+const MSG_TABELA =
+  'Tabela de bloqueios ainda não criada no banco. Aplique a migration mobilidade_bloqueios_calendario no Supabase.'
 
 /**
  * Calendário do profissional (placa vermelha):
@@ -28,6 +35,17 @@ export async function GET() {
 
   if (!prof?.id || !prof.placa_vermelha) {
     return NextResponse.json({ error: 'Acesso restrito a placa vermelha.' }, { status: 403 })
+  }
+
+  // Probe: se a tabela não existir, avisa a UI (carregarBloqueios engole o erro).
+  const probe = await admin
+    .from('mobilidade_bloqueios_calendario')
+    .select('id')
+    .eq('profissional_id', String(prof.id))
+    .limit(1)
+
+  if (probe.error && erroTabelaBloqueiosAusente(probe.error.message)) {
+    return NextResponse.json({ error: MSG_TABELA, bloqueios: [], slots: [] }, { status: 503 })
   }
 
   const bloqueios = await carregarBloqueiosMobilidade(admin, String(prof.id), {
@@ -94,7 +112,14 @@ export async function POST(req: Request) {
       .delete()
       .eq('profissional_id', profId)
       .in('data', futuras)
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    if (error) {
+      return NextResponse.json(
+        {
+          error: erroTabelaBloqueiosAusente(error.message) ? MSG_TABELA : error.message,
+        },
+        { status: 400 },
+      )
+    }
     return NextResponse.json({ ok: true, desbloqueadas: futuras.length })
   }
 
@@ -111,7 +136,11 @@ export async function POST(req: Request) {
     ignoreDuplicates: true,
   })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  if (error) {
+    return NextResponse.json({
+      error: erroTabelaBloqueiosAusente(error.message) ? MSG_TABELA : error.message,
+    }, { status: 400 })
+  }
   return NextResponse.json({ ok: true, bloqueadas: futuras.length })
 }
 

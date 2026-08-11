@@ -428,6 +428,8 @@
     "calendarioLegendaPassado": "Past",
     "calendarioLegendaBloqueado": "Blocked",
     "calendarioLegendaSelecao": "Selected",
+    "calendarioErroTabela": "Blocks table is missing. Apply the mobilidade_bloqueios_calendario migration in Supabase.",
+    "calendarioHintLegenda": "Green = available · Blue = blocked",
     "ecossistemaHint": "Search for an ecosystem professional to see their schedule and recommend assertively.",
     "ecossistemaProcurarPor": "Search by:",
     "ecossistemaBtnManual": "Manual search",

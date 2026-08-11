@@ -428,6 +428,8 @@
     "calendarioLegendaPassado": "Passado",
     "calendarioLegendaBloqueado": "Bloqueado",
     "calendarioLegendaSelecao": "Selecionado",
+    "calendarioErroTabela": "Tabela de bloqueios ainda não criada no banco. Aplique a migration mobilidade_bloqueios_calendario no Supabase (SQL Editor).",
+    "calendarioHintLegenda": "Verde = disponível · Azul = bloqueado",
     "ecossistemaHint": "Busque um profissional do ecossistema para ver a agenda e recomendar com precisão.",
     "ecossistemaProcurarPor": "Procurar por:",
     "ecossistemaBtnManual": "Pesquisa manual",
