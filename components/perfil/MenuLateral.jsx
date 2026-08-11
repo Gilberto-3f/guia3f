@@ -1502,6 +1502,19 @@ export default function MenuLateral({
     return 'turista'
   })()
 
+  /** Após salvar Editar Perfil / Editar Página: atualiza dados da página e fecha o drawer. */
+  const aoSalvarEdicaoEFecharDrawer = useCallback(() => {
+    onPerfilAtualizado?.()
+    limparFlagHistoryMenuLateral()
+    setHistorico([])
+    onFechar()
+    try {
+      router.refresh()
+    } catch {
+      /* ignore */
+    }
+  }, [onPerfilAtualizado, onFechar, router])
+
   const renderPagina = () => {
     if (!topo || topo.tipo !== 'pagina') return null
     const id = topo.id
@@ -1528,7 +1541,7 @@ export default function MenuLateral({
           usernameInicial={username}
           bioInicial={bioText}
           fotoInicial={fotoUrl}
-          onSalvo={onPerfilAtualizado}
+          onSalvo={aoSalvarEdicaoEFecharDrawer}
         />
       )
     if (id === 'mobilidade-perfil')
@@ -1647,7 +1660,7 @@ export default function MenuLateral({
         <EditarPaginaEmpresa
           empresa={empresaEfetiva}
           empresaId={String(empresaIdCtx)}
-          onSalvo={onPerfilAtualizado}
+          onSalvo={aoSalvarEdicaoEFecharDrawer}
         />
       )
     }
