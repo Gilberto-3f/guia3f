@@ -46,8 +46,15 @@ export const CIDADE_POR_PAIS_GUIA: Record<PaisGuiaFiltro, string> = {
 /** Todas as grafias aceitas por cidade (cadastro legado, edição de perfil, guia). */
 export const VARIANTES_CIDADE_GUIA: Record<string, readonly string[]> = {
   'foz do iguacu': ['Foz do Iguaçu', 'Foz do Iguacu'],
-  'ciudad del este': ['Ciudad del Este'],
+  'ciudad del este': [
+    'Ciudad del Este',
+    'Cidade do Leste',
+    'CDE',
+    'cde',
+    'Ciudad Del Este',
+  ],
   'puerto iguazu': ['Puerto Iguazu', 'Puerto Iguazú'],
+  cde: ['Ciudad del Este', 'Cidade do Leste', 'CDE', 'cde'],
 }
 
 /** Título da página de filtros por slug da URL (GradeFiltros). */
@@ -186,11 +193,18 @@ export function aliasesCidadeGuia(cidade: string | null | undefined): string[] {
   const raw = String(cidade ?? '').trim()
   if (!raw) return []
 
-  const norm = normalizarChaveCidadeGuia(raw)
+  let norm = normalizarChaveCidadeGuia(raw)
+  if (norm === 'cde' || norm === 'cidade do leste') {
+    norm = 'ciudad del este'
+  }
   const set = new Set<string>([raw])
-  const variants = VARIANTES_CIDADE_GUIA[norm]
+  const variants = VARIANTES_CIDADE_GUIA[norm] ?? VARIANTES_CIDADE_GUIA[raw.toLowerCase()]
   if (variants) {
     for (const v of variants) set.add(v)
+  }
+  // Sempre inclui canônico CDE quando a chave resolve para Ciudad del Este
+  if (norm === 'ciudad del este') {
+    for (const v of VARIANTES_CIDADE_GUIA['ciudad del este']) set.add(v)
   }
   return [...set]
 }

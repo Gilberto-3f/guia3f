@@ -19,8 +19,8 @@ const COLUNAS_MAPA =
 /** Mesmo universo do guia (presença pública); sem cap baixo que esconda regulares. */
 const LIMITE_MAPA = 500
 const CHUNK_IDS = 80
-/** Geocode/persist por request — cobre lacunas Guia→mapa sem timeout. */
-const MAX_BACKFILL_COORDS = 25
+/** Geocode/persist por request — cobre agências dual + CDE sem timeout. */
+const MAX_BACKFILL_COORDS = 80
 
 export type EmpresaMapaMobilidade = {
   id: string
@@ -152,9 +152,23 @@ export async function buscarEmpresasMapaMobilidade(
 
   const semCoords = rows.filter((r) => !temCoords(r))
   if (semCoords.length > 0) {
+    // Prioriza CDE / Serviços Locais (agências dual) no backfill limitado.
+    const prioridade = (r: Record<string, unknown>) => {
+      const cidade = String(r.cidade ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+      const cat = String(r.categoria ?? '').toLowerCase()
+      let score = 0
+      if (cidade.includes('este') || cidade.includes('cde') || cidade.includes('leste')) score += 2
+      if (cat.includes('servi') || cat.includes('local')) score += 2
+      if (r.somente_anfitriao) score += 1
+      return score
+    }
+    const ordenados = [...semCoords].sort((a, b) => prioridade(b) - prioridade(a))
     const preenchidos = await backfillCoordsEmpresas(
       supabase,
-      semCoords.map((r) => ({
+      ordenados.map((r) => ({
         id: String(r.id),
         endereco: r.endereco != null ? String(r.endereco) : null,
         bairro: r.bairro != null ? String(r.bairro) : null,

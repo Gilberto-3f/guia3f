@@ -40,13 +40,50 @@ function fallbackCentroCidade(cidade: string, empresaId: string): GeoPoint | nul
     CENTRO_CIDADE[key] ??
     (key.includes('foz')
       ? CENTRO_CIDADE['foz do iguacu']
-      : key.includes('este') || key.includes('cde')
+      : key === 'cde' ||
+          key.includes('ciudad del este') ||
+          key.includes('cidade do leste') ||
+          (key.includes('este') && (key.includes('ciudad') || key.includes('cidade')))
         ? CENTRO_CIDADE['ciudad del este']
         : key.includes('iguaz')
           ? CENTRO_CIDADE['puerto iguazu']
           : null)
   if (!base) return null
   return comOffsetDeterministico(base, empresaId)
+}
+
+/**
+ * Resolve lat/lng (Mapbox + fallback Tríplice) sem persistir — útil no salvar do drawer.
+ */
+export async function resolverCoordsEmpresa(opts: {
+  id?: string | null
+  endereco?: string | null
+  bairro?: string | null
+  cidade?: string | null
+}): Promise<GeoPoint | null> {
+  const id = String(opts.id ?? 'tmp')
+  const query = montarQueryEnderecoEmpresa({
+    endereco: opts.endereco,
+    bairro: opts.bairro,
+    cidade: opts.cidade,
+  })
+
+  let geo: GeoPoint | null = null
+  if (query.length >= 5) {
+    geo = await forwardGeocodeMapbox(query)
+  }
+  if (!geo && opts.cidade) {
+    const soCidade = String(opts.cidade).trim()
+    if (soCidade.length >= 3) {
+      // "CDE" (3) e demais abreviações
+      geo = soCidade.length >= 5 ? await forwardGeocodeMapbox(soCidade) : null
+      if (!geo) geo = fallbackCentroCidade(soCidade, id)
+    }
+  }
+  if (!geo) {
+    geo = fallbackCentroCidade(String(opts.cidade ?? ''), id)
+  }
+  return geo
 }
 
 export type EmpresaSemCoords = {
@@ -73,25 +110,12 @@ export async function backfillCoordsEmpresas(
   await Promise.all(
     fila.map(async (emp) => {
       const id = String(emp.id)
-      const query = montarQueryEnderecoEmpresa({
+      const geo = await resolverCoordsEmpresa({
+        id,
         endereco: emp.endereco,
         bairro: emp.bairro,
         cidade: emp.cidade,
       })
-
-      let geo: GeoPoint | null = null
-      if (query.length >= 5) {
-        geo = await forwardGeocodeMapbox(query)
-      }
-      if (!geo && emp.cidade) {
-        const soCidade = String(emp.cidade).trim()
-        if (soCidade.length >= 5) {
-          geo = await forwardGeocodeMapbox(soCidade)
-        }
-      }
-      if (!geo) {
-        geo = fallbackCentroCidade(String(emp.cidade ?? ''), id)
-      }
       if (!geo) return
 
       const { error } = await supabase

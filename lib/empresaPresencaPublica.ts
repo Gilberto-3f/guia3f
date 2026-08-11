@@ -1,5 +1,6 @@
 /**
- * Presença pública no guia/feed/atividades: assinatura vigente, degustação ativa ou anfitrião.
+ * Presença pública no guia/feed/atividades: assinatura vigente, degustação ativa
+ * ou empresa gratuita de profissional dual (anfitrião / guia / van).
  * Ciclo vencido sem renovação → fora da listagem para turista/profissional.
  *
  * Cache + inflight dedupe: feed/stories/atividades chamam várias vezes por navegação;
@@ -27,13 +28,43 @@ function agoraIso(d = new Date()): string {
   return d.toISOString()
 }
 
+/**
+ * Empresas gratuitas de profissional (hospedagem / agência guia / agência van):
+ * docs verificados + status liberado + foto — mesmo critério do anfitrião.
+ */
+async function buscarIdsEmpresasGratuitasProfissional(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient | any,
+): Promise<{ data: { id?: unknown }[] | null; error: { message?: string } | null }> {
+  const base = () =>
+    supabase
+      .from('empresas')
+      .select('id')
+      .eq('docs_verificado', true)
+      .in('status', ['aprovado', 'ativo'])
+      .eq('somente_modo_apresentacao', false)
+      .not('foto_url', 'is', null)
+
+  let res = await base().or(
+    'somente_anfitriao.eq.true,somente_guia.eq.true,somente_van.eq.true',
+  )
+  const msg = String(res.error?.message ?? '')
+  if (res.error && /somente_van/i.test(msg)) {
+    res = await base().or('somente_anfitriao.eq.true,somente_guia.eq.true')
+  }
+  if (res.error && /somente_guia/i.test(String(res.error?.message ?? ''))) {
+    res = await base().eq('somente_anfitriao', true)
+  }
+  return res
+}
+
 async function carregarPresencaPublicaRaw(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient | any,
   agora = new Date(),
 ): Promise<PresencaIdsCache> {
   const iso = agoraIso(agora)
-  const [degRes, assRows, anfRes] = await Promise.all([
+  const [degRes, assRows, gratisRes] = await Promise.all([
     supabase
       .from('empresa_degustacoes')
       .select('empresa_id')
@@ -41,23 +72,19 @@ async function carregarPresencaPublicaRaw(
       .gt('expira_em', iso),
     // RPC: bypass RLS dono/admin — turista vê só empresas com ciclo regular.
     buscarAssinaturasPresencaPublica(supabase),
-    supabase
-      .from('empresas')
-      .select('id')
-      .eq('somente_anfitriao', true)
-      .eq('docs_verificado', true)
-      .in('status', ['aprovado', 'ativo'])
-      .eq('somente_modo_apresentacao', false)
-      .not('foto_url', 'is', null),
+    buscarIdsEmpresasGratuitasProfissional(supabase),
   ])
 
   const degErr = degRes.error
-  const anfErr = anfRes.error
+  const gratisErr = gratisRes.error
   const degRows = degRes.data
-  const anfRows = anfRes.data
+  const gratisRows = gratisRes.data
 
-  if (degErr || anfErr) {
-    console.warn('[empresaPresencaPublica] falha parcial:', degErr?.message ?? anfErr?.message)
+  if (degErr || gratisErr) {
+    console.warn(
+      '[empresaPresencaPublica] falha parcial:',
+      degErr?.message ?? gratisErr?.message,
+    )
     // Fail-soft: se já havia cache, devolve; senão conjunto vazio (não trava o feed).
     if (presencaCache) return presencaCache
     return { at: Date.now(), empIds: [], usuarioIds: [] }
@@ -73,7 +100,7 @@ async function carregarPresencaPublicaRaw(
       empSet.add(String(r.empresa_id))
     }
   }
-  for (const r of anfRows ?? []) {
+  for (const r of gratisRows ?? []) {
     if (r?.id != null) empSet.add(String(r.id))
   }
 
@@ -161,16 +188,16 @@ export async function buscarUsuarioIdsEmpresaPresencaPublicaVigente(
 
 /**
  * Empresa individual: tem presença pública? (para gate de página / favoritos).
- * Anfitrião, degustação ativa ou assinatura vigente.
+ * Dual gratuito (anfitrião/guia/van), degustação ativa ou assinatura vigente.
  */
 export async function empresaTemPresencaPublicaVigente(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient | any,
   empresaId: string,
-  opts?: { somenteAnfitriao?: boolean | null },
+  opts?: { somenteAnfitriao?: boolean | null; presencaGratuitaProfissional?: boolean | null },
 ): Promise<boolean> {
   if (!empresaId) return false
-  if (opts?.somenteAnfitriao === true) return true
+  if (opts?.somenteAnfitriao === true || opts?.presencaGratuitaProfissional === true) return true
 
   // Sempre via cache global (60s + inflight): evita 2 round-trips por página.
   const cached = await obterPresencaCache(supabase)
@@ -216,7 +243,7 @@ export async function empresaGestorTemPresencaVigenteCached(
 
     const { data: emp } = await supabase
       .from('empresas')
-      .select('id, somente_anfitriao')
+      .select('id, somente_anfitriao, somente_guia, somente_van')
       .eq('usuario_id', usuarioId)
       .maybeSingle()
 
@@ -227,8 +254,11 @@ export async function empresaGestorTemPresencaVigenteCached(
       return false
     }
 
+    const gratisProf =
+      Boolean(emp.somente_anfitriao) || Boolean(emp.somente_guia) || Boolean(emp.somente_van)
     const vigente = await empresaTemPresencaPublicaVigente(supabase, String(emp.id), {
       somenteAnfitriao: Boolean(emp.somente_anfitriao),
+      presencaGratuitaProfissional: gratisProf,
     })
     vigenciaPorUsuarioCache.userId = usuarioId
     vigenciaPorUsuarioCache.at = agora

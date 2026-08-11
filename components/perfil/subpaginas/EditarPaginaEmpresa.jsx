@@ -5,6 +5,8 @@ import { Camera, MessageCircle, Phone } from 'lucide-react'
 import Cropper from 'react-easy-crop'
 import { supabase } from '@/lib/supabase'
 import { sanitizarPalavrasChave, MAX_PALAVRAS_CHAVE } from '@/lib/palavrasChaveGuia'
+import { resolverCoordsEmpresa } from '@/lib/empresaCoordsBackfill'
+import { invalidarCachePresencaPublicaGlobal } from '@/lib/empresaPresencaPublica'
 import BotaoInfoPopup from '@/components/ui/BotaoInfoPopup'
 
 const CIDADES = ['Foz do Iguaçu', 'Ciudad del Este', 'Puerto Iguazú']
@@ -453,6 +455,17 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
         payload.fotos_url = [publicUrlPerfil, ...fotos.filter((u) => u !== publicUrlPerfil)]
       }
 
+      const geo = await resolverCoordsEmpresa({
+        id: empresaId,
+        endereco: payload.endereco,
+        bairro: payload.bairro,
+        cidade: formData.cidade,
+      })
+      if (geo) {
+        payload.latitude = geo.lat
+        payload.longitude = geo.lng
+      }
+
       const { error } = await supabase.from('empresas').update(payload).eq('id', empresaId)
 
       if (error) {
@@ -467,8 +480,10 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
       }
 
       setMsg('Alterações salvas.')
+      invalidarCachePresencaPublicaGlobal()
       onSalvo?.()
       window.dispatchEvent(new Event('perfil-atualizado'))
+      window.dispatchEvent(new Event('empresa-gate-refresh'))
     } finally {
       setSalvando(false)
     }
