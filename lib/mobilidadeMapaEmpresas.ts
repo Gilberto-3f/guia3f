@@ -19,11 +19,15 @@ const COLUNAS_MAPA =
 const COLUNAS_MAPA_SEM_DUAL =
   'id, nome_fantasia, nome_usuario, categoria, cidade, endereco, bairro, latitude, longitude, foto_url, nota_media, plano, somente_anfitriao'
 
-/** Mesmo universo do guia (presença pública); sem cap baixo que esconda regulares. */
-const LIMITE_MAPA = 500
+/**
+ * Mesmo universo do guia (presença pública).
+ * Cap alto só como rede de segurança — não esconder regulares do guia.
+ */
+const LIMITE_MAPA = 5000
 const CHUNK_IDS = 80
-/** Geocode/persist por request — cobre agências dual + CDE sem timeout. */
-const MAX_BACKFILL_COORDS = 80
+/** Geocode/persist por request — contas antigas (CDE) + agências dual. */
+const MAX_BACKFILL_COORDS = 400
+const BACKFILL_CONCURRENCY = 8
 
 export type EmpresaMapaMobilidade = {
   id: string
@@ -187,7 +191,7 @@ export async function buscarEmpresasMapaMobilidade(
         bairro: r.bairro != null ? String(r.bairro) : null,
         cidade: r.cidade != null ? String(r.cidade) : null,
       })),
-      { maxPorRequest: MAX_BACKFILL_COORDS },
+      { maxPorRequest: MAX_BACKFILL_COORDS, concurrency: BACKFILL_CONCURRENCY },
     )
     for (const row of rows) {
       const id = String(row.id ?? '')

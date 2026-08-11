@@ -5,7 +5,8 @@ import { buscarEmpresasMapaMobilidade } from '@/lib/mobilidadeMapaEmpresas'
 
 /**
  * Pins do mapa — mesma elegibilidade do guia (presença pública).
- * Se faltar lat/lng, backfill geocode (limitado) + persiste; evita timeout em massa.
+ * Se faltar lat/lng, backfill geocode (até 400/request) + persiste.
+ * Cap alto (5000): não esconder empresas visíveis no guia.
  */
 export async function GET() {
   const auth = await assertUserSessionLight()

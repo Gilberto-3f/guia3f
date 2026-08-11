@@ -368,10 +368,12 @@ export default function EmpresaPage() {
     void carregarEmpresa()
   }, [carregarEmpresa])
 
-  /** Dono: repara lat/lng ausentes (contas antigas / agências sem geocode no create). */
+  /**
+   * Repara lat/lng ausentes (contas antigas / CDE / agências dual).
+   * Qualquer sessão autenticada: habilita mapa Endereço e pin na mobilidade.
+   */
   useEffect(() => {
     if (!empresa || !usuarioId || loading) return
-    if (String(empresa.usuario_id ?? '') !== usuarioId) return
     const lat = empresa.latitude != null ? Number(empresa.latitude) : NaN
     const lng = empresa.longitude != null ? Number(empresa.longitude) : NaN
     if (Number.isFinite(lat) && Number.isFinite(lng)) return

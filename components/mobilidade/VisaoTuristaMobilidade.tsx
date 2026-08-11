@@ -680,9 +680,33 @@ export default function VisaoTuristaMobilidade({
 
     setCarregandoEmpresas(true)
     void carregar(0)
+
+    // Contas antigas sem lat/lng: reparo em background + refresh dos pins.
+    let reparoTimer: ReturnType<typeof setTimeout> | null = null
+    reparoTimer = setTimeout(() => {
+      if (!ativo) return
+      void (async () => {
+        try {
+          const res = await fetch('/api/mobilidade/reparar-coords', {
+            method: 'POST',
+            credentials: 'include',
+          })
+          if (!ativo || !res.ok) return
+          const json = (await res.json()) as { repaired?: number; remaining?: number }
+          if (!ativo) return
+          if (Number(json.repaired) > 0 || Number(json.remaining) > 0) {
+            await carregar(0)
+          }
+        } catch {
+          /* ignore */
+        }
+      })()
+    }, 2500)
+
     return () => {
       ativo = false
       if (retryTimer) clearTimeout(retryTimer)
+      if (reparoTimer) clearTimeout(reparoTimer)
     }
   }, [])
 

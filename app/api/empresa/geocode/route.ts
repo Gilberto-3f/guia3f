@@ -5,8 +5,8 @@ import { resolverCoordsEmpresa } from '@/lib/empresaCoordsBackfill'
 import { invalidarCachePresencaPublicaGlobal } from '@/lib/empresaPresencaPublica'
 
 /**
- * Geocodifica e persiste lat/lng da empresa do gestor (ou ADM).
- * Usado ao salvar Editar Página e para reparar contas sem coordenadas.
+ * Geocodifica e persiste lat/lng da empresa.
+ * Qualquer sessão autenticada (repara contas antigas / mapa Endereço / pins mobilidade).
  */
 export async function POST(req: Request) {
   const auth = await assertUserSession()
@@ -41,10 +41,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Empresa não encontrada.' }, { status: 404 })
   }
 
-  const ehDono = String(emp.usuario_id) === auth.userId
-  if (!ehDono && auth.role !== 'admin') {
-    return NextResponse.json({ error: 'Sem permissão.' }, { status: 403 })
-  }
+  // Qualquer sessão autenticada pode reparar coords (alinha com /api/mobilidade/empresa-destino).
+  // Necessário para contas antigas (CDE) e mapa Endereço visto por turista/profissional.
 
   const endereco =
     body.endereco != null ? String(body.endereco).trim() : emp.endereco != null ? String(emp.endereco) : ''

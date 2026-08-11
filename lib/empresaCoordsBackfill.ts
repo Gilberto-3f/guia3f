@@ -109,39 +109,43 @@ export type EmpresaSemCoords = {
 
 /**
  * Geocodifica e persiste lat/lng para empresas regulares sem coordenada.
- * Limitado por request para não estourar timeout (Mapbox + UPDATE).
+ * Processa em lotes concorrentes (evita estourar Mapbox + timeout serverless).
  */
 export async function backfillCoordsEmpresas(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient | any,
   empresas: EmpresaSemCoords[],
-  opts?: { maxPorRequest?: number },
+  opts?: { maxPorRequest?: number; concurrency?: number },
 ): Promise<Map<string, GeoPoint>> {
-  const max = Math.max(1, opts?.maxPorRequest ?? 20)
+  const max = Math.max(1, opts?.maxPorRequest ?? 100)
+  const concurrency = Math.max(1, Math.min(16, opts?.concurrency ?? 8))
   const preenchidos = new Map<string, GeoPoint>()
   const fila = empresas.filter((e) => e?.id).slice(0, max)
 
-  await Promise.all(
-    fila.map(async (emp) => {
-      const id = String(emp.id)
-      const geo = await resolverCoordsEmpresa({
-        id,
-        endereco: emp.endereco,
-        bairro: emp.bairro,
-        cidade: emp.cidade,
-      })
-      if (!geo) return
+  const processarUma = async (emp: EmpresaSemCoords) => {
+    const id = String(emp.id)
+    const geo = await resolverCoordsEmpresa({
+      id,
+      endereco: emp.endereco,
+      bairro: emp.bairro,
+      cidade: emp.cidade,
+    })
+    if (!geo) return
 
-      const { error } = await supabase
-        .from('empresas')
-        .update({ latitude: geo.lat, longitude: geo.lng })
-        .eq('id', id)
+    const { error } = await supabase
+      .from('empresas')
+      .update({ latitude: geo.lat, longitude: geo.lng })
+      .eq('id', id)
 
-      if (!error) {
-        preenchidos.set(id, geo)
-      }
-    }),
-  )
+    if (!error) {
+      preenchidos.set(id, geo)
+    }
+  }
+
+  for (let i = 0; i < fila.length; i += concurrency) {
+    const batch = fila.slice(i, i + concurrency)
+    await Promise.all(batch.map((emp) => processarUma(emp)))
+  }
 
   return preenchidos
 }

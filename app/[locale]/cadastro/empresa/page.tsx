@@ -11,6 +11,7 @@ import { LinksAceitePoliticas } from '@/components/cadastro/LinksAceitePoliticas
 import { useUsernameDisponivel } from '@/hooks/useUsernameDisponivel'
 import { digitsWhatsapp } from '@/lib/whatsapp-empresa'
 import { CATEGORIAS_EMPRESA_DB } from '@/lib/segmentosEmpresaGuia'
+import { resolverCoordsEmpresa } from '@/lib/empresaCoordsBackfill'
 
 type CategoriaEmpresa = (typeof CATEGORIAS_EMPRESA_DB)[number]
 
@@ -217,17 +218,26 @@ export default function CadastroEmpresaPage() {
       )
       if (upsertUsuario.error) throw new Error(upsertUsuario.error.message)
 
+      const enderecoMontado = montarEndereco()
+      const geo = await resolverCoordsEmpresa({
+        id: userId,
+        endereco: enderecoMontado,
+        bairro: enderecoBairro.trim() || null,
+        cidade,
+      })
+
       const payloadCompleto: Record<string, unknown> = {
         usuario_id: userId,
         nome_fantasia: nomeFantasia.trim(),
         nome_usuario: usernameLimpo,
         categoria,
         cidade,
-        endereco: montarEndereco(),
+        endereco: enderecoMontado,
         bairro: enderecoBairro.trim(),
         whatsapp: whatsApp.trim(),
         descricao_curta: '',
         status: 'aguardando_aprovacao',
+        ...(geo ? { latitude: geo.lat, longitude: geo.lng } : {}),
       }
 
       let insertEmpresa = await supabase.from('empresas').insert(payloadCompleto)
@@ -237,15 +247,16 @@ export default function CadastroEmpresaPage() {
         insertEmpresa.error.message.toLowerCase().includes('column') &&
         insertEmpresa.error.message.toLowerCase().includes('does not exist')
       ) {
-        const payloadMinimo = {
+        const payloadMinimo: Record<string, unknown> = {
           usuario_id: userId,
           nome_fantasia: nomeFantasia.trim(),
           nome_usuario: usernameLimpo,
           categoria,
           cidade,
-          endereco: montarEndereco(),
+          endereco: enderecoMontado,
           descricao_curta: '',
           status: 'aguardando_aprovacao',
+          ...(geo ? { latitude: geo.lat, longitude: geo.lng } : {}),
         }
         insertEmpresa = await supabase.from('empresas').insert(payloadMinimo)
       }
