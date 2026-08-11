@@ -29,8 +29,10 @@ import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { useGuiaModo } from '@/context/GuiaModoContext'
+import { useVanModo } from '@/context/VanModoContext'
 import { profissionalOperaComoEmpresaHospedagem } from '@/lib/anfitriaoDualMode'
 import { profissionalOperaComoEmpresaAgencia } from '@/lib/guiaDualMode'
+import { profissionalOperaComoEmpresaAgenciaVan } from '@/lib/vanDualMode'
 import { lerPerfilBarraCache } from '@/lib/perfilBarraCache'
 import { resumirSessaoAposIdle } from '@/lib/authResume'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
@@ -113,6 +115,13 @@ export default function BottomBar() {
     empresaAgenciaLiberada,
     empresaAgencia,
   } = useGuiaModo()
+  const {
+    ehVan,
+    modoEfetivo: modoVanEfetivo,
+    empresaAgenciaVanId,
+    empresaAgenciaVanLiberada,
+    empresaAgenciaVan,
+  } = useVanModo()
 
   const operaComoEmpresaDual = (role) =>
     profissionalOperaComoEmpresaHospedagem(
@@ -128,6 +137,13 @@ export default function BottomBar() {
       modoGuiaEfetivo,
       empresaAgenciaId,
       empresaAgenciaLiberada,
+    ) ||
+    profissionalOperaComoEmpresaAgenciaVan(
+      role,
+      ehVan,
+      modoVanEfetivo,
+      empresaAgenciaVanId,
+      empresaAgenciaVanLiberada,
     )
 
   const empresaIdDual =
@@ -147,7 +163,15 @@ export default function BottomBar() {
             empresaAgenciaLiberada,
           )
         ? empresaAgenciaId
-        : null
+        : profissionalOperaComoEmpresaAgenciaVan(
+              userRole,
+              ehVan,
+              modoVanEfetivo,
+              empresaAgenciaVanId,
+              empresaAgenciaVanLiberada,
+            )
+          ? empresaAgenciaVanId
+          : null
 
   const fotoEmpresaDual =
     profissionalOperaComoEmpresaHospedagem(
@@ -166,7 +190,15 @@ export default function BottomBar() {
             empresaAgenciaLiberada,
           )
         ? empresaAgencia?.foto_url
-        : null
+        : profissionalOperaComoEmpresaAgenciaVan(
+              userRole,
+              ehVan,
+              modoVanEfetivo,
+              empresaAgenciaVanId,
+              empresaAgenciaVanLiberada,
+            )
+          ? empresaAgenciaVan?.foto_url
+          : null
 
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
   const [authUserId, setAuthUserId] = useState(() => lerPerfilBarraCache()?.userId ?? null)

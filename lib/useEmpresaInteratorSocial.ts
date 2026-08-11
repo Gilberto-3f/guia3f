@@ -3,9 +3,11 @@
 import { useMemo } from 'react'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { useGuiaModo } from '@/context/GuiaModoContext'
+import { useVanModo } from '@/context/VanModoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { categoriasIncluemAnfitriao } from '@/lib/anfitriaoDualMode'
 import { categoriasIncluemGuia } from '@/lib/guiaDualMode'
+import { categoriasIncluemVan } from '@/lib/vanDualMode'
 
 /** Empresa vinculada quando o profissional interage no feed em modo empresa (hospedagem ou agência). */
 export function useEmpresaInteratorSocial(): string | null {
@@ -17,6 +19,12 @@ export function useEmpresaInteratorSocial(): string | null {
     empresaAgenciaId,
     empresaAgenciaLiberada,
   } = useGuiaModo()
+  const {
+    ehVan,
+    modoEfetivo: modoVanEfetivo,
+    empresaAgenciaVanId,
+    empresaAgenciaVanLiberada,
+  } = useVanModo()
 
   return useMemo(() => {
     if (userRole !== 'profissional') return null
@@ -25,6 +33,7 @@ export function useEmpresaInteratorSocial(): string | null {
       categorias?: string[]
       empresa_hospedagem_id?: string | null
       empresa_agencia_id?: string | null
+      empresa_agencia_van_id?: string | null
     } | null
 
     const ehAnfit = ehAnfitriao || categoriasIncluemAnfitriao(prof?.categorias)
@@ -40,6 +49,12 @@ export function useEmpresaInteratorSocial(): string | null {
       if (empId && empresaAgenciaLiberada) return empId
     }
 
+    const van = ehVan || categoriasIncluemVan(prof?.categorias)
+    if (van && modoVanEfetivo === 'agencia') {
+      const empId = String(empresaAgenciaVanId ?? prof?.empresa_agencia_van_id ?? '').trim() || null
+      if (empId && empresaAgenciaVanLiberada) return empId
+    }
+
     return null
   }, [
     userRole,
@@ -52,5 +67,9 @@ export function useEmpresaInteratorSocial(): string | null {
     modoGuiaEfetivo,
     empresaAgenciaId,
     empresaAgenciaLiberada,
+    ehVan,
+    modoVanEfetivo,
+    empresaAgenciaVanId,
+    empresaAgenciaVanLiberada,
   ])
 }

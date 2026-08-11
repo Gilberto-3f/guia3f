@@ -8,6 +8,7 @@ import { ModoApresentacaoProvider, useModoApresentacao } from '@/context/ModoApr
 import { ProfissionalGateProvider } from '@/context/ProfissionalGateContext'
 import { AnfitriaoModoProvider } from '@/context/AnfitriaoModoContext'
 import { GuiaModoProvider } from '@/context/GuiaModoContext'
+import { VanModoProvider } from '@/context/VanModoContext'
 import ModoApresentacaoChrome from '@/components/ModoApresentacaoChrome'
 import ProfissionalGateBanner from '@/components/ProfissionalGateBanner'
 import BottomBar from '@/components/BottomBar'
@@ -213,9 +214,11 @@ export default function AppShellClient({ children }: { children: ReactNode }) {
           <ProfissionalGateProvider>
             <AnfitriaoModoProvider>
               <GuiaModoProvider>
-              <Suspense fallback={<AppShellSuspenseFallback>{children}</AppShellSuspenseFallback>}>
-                <AppShellInner>{children}</AppShellInner>
-              </Suspense>
+                <VanModoProvider>
+                  <Suspense fallback={<AppShellSuspenseFallback>{children}</AppShellSuspenseFallback>}>
+                    <AppShellInner>{children}</AppShellInner>
+                  </Suspense>
+                </VanModoProvider>
               </GuiaModoProvider>
             </AnfitriaoModoProvider>
           </ProfissionalGateProvider>

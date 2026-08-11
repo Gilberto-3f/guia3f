@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { categoriasIncluemAnfitriao, lerModoAnfitriaoStorage } from '@/lib/anfitriaoDualMode'
 import { categoriasIncluemGuia, lerModoGuiaStorage } from '@/lib/guiaDualMode'
+import { categoriasIncluemVan, lerModoVanStorage } from '@/lib/vanDualMode'
 import { empresaRecursosLiberados } from '@/lib/verificacao-documentos'
 
 export type EmpresaMenuGate = 'loading' | 'forbidden' | 'pending' | 'ok'
@@ -47,7 +48,7 @@ export function useEmpresaMenuGate(): EmpresaMenuGate {
       } else if (role === 'profissional') {
         const { data: prof } = await supabase
           .from('profissionais')
-          .select('categorias, empresa_hospedagem_id, empresa_agencia_id')
+          .select('categorias, empresa_hospedagem_id, empresa_agencia_id, empresa_agencia_van_id')
           .eq('usuario_id', uid)
           .maybeSingle()
         const cats = Array.isArray(prof?.categorias)
@@ -55,12 +56,16 @@ export function useEmpresaMenuGate(): EmpresaMenuGate {
           : []
         const empHospId = prof?.empresa_hospedagem_id != null ? String(prof.empresa_hospedagem_id) : null
         const empAgenciaId = prof?.empresa_agencia_id != null ? String(prof.empresa_agencia_id) : null
+        const empAgenciaVanId =
+          prof?.empresa_agencia_van_id != null ? String(prof.empresa_agencia_van_id) : null
 
         let empId: string | null = null
         if (categoriasIncluemAnfitriao(cats) && empHospId && lerModoAnfitriaoStorage() === 'hospedagem') {
           empId = empHospId
         } else if (categoriasIncluemGuia(cats) && empAgenciaId && lerModoGuiaStorage() === 'agencia') {
           empId = empAgenciaId
+        } else if (categoriasIncluemVan(cats) && empAgenciaVanId && lerModoVanStorage() === 'agencia') {
+          empId = empAgenciaVanId
         }
 
         if (!empId) {
@@ -69,7 +74,9 @@ export function useEmpresaMenuGate(): EmpresaMenuGate {
         }
         const { data } = await supabase
           .from('empresas')
-          .select('status, docs_verificado, aprovado_em, verificado_em, somente_anfitriao, somente_guia')
+          .select(
+            'status, docs_verificado, aprovado_em, verificado_em, somente_anfitriao, somente_guia, somente_van',
+          )
           .eq('id', empId)
           .maybeSingle()
         empData = data && typeof data === 'object' ? data : null
@@ -99,6 +106,7 @@ export function useEmpresaMenuGate(): EmpresaMenuGate {
     window.addEventListener('perfil-atualizado', onRef)
     window.addEventListener('anfitriao-modo-change', onRef)
     window.addEventListener('guia-modo-change', onRef)
+    window.addEventListener('van-modo-change', onRef)
 
     return () => {
       ativo = false
@@ -106,6 +114,7 @@ export function useEmpresaMenuGate(): EmpresaMenuGate {
       window.removeEventListener('perfil-atualizado', onRef)
       window.removeEventListener('anfitriao-modo-change', onRef)
       window.removeEventListener('guia-modo-change', onRef)
+      window.removeEventListener('van-modo-change', onRef)
     }
   }, [])
 

@@ -67,8 +67,10 @@ import { resolverUsernameOriginalRepostStory, normalizarUsernameAtividade } from
 import { fetchSeguidosRedeEEmpresasAtividades, fetchUsuarioIdsGestoresAnfitriaoGuia } from '@/lib/feedSeguidosEmpresasFavoritas'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { useGuiaModo } from '@/context/GuiaModoContext'
+import { useVanModo } from '@/context/VanModoContext'
 import { profissionalOperaComoEmpresaHospedagem } from '@/lib/anfitriaoDualMode'
 import { profissionalOperaComoEmpresaAgencia } from '@/lib/guiaDualMode'
+import { profissionalOperaComoEmpresaAgenciaVan } from '@/lib/vanDualMode'
 import { propsInteractor, propsDonor, propsAtor, propsDono, propsSeguidor, propsSeguido, propsReposter, propsOriginal } from '@/components/atividades/atividadeHandleProps'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 
@@ -239,6 +241,14 @@ export default function AtividadesPage() {
     varianteUi: varianteGuia,
     dadosProntos: guiaDadosProntos,
   } = useGuiaModo()
+  const {
+    ehVan,
+    modoEfetivo: modoVanEfetivo,
+    empresaAgenciaVanId,
+    empresaAgenciaVanLiberada,
+    varianteUi: varianteVan,
+    dadosProntos: vanDadosProntos,
+  } = useVanModo()
   const recarregarSeqRef = useRef(0)
   const [aba, setAba] = useState<'amigos' | 'minha'>('amigos')
   const [termoBusca, setTermoBusca] = useState('')
@@ -356,6 +366,13 @@ export default function AtividadesPage() {
         modoGuiaEfetivo,
         empresaAgenciaId,
         empresaAgenciaLiberada,
+      ) ||
+      profissionalOperaComoEmpresaAgenciaVan(
+        meuRole,
+        ehVan,
+        modoVanEfetivo,
+        empresaAgenciaVanId,
+        empresaAgenciaVanLiberada,
       ),
     [
       meuRole,
@@ -367,6 +384,10 @@ export default function AtividadesPage() {
       modoGuiaEfetivo,
       empresaAgenciaId,
       empresaAgenciaLiberada,
+      ehVan,
+      modoVanEfetivo,
+      empresaAgenciaVanId,
+      empresaAgenciaVanLiberada,
     ],
   )
 
@@ -376,8 +397,9 @@ export default function AtividadesPage() {
       meuRole === 'empresa' ||
       operaComoEmpresaHospedagem ||
       varianteGuia === 'empresa' ||
-      varianteAnfitriao === 'empresa',
-    [meuRole, operaComoEmpresaHospedagem, varianteGuia, varianteAnfitriao],
+      varianteAnfitriao === 'empresa' ||
+      varianteVan === 'empresa',
+    [meuRole, operaComoEmpresaHospedagem, varianteGuia, varianteAnfitriao, varianteVan],
   )
 
   /**
@@ -402,6 +424,18 @@ export default function AtividadesPage() {
       ids.push(String(empresaAgenciaId).trim())
     }
     if (
+      profissionalOperaComoEmpresaAgenciaVan(
+        meuRole,
+        ehVan,
+        modoVanEfetivo,
+        empresaAgenciaVanId,
+        empresaAgenciaVanLiberada,
+      ) &&
+      empresaAgenciaVanId
+    ) {
+      ids.push(String(empresaAgenciaVanId).trim())
+    }
+    if (
       profissionalOperaComoEmpresaHospedagem(
         meuRole,
         ehAnfitriao,
@@ -421,15 +455,21 @@ export default function AtividadesPage() {
     modoGuiaEfetivo,
     empresaAgenciaId,
     empresaAgenciaLiberada,
+    ehVan,
+    modoVanEfetivo,
+    empresaAgenciaVanId,
+    empresaAgenciaVanLiberada,
     ehAnfitriao,
     modoEfetivo,
     empresaHospedagemId,
     empresaHospedagemLiberada,
   ])
 
-  /** Dual mode (guia/anfitrião) já hidratou — evita carregar feed profissional e sobrescrever depois. */
+  /** Dual mode (guia/anfitrião/van) já hidratou — evita carregar feed profissional e sobrescrever depois. */
   const dualModoPronto =
-    (!ehGuia || guiaDadosProntos) && (!ehAnfitriao || anfitriaoDadosProntos)
+    (!ehGuia || guiaDadosProntos) &&
+    (!ehAnfitriao || anfitriaoDadosProntos) &&
+    (!ehVan || vanDadosProntos)
 
   const carregarStoriesMeta = useCallback(async (rows: AtividadeRow[], opcoes?: { merge?: boolean }) => {
     const merge = Boolean(opcoes?.merge)
@@ -1390,6 +1430,9 @@ export default function AtividadesPage() {
     if (ehGuia && empresaAgenciaId) {
       empresaIds.push(empresaAgenciaId)
     }
+    if (ehVan && empresaAgenciaVanId) {
+      empresaIds.push(empresaAgenciaVanId)
+    }
 
     const uniqEmpresaIds = [...new Set(empresaIds.filter(Boolean))]
 
@@ -1437,7 +1480,7 @@ export default function AtividadesPage() {
     } else {
       setEmpresaAvaliacaoMap(mapa)
     }
-  }, [ehAnfitriao, empresaHospedagemId, ehGuia, empresaAgenciaId])
+  }, [ehAnfitriao, empresaHospedagemId, ehGuia, empresaAgenciaId, ehVan, empresaAgenciaVanId])
 
   const aplicarRemocaoLocal = useCallback(
     (
@@ -1512,6 +1555,13 @@ export default function AtividadesPage() {
         modoGuiaEfetivo,
         empresaAgenciaId,
         empresaAgenciaLiberada,
+      ) ||
+      profissionalOperaComoEmpresaAgenciaVan(
+        role,
+        ehVan,
+        modoVanEfetivo,
+        empresaAgenciaVanId,
+        empresaAgenciaVanLiberada,
       )
 
     if (role === 'empresa') {
@@ -1591,6 +1641,13 @@ export default function AtividadesPage() {
         empresaAgenciaId,
         empresaAgenciaLiberada,
       )
+      const operaAgenciaVan = profissionalOperaComoEmpresaAgenciaVan(
+        role,
+        ehVan,
+        modoVanEfetivo,
+        empresaAgenciaVanId,
+        empresaAgenciaVanLiberada,
+      )
       const operaHospedagem = profissionalOperaComoEmpresaHospedagem(
         role,
         ehAnfitriao,
@@ -1600,6 +1657,7 @@ export default function AtividadesPage() {
       )
       const empresaIdsDual = [
         ...(operaAgencia && empresaAgenciaId ? [String(empresaAgenciaId).trim()] : []),
+        ...(operaAgenciaVan && empresaAgenciaVanId ? [String(empresaAgenciaVanId).trim()] : []),
         ...(operaHospedagem && empresaHospedagemId ? [String(empresaHospedagemId).trim()] : []),
       ].filter(Boolean)
 
@@ -1806,6 +1864,10 @@ export default function AtividadesPage() {
     modoGuiaEfetivo,
     empresaAgenciaId,
     empresaAgenciaLiberada,
+    ehVan,
+    modoVanEfetivo,
+    empresaAgenciaVanId,
+    empresaAgenciaVanLiberada,
   ])
 
   const carregarMaisAtividades = useCallback(async () => {
@@ -1931,9 +1993,11 @@ export default function AtividadesPage() {
     }
     window.addEventListener('anfitriao-modo-change', onModoDual)
     window.addEventListener('guia-modo-change', onModoDual)
+    window.addEventListener('van-modo-change', onModoDual)
     return () => {
       window.removeEventListener('anfitriao-modo-change', onModoDual)
       window.removeEventListener('guia-modo-change', onModoDual)
+      window.removeEventListener('van-modo-change', onModoDual)
     }
   }, [recarregar])
 

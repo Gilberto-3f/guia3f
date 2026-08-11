@@ -27,9 +27,11 @@ import { uploadMidiaAgendada } from '@/lib/agendamentoUpload'
 import { getCroppedImageBlob, type PixelCrop } from '@/lib/cropImage'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { useGuiaModo } from '@/context/GuiaModoContext'
+import { useVanModo } from '@/context/VanModoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { profissionalOperaComoEmpresaHospedagem } from '@/lib/anfitriaoDualMode'
 import { profissionalOperaComoEmpresaAgencia } from '@/lib/guiaDualMode'
+import { profissionalOperaComoEmpresaAgenciaVan } from '@/lib/vanDualMode'
 
 type Aba = 'foto' | 'texto'
 
@@ -94,6 +96,12 @@ function CriarPublicacaoPageInner() {
     empresaAgenciaId,
     empresaAgenciaLiberada,
   } = useGuiaModo()
+  const {
+    ehVan,
+    modoEfetivo: modoVanEfetivo,
+    empresaAgenciaVanId,
+    empresaAgenciaVanLiberada,
+  } = useVanModo()
   const { userRole } = useProfissionalGate()
 
   useEffect(() => {
@@ -574,6 +582,13 @@ function CriarPublicacaoPageInner() {
           modoGuiaEfetivo,
           empresaAgenciaId,
           empresaAgenciaLiberada,
+        ) ||
+        profissionalOperaComoEmpresaAgenciaVan(
+          roleUsuario,
+          ehVan,
+          modoVanEfetivo,
+          empresaAgenciaVanId,
+          empresaAgenciaVanLiberada,
         )
       const empresaIdPost = profissionalOperaComoEmpresaHospedagem(
         roleUsuario,
@@ -591,7 +606,15 @@ function CriarPublicacaoPageInner() {
               empresaAgenciaLiberada,
             )
           ? empresaAgenciaId
-          : null
+          : profissionalOperaComoEmpresaAgenciaVan(
+                roleUsuario,
+                ehVan,
+                modoVanEfetivo,
+                empresaAgenciaVanId,
+                empresaAgenciaVanLiberada,
+              )
+            ? empresaAgenciaVanId
+            : null
       const { error } = await supabase.from('posts').insert({
         autor_id: session.user.id,
         autor_tipo: publicarComoEmpresa ? 'empresa' : roleUsuario,

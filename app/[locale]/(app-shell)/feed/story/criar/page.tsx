@@ -6,8 +6,10 @@ import CriarStory from '@/components/CriarStory'
 import { supabase } from '@/lib/supabase'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { useGuiaModo } from '@/context/GuiaModoContext'
+import { useVanModo } from '@/context/VanModoContext'
 import { profissionalOperaComoEmpresaHospedagem } from '@/lib/anfitriaoDualMode'
 import { profissionalOperaComoEmpresaAgencia } from '@/lib/guiaDualMode'
+import { profissionalOperaComoEmpresaAgenciaVan } from '@/lib/vanDualMode'
 
 function CriarStoryPageInner() {
   const searchParams = useSearchParams()
@@ -20,6 +22,12 @@ function CriarStoryPageInner() {
     empresaAgenciaId,
     empresaAgenciaLiberada,
   } = useGuiaModo()
+  const {
+    ehVan,
+    modoEfetivo: modoVanEfetivo,
+    empresaAgenciaVanId,
+    empresaAgenciaVanLiberada,
+  } = useVanModo()
 
   useEffect(() => {
     const run = async () => {
@@ -43,6 +51,13 @@ function CriarStoryPageInner() {
           modoGuiaEfetivo,
           empresaAgenciaId,
           empresaAgenciaLiberada,
+        ) ||
+        profissionalOperaComoEmpresaAgenciaVan(
+          r,
+          ehVan,
+          modoVanEfetivo,
+          empresaAgenciaVanId,
+          empresaAgenciaVanLiberada,
         )
       setAutorTipo(comoEmpresa ? 'empresa' : r)
     }
@@ -56,6 +71,10 @@ function CriarStoryPageInner() {
     modoGuiaEfetivo,
     empresaAgenciaId,
     empresaAgenciaLiberada,
+    ehVan,
+    modoVanEfetivo,
+    empresaAgenciaVanId,
+    empresaAgenciaVanLiberada,
   ])
 
   return <CriarStory autorTipo={autorTipo} agendarCardKey={agendarCardKey} />

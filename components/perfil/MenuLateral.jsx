@@ -32,6 +32,7 @@ import {
   Users,
   Home,
   Hotel,
+  Bus,
   X,
   ArrowRight,
   ArrowLeftRight,
@@ -46,6 +47,7 @@ import { useAdminColaboradorModo } from '@/context/AdminColaboradorModoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { useGuiaModo } from '@/context/GuiaModoContext'
+import { useVanModo } from '@/context/VanModoContext'
 import { empresaDocumentosEnviados } from '@/lib/faseVerificacaoConta'
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import { menuEmpresaLiberado, menuEmpresaVisivel } from '@/lib/planosEmpresaServicosGate'
@@ -80,6 +82,7 @@ import EditarPaginaEmpresa from '@/components/perfil/subpaginas/EditarPaginaEmpr
 import CalendarioReservasHospedagem from '@/components/perfil/subpaginas/CalendarioReservasHospedagem'
 import CadastrarHospedagemAnfitriao from '@/components/perfil/subpaginas/CadastrarHospedagemAnfitriao'
 import CadastrarAgenciaGuia from '@/components/perfil/subpaginas/CadastrarAgenciaGuia'
+import CadastrarAgenciaVan from '@/components/perfil/subpaginas/CadastrarAgenciaVan'
 import HistoricoDecisoes from '@/components/perfil/subpaginas/HistoricoDecisoes'
 import HistoricoStories from '@/components/perfil/subpaginas/HistoricoStories'
 import SalvosDrawer from '@/components/perfil/subpaginas/SalvosDrawer'
@@ -157,7 +160,14 @@ function empresaMenuHospedagemVisivel(ctx) {
 
 /** Botão Dinâmico: liberado pelo plano (lojas CDE e BR/AR usam catálogo). */
 function empresaBotaoDinamicoVisivel(ctx) {
-  if (ctx.somenteGuia || ctx.guiaModoAgencia || ctx.somenteAnfitriao || ctx.anfitriaoModoHospedagem) {
+  if (
+    ctx.somenteGuia ||
+    ctx.guiaModoAgencia ||
+    ctx.somenteVan ||
+    ctx.vanModoAgencia ||
+    ctx.somenteAnfitriao ||
+    ctx.anfitriaoModoHospedagem
+  ) {
     return true
   }
   return menuEmpresaLiberado('botao-dinamico', ctx.empresaServicos ?? [])
@@ -166,7 +176,14 @@ function empresaBotaoDinamicoVisivel(ctx) {
 function empresaMenuServico(id) {
   return (ctx) => {
     /** Modo agência / anfitrião: pasta Empresa gratuita — não bloqueia por plano. */
-    if (ctx.somenteGuia || ctx.guiaModoAgencia || ctx.somenteAnfitriao || ctx.anfitriaoModoHospedagem) {
+    if (
+      ctx.somenteGuia ||
+      ctx.guiaModoAgencia ||
+      ctx.somenteVan ||
+      ctx.vanModoAgencia ||
+      ctx.somenteAnfitriao ||
+      ctx.anfitriaoModoHospedagem
+    ) {
       return true
     }
     return menuEmpresaLiberado(id, ctx.empresaServicos ?? [])
@@ -321,6 +338,35 @@ function secoesGuiaComEmpresa(ctx) {
 /**
  * @param {MenuContext} ctx
  */
+function pastaVan(ctx) {
+  return {
+    tipo: 'grupo',
+    key: 'van-agencia',
+    label: 'Motorista de Van',
+    items: [
+      { Icon: Bus, label: 'modo Motorista de Van', subpagina: 'van-modo-social' },
+      {
+        Icon: Building2,
+        label: 'modo Agência de Turismo',
+        subpagina: ctx.empresaAgenciaVanId ? 'van-modo-agencia' : 'cadastrar-agencia-van',
+      },
+    ],
+  }
+}
+
+/** Pasta Van + seções de empresa (modo Agência / Serviços Locais). */
+function secoesVanComEmpresa(ctx) {
+  const emp = secoesEmpresa(ctx).filter((s) => s.tipo !== 'sair')
+  const idxEmp = emp.findIndex((s) => s.tipo === 'grupo' && s.key === 'empresa')
+  if (idxEmp >= 0) {
+    return [pastaVan(ctx), ...emp.slice(0, idxEmp), ...emp.slice(idxEmp)]
+  }
+  return [pastaVan(ctx), ...emp]
+}
+
+/**
+ * @param {MenuContext} ctx
+ */
 function secoesProfissional(ctx) {
   const gUsuario = filtrarMenu(
     [
@@ -361,6 +407,7 @@ function secoesProfissional(ctx) {
   return [
     ...(ctx.ehAnfitriao ? [pastaAnfitriao(ctx)] : []),
     ...(ctx.ehGuia ? [pastaGuia(ctx)] : []),
+    ...(ctx.ehVan ? [pastaVan(ctx)] : []),
     secaoUsuario(gUsuario),
     secaoMinhaConta(ctx),
     /** @type {const} */ { tipo: 'grupo', key: 'profissional', label: 'Profissional', items: gPro },
@@ -452,6 +499,8 @@ function secoesEmpresa(ctx) {
           !ctx.anfitriaoModoHospedagem &&
           !ctx.somenteGuia &&
           !ctx.guiaModoAgencia &&
+          !ctx.somenteVan &&
+          !ctx.vanModoAgencia &&
           empresaMenuVisivel('publicidade')(ctx),
       },
       {
@@ -463,6 +512,8 @@ function secoesEmpresa(ctx) {
           !ctx.anfitriaoModoHospedagem &&
           !ctx.somenteGuia &&
           !ctx.guiaModoAgencia &&
+          !ctx.somenteVan &&
+          !ctx.vanModoAgencia &&
           empresaMenuServico('auxiliar-adm')(ctx),
       },
       {
@@ -618,8 +669,18 @@ export default function MenuLateral({
     empresaAgencia,
     recarregar: recarregarGuia,
   } = useGuiaModo()
+  const {
+    ehVan,
+    modo: modoVan,
+    setModo: setModoVan,
+    empresaAgenciaVanId,
+    empresaAgenciaVanLiberada,
+    empresaAgenciaVan,
+    recarregar: recarregarVan,
+  } = useVanModo()
   const [empresaAnfitriao, setEmpresaAnfitriao] = useState(null)
   const [empresaGuiaAgencia, setEmpresaGuiaAgencia] = useState(null)
+  const [empresaVanAgencia, setEmpresaVanAgencia] = useState(null)
   const router = useRouter()
   /** @type {[HistoricoEntry[], (h: HistoricoEntry[]) => void]} */
   const [historico, setHistorico] = useState(/** @type {HistoricoEntry[]} */ ([]))
@@ -709,6 +770,7 @@ export default function MenuLateral({
     profissional: false,
     anfitriao: false,
     'guia-agencia': false,
+    'van-agencia': false,
     empresa: false,
     admin: false,
   }))
@@ -730,6 +792,9 @@ export default function MenuLateral({
       return /** @type {const} */ ('empresa')
     }
     if (ehGuia && modoGuia === 'agencia' && empresaAgenciaId && empresaAgenciaLiberada) {
+      return /** @type {const} */ ('empresa')
+    }
+    if (ehVan && modoVan === 'agencia' && empresaAgenciaVanId && empresaAgenciaVanLiberada) {
       return /** @type {const} */ ('empresa')
     }
     return variant || 'turista'
@@ -766,7 +831,8 @@ export default function MenuLateral({
     empresaId ??
     (empresa?.id != null ? String(empresa.id) : null) ??
     (ehAnfitriao && empresaHospedagemId ? String(empresaHospedagemId) : null) ??
-    (ehGuia && empresaAgenciaId ? String(empresaAgenciaId) : null)
+    (ehGuia && empresaAgenciaId ? String(empresaAgenciaId) : null) ??
+    (ehVan && empresaAgenciaVanId ? String(empresaAgenciaVanId) : null)
 
   useEffect(() => {
     if (!ehAnfitriao || !empresaHospedagemId) {
@@ -800,12 +866,30 @@ export default function MenuLateral({
     }
   }, [ehGuia, empresaAgenciaId, aberto])
 
+  useEffect(() => {
+    if (!ehVan || !empresaAgenciaVanId) {
+      setEmpresaVanAgencia(null)
+      return
+    }
+    let ativo = true
+    void (async () => {
+      const { data } = await supabase.from('empresas').select('*').eq('id', empresaAgenciaVanId).maybeSingle()
+      if (!ativo) return
+      setEmpresaVanAgencia(data && typeof data === 'object' ? data : null)
+    })()
+    return () => {
+      ativo = false
+    }
+  }, [ehVan, empresaAgenciaVanId, aberto])
+
   const empresaEfetiva =
     menuVariantEfetivo === 'empresa' && ehAnfitriao && empresaAnfitriao
       ? empresaAnfitriao
       : menuVariantEfetivo === 'empresa' && ehGuia && empresaGuiaAgencia
         ? empresaGuiaAgencia
-        : empresa
+        : menuVariantEfetivo === 'empresa' && ehVan && empresaVanAgencia
+          ? empresaVanAgencia
+          : empresa
 
   const contaVerificadaHeader =
     menuVariantEfetivo === 'empresa' && empresaEfetiva
@@ -832,7 +916,7 @@ export default function MenuLateral({
     {
       aguardarEmpresa: menuVariantEfetivo === 'empresa' && !empresaIdCtx,
       somenteAnfitriao: Boolean(
-        empresaEfetiva?.somente_anfitriao || empresaEfetiva?.somente_guia,
+        empresaEfetiva?.somente_anfitriao || empresaEfetiva?.somente_guia || empresaEfetiva?.somente_van,
       ),
     },
   )
@@ -911,6 +995,12 @@ export default function MenuLateral({
     guiaModoAgencia: Boolean(
       ehGuia && modoGuia === 'agencia' && empresaAgenciaId && empresaAgenciaLiberada,
     ),
+    ehVan,
+    empresaAgenciaVanId,
+    somenteVan: Boolean(empresaEfetiva?.somente_van),
+    vanModoAgencia: Boolean(
+      ehVan && modoVan === 'agencia' && empresaAgenciaVanId && empresaAgenciaVanLiberada,
+    ),
   }
 
   const secoes = useMemo(() => {
@@ -936,6 +1026,12 @@ export default function MenuLateral({
       guiaModoAgencia: Boolean(
         ehGuia && modoGuia === 'agencia' && empresaAgenciaId && empresaAgenciaLiberada,
       ),
+      ehVan,
+      empresaAgenciaVanId,
+      somenteVan: Boolean(empresaEfetiva?.somente_van),
+      vanModoAgencia: Boolean(
+        ehVan && modoVan === 'agencia' && empresaAgenciaVanId && empresaAgenciaVanLiberada,
+      ),
     }
     const colabAdminOpts = { emModoAdm: emModoAdmColaborador, temModoDual: modoColaboradorDual }
     const mostrarPreLiberacaoTurista = !Boolean(turistaGate?.documentacao_validada_adm)
@@ -960,11 +1056,15 @@ export default function MenuLateral({
       if (ehGuia && modoGuia === 'agencia' && empresaAgenciaId && empresaAgenciaLiberada) {
         return injetarSecaoAdministracao(secoesGuiaComEmpresa(c), adminLevelMenu, colabAdminOpts)
       }
+      if (ehVan && modoVan === 'agencia' && empresaAgenciaVanId && empresaAgenciaVanLiberada) {
+        return injetarSecaoAdministracao(secoesVanComEmpresa(c), adminLevelMenu, colabAdminOpts)
+      }
       return injetarSecaoAdministracao(p, adminLevelMenu, colabAdminOpts)
     }
     if (variant === 'empresa') {
       if (ehAnfitriao) return injetarSecaoAdministracao(secoesAnfitriaoComEmpresa(c), adminLevelMenu, colabAdminOpts)
       if (ehGuia) return injetarSecaoAdministracao(secoesGuiaComEmpresa(c), adminLevelMenu, colabAdminOpts)
+      if (ehVan) return injetarSecaoAdministracao(secoesVanComEmpresa(c), adminLevelMenu, colabAdminOpts)
       return injetarSecaoAdministracao(e, adminLevelMenu, colabAdminOpts)
     }
     if (variant === 'admin') return a
@@ -991,6 +1091,10 @@ export default function MenuLateral({
     empresaAgenciaId,
     empresaAgenciaLiberada,
     modoGuia,
+    ehVan,
+    empresaAgenciaVanId,
+    empresaAgenciaVanLiberada,
+    modoVan,
     turistaGate,
     adminLevelMenu,
     emModoAdmColaborador,
@@ -1257,6 +1361,39 @@ export default function MenuLateral({
       onFechar()
       return
     }
+    if (item.subpagina === 'van-modo-social') {
+      limparFlagHistoryMenuLateral()
+      setModoVan('van')
+      window.dispatchEvent(new Event('van-modo-change'))
+      if (usuarioIdEfetivo) router.push(`/perfil/${usuarioIdEfetivo}`)
+      onFechar()
+      return
+    }
+    if (item.subpagina === 'van-modo-agencia') {
+      if (!empresaAgenciaVanId) {
+        abrirPagina('Cadastrar Agência', 'cadastrar-agencia-van')
+        return
+      }
+      const empAgenciaVan = empresaVanAgencia ?? empresaAgenciaVan
+      if (!empresaDocumentosEnviados(empAgenciaVan)) {
+        abrirPagina('Anexar documentos', 'anexar-documentos-empresa')
+        return
+      }
+      if (!empresaAgenciaVanLiberada) {
+        abrirPagina('Agência em análise', 'agencia-van-pendente')
+        return
+      }
+      setModoVan('agencia')
+      void recarregarVan()
+      window.dispatchEvent(new Event('van-modo-change'))
+      window.dispatchEvent(new Event('empresa-gate-refresh'))
+      limparFlagHistoryMenuLateral()
+      if (empresaAgenciaVanId) {
+        router.push(`/empresa/${empresaAgenciaVanId}`)
+      }
+      onFechar()
+      return
+    }
     if (item.href) {
       marcarReabrirMenuLateral()
       limparFlagHistoryMenuLateral()
@@ -1303,7 +1440,9 @@ export default function MenuLateral({
         'anexar-documentos-empresa': 'Anexar documentos',
         'visitantes-perfil': 'Visitantes do Perfil',
         'cadastrar-agencia-guia': 'Cadastrar Agência',
+        'cadastrar-agencia-van': 'Cadastrar Agência',
         'agencia-pendente': 'Agência em análise',
+        'agencia-van-pendente': 'Agência em análise',
       }
       const titulosProfissional = ['historico-compras', 'recomendacoes', 'historico-decisoes']
       const t =
@@ -1479,6 +1618,16 @@ export default function MenuLateral({
           }}
         />
       )
+    if (id === 'cadastrar-agencia-van')
+      return (
+        <CadastrarAgenciaVan
+          onConcluido={async () => {
+            await recarregarVan()
+            onPerfilAtualizado?.()
+            abrirPagina('Anexar documentos', 'anexar-documentos-empresa')
+          }}
+        />
+      )
     if (id === 'hospedagem-pendente')
       return (
         <p className="px-1 text-sm text-gray-600">
@@ -1486,7 +1635,7 @@ export default function MenuLateral({
           administrador, o modo Hospedagem será liberado com o menu completo da empresa.
         </p>
       )
-    if (id === 'agencia-pendente')
+    if (id === 'agencia-pendente' || id === 'agencia-van-pendente')
       return (
         <p className="px-1 text-sm text-gray-600">
           Seu cadastro de agência e a documentação foram enviados e estão em análise. Após a aprovação do

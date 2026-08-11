@@ -169,7 +169,7 @@ export function ProfissionalGateProvider({ children }) {
       const { data: p } = await supabase
         .from('profissionais')
         .select(
-          'status, docs_verificado, documentos_enviados_em, documento_frente_url, proxima_revisao_docs_em, categorias, empresa_hospedagem_id, empresa_agencia_id, foto_perfil_url, foto_url',
+          'status, docs_verificado, documentos_enviados_em, documento_frente_url, proxima_revisao_docs_em, categorias, empresa_hospedagem_id, empresa_agencia_id, empresa_agencia_van_id, foto_perfil_url, foto_url',
         )
         .eq('usuario_id', uid)
         .maybeSingle()
@@ -190,6 +190,8 @@ export function ProfissionalGateProvider({ children }) {
                 p.empresa_hospedagem_id != null ? String(p.empresa_hospedagem_id) : null,
               empresa_agencia_id:
                 p.empresa_agencia_id != null ? String(p.empresa_agencia_id) : null,
+              empresa_agencia_van_id:
+                p.empresa_agencia_van_id != null ? String(p.empresa_agencia_van_id) : null,
             }
           : null,
       )
