@@ -330,7 +330,15 @@ export default function AtividadesPage() {
   const [storiesRepostAtivos, setStoriesRepostAtivos] = useState<Set<string>>(() => new Set())
   const [storiesRepostAtivosPronto, setStoriesRepostAtivosPronto] = useState(false)
   const [storyMetaMap, setStoryMetaMap] = useState<
-    Record<string, { conteudo_url: string | null; autor_tipo?: string | null; autor_id?: string | null }>
+    Record<
+      string,
+      {
+        conteudo_url: string | null
+        autor_tipo?: string | null
+        autor_id?: string | null
+        empresa_id?: string | null
+      }
+    >
   >({})
 
   const operaComoEmpresaHospedagem = useMemo(
@@ -372,6 +380,53 @@ export default function AtividadesPage() {
     [meuRole, operaComoEmpresaHospedagem, varianteGuia, varianteAnfitriao],
   )
 
+  /**
+   * Allowlist de empresa_id do conteúdo alvo (modo agência/hospedagem).
+   * null = conta empresa real (sem filtro por id).
+   * [] ou ids = só conteúdo da(s) empresa(s) do modo ativo.
+   */
+  const empresaIdsMinhaContaModo = useMemo((): string[] | null => {
+    if (!somenteMinhaContaEmpresa) return null
+    if (meuRole === 'empresa') return null
+    const ids: string[] = []
+    if (
+      profissionalOperaComoEmpresaAgencia(
+        meuRole,
+        ehGuia,
+        modoGuiaEfetivo,
+        empresaAgenciaId,
+        empresaAgenciaLiberada,
+      ) &&
+      empresaAgenciaId
+    ) {
+      ids.push(String(empresaAgenciaId).trim())
+    }
+    if (
+      profissionalOperaComoEmpresaHospedagem(
+        meuRole,
+        ehAnfitriao,
+        modoEfetivo,
+        empresaHospedagemId,
+        empresaHospedagemLiberada,
+      ) &&
+      empresaHospedagemId
+    ) {
+      ids.push(String(empresaHospedagemId).trim())
+    }
+    return ids.filter(Boolean)
+  }, [
+    somenteMinhaContaEmpresa,
+    meuRole,
+    ehGuia,
+    modoGuiaEfetivo,
+    empresaAgenciaId,
+    empresaAgenciaLiberada,
+    ehAnfitriao,
+    modoEfetivo,
+    empresaHospedagemId,
+    empresaHospedagemLiberada,
+  ])
+
   /** Dual mode (guia/anfitrião) já hidratou — evita carregar feed profissional e sobrescrever depois. */
   const dualModoPronto =
     (!ehGuia || guiaDadosProntos) && (!ehAnfitriao || anfitriaoDadosProntos)
@@ -381,17 +436,51 @@ export default function AtividadesPage() {
     const ids = coletarStoryIdsAtividades(rows)
     if (ids.length === 0) {
       if (!merge) setStoryMetaMap({})
-      return
+      return {} as Record<string, { conteudo_url: string | null; autor_tipo?: string | null; autor_id?: string | null }>
     }
-    const { data, error } = await supabase.from('stories').select('id, conteudo_url, autor_tipo, autor_id').in('id', ids)
+    const { data, error } = await supabase
+      .from('stories')
+      .select('id, conteudo_url, autor_tipo, autor_id, empresa_id')
+      .in('id', ids)
     if (error) {
-      console.error('[Atividades] stories meta:', error)
-      if (!merge) setStoryMetaMap({})
-      return
+      // Fallback sem empresa_id (schema legado)
+      const fb = await supabase.from('stories').select('id, conteudo_url, autor_tipo, autor_id').in('id', ids)
+      if (fb.error) {
+        console.error('[Atividades] stories meta:', fb.error)
+        if (!merge) setStoryMetaMap({})
+        return {}
+      }
+      const chunkFb: Record<
+        string,
+        { conteudo_url: string | null; autor_tipo?: string | null; autor_id?: string | null; empresa_id?: string | null }
+      > = {}
+      for (const row of fb.data ?? []) {
+        const rec = row as { id: string; conteudo_url?: string | null; autor_tipo?: string | null; autor_id?: string | null }
+        const id = String(rec.id ?? '').trim()
+        if (!id) continue
+        const url = rec.conteudo_url != null && String(rec.conteudo_url).trim() !== '' ? String(rec.conteudo_url) : null
+        chunkFb[id] = {
+          conteudo_url: url,
+          autor_tipo: rec.autor_tipo != null ? String(rec.autor_tipo) : null,
+          autor_id: rec.autor_id != null ? String(rec.autor_id) : null,
+        }
+      }
+      if (merge) setStoryMetaMap((prev) => ({ ...prev, ...chunkFb }))
+      else setStoryMetaMap(chunkFb)
+      return chunkFb
     }
-    const chunk: Record<string, { conteudo_url: string | null; autor_tipo?: string | null; autor_id?: string | null }> = {}
+    const chunk: Record<
+      string,
+      { conteudo_url: string | null; autor_tipo?: string | null; autor_id?: string | null; empresa_id?: string | null }
+    > = {}
     for (const row of data ?? []) {
-      const rec = row as { id: string; conteudo_url?: string | null; autor_tipo?: string | null; autor_id?: string | null }
+      const rec = row as {
+        id: string
+        conteudo_url?: string | null
+        autor_tipo?: string | null
+        autor_id?: string | null
+        empresa_id?: string | null
+      }
       const id = String(rec.id ?? '').trim()
       if (!id) continue
       const url = rec.conteudo_url != null && String(rec.conteudo_url).trim() !== '' ? String(rec.conteudo_url) : null
@@ -399,6 +488,7 @@ export default function AtividadesPage() {
         conteudo_url: url,
         autor_tipo: rec.autor_tipo != null ? String(rec.autor_tipo) : null,
         autor_id: rec.autor_id != null ? String(rec.autor_id) : null,
+        empresa_id: rec.empresa_id != null ? String(rec.empresa_id) : null,
       }
     }
     if (merge) {
@@ -406,6 +496,7 @@ export default function AtividadesPage() {
     } else {
       setStoryMetaMap(chunk)
     }
+    return chunk
   }, [])
 
   const carregarStoriesRepostAtivos = useCallback(async (rows: AtividadeRow[], opcoes?: { merge?: boolean }) => {
@@ -1008,7 +1099,21 @@ export default function AtividadesPage() {
     const uniq = [...new Set(postIds)].filter(Boolean)
     if (uniq.length === 0) {
       if (!merge) setPostMetaMap({})
-      return
+      return {} as Record<
+        string,
+        {
+          id: string
+          tipo: string | null
+          texto: string | null
+          conteudo_url: string | null
+          foto_url: string | null
+          post_original_id: string | null
+          avaliacao_meta: unknown
+          autor_id: string
+          autor_tipo: string | null
+          empresa_id: string | null
+        }
+      >
     }
     const sel =
       'id, tipo, texto, conteudo_url, foto_url, post_original_id, avaliacao_meta, autor_id, autor_tipo, empresa_id'
@@ -1070,7 +1175,21 @@ export default function AtividadesPage() {
     const { error, rows } = await fetchPostsChunked(uniq)
     if (error) {
       if (!merge) setPostMetaMap({})
-      return
+      return {} as Record<
+        string,
+        {
+          id: string
+          tipo: string | null
+          texto: string | null
+          conteudo_url: string | null
+          foto_url: string | null
+          post_original_id: string | null
+          avaliacao_meta: unknown
+          autor_id: string
+          autor_tipo: string | null
+          empresa_id: string | null
+        }
+      >
     }
     let m = mergeRows({}, rows)
 
@@ -1244,6 +1363,7 @@ export default function AtividadesPage() {
         }
       }
     }
+    return m
   }, [])
 
   const carregarEmpresasAvaliacoes = useCallback(async (rows: AtividadeRow[], opcoes?: { merge?: boolean }) => {
@@ -1317,7 +1437,7 @@ export default function AtividadesPage() {
     } else {
       setEmpresaAvaliacaoMap(mapa)
     }
-  }, [ehAnfitriao, empresaHospedagemId])
+  }, [ehAnfitriao, empresaHospedagemId, ehGuia, empresaAgenciaId])
 
   const aplicarRemocaoLocal = useCallback(
     (
@@ -1464,6 +1584,25 @@ export default function AtividadesPage() {
       setOffsetAmigos(0)
       setTemMaisAmigos(false)
 
+      const operaAgencia = profissionalOperaComoEmpresaAgencia(
+        role,
+        ehGuia,
+        modoGuiaEfetivo,
+        empresaAgenciaId,
+        empresaAgenciaLiberada,
+      )
+      const operaHospedagem = profissionalOperaComoEmpresaHospedagem(
+        role,
+        ehAnfitriao,
+        modoEfetivo,
+        empresaHospedagemId,
+        empresaHospedagemLiberada,
+      )
+      const empresaIdsDual = [
+        ...(operaAgencia && empresaAgenciaId ? [String(empresaAgenciaId).trim()] : []),
+        ...(operaHospedagem && empresaHospedagemId ? [String(empresaHospedagemId).trim()] : []),
+      ].filter(Boolean)
+
       const minhaHospRes = await supabase
         .from('atividades')
         .select('*')
@@ -1477,37 +1616,55 @@ export default function AtividadesPage() {
 
       if (minhaHospRes.error && process.env.NODE_ENV === 'development') {
         // eslint-disable-next-line no-console
-        console.error('[Atividades][hospedagem/agencia] erro query Minha conta:', minhaHospRes.error)
+        console.error('[Atividades][agencia/hospedagem] erro query Minha conta:', minhaHospRes.error)
       }
 
       const minhaHospRaw = ((minhaHospRes.data ?? []) as AtividadeRow[]).filter(
         atividadeVisivelNaMinhaContaEmpresa,
       )
-      const minhaHosp = (await enriquecerAtividadesEmpresaInterator(
+      const minhaHospEnrich = (await enriquecerAtividadesEmpresaInterator(
         supabase,
         minhaHospRaw,
       )) as AtividadeRow[]
       if (!aindaValido()) return
 
-      setListaMinha(minhaHosp)
-      setOffsetMinha(minhaHosp.length)
-      setTemMaisMinha(false)
-
-      await carregarPerfis(minhaHosp, { merge: false })
-      await carregarEmpresasAvaliacoes(minhaHosp, { merge: false })
-
       const postIdsHosp: string[] = []
-      for (const r of minhaHosp) {
-        if (r.tipo === 'curtiu_post') postIdsHosp.push(r.alvo_id)
+      for (const r of minhaHospEnrich) {
+        if (r.tipo === 'curtiu_post' || r.tipo === 'repostou_post') {
+          if (r.alvo_id) postIdsHosp.push(String(r.alvo_id))
+        }
         const ex = r.dados_extras
         if (ex && typeof ex === 'object') {
-          const pid = ex.post_id
-          if (typeof pid === 'string') postIdsHosp.push(pid)
+          const pid = typeof ex.post_id === 'string' ? ex.post_id : ''
+          if (pid) postIdsHosp.push(pid)
+          const orig = typeof ex.post_original_id === 'string' ? ex.post_original_id : ''
+          if (orig) postIdsHosp.push(orig)
         }
       }
-      await carregarPostsMeta(postIdsHosp, { merge: false })
-      await carregarStoriesMeta(minhaHosp, { merge: false })
-      await carregarStoriesRepostAtivos(minhaHosp)
+
+      const [postMetaLocal, storyMetaLocal] = await Promise.all([
+        carregarPostsMeta(postIdsHosp, { merge: false }),
+        carregarStoriesMeta(minhaHospEnrich, { merge: false }),
+      ])
+      await carregarStoriesRepostAtivos(minhaHospEnrich)
+      if (!aindaValido()) return
+
+      const ctxFiltro = {
+        postMetaMap: postMetaLocal ?? {},
+        storyMetaMap: storyMetaLocal ?? {},
+      }
+      const minhaHospFiltrada = minhaHospEnrich.filter((r) =>
+        atividadeVisivelMinhaContaModoHospedagem(r, uid, ctxFiltro, {
+          empresaIds: empresaIdsDual,
+        }),
+      )
+
+      setListaMinha(minhaHospFiltrada)
+      setOffsetMinha(minhaHospFiltrada.length)
+      setTemMaisMinha(false)
+
+      await carregarPerfis(minhaHospFiltrada, { merge: false })
+      await carregarEmpresasAvaliacoes(minhaHospFiltrada, { merge: false })
       if (!aindaValido()) return
 
       setCarregando(false)
@@ -2013,12 +2170,6 @@ export default function AtividadesPage() {
           ? listaMinha
           : mergeAtividadesPorId(listaMinha, listaAmigos)
         : listaAmigos
-    const empresaIdsModo =
-      somenteMinhaContaEmpresa
-        ? [empresaAgenciaId, empresaHospedagemId].filter(
-            (id): id is string => id != null && String(id).trim() !== '',
-          )
-        : null
     const ctxModo = {
       postMetaMap,
       storyMetaMap,
@@ -2033,7 +2184,7 @@ export default function AtividadesPage() {
         let okMinha = false
         if (somenteMinhaContaEmpresa) {
           okMinha = atividadeVisivelMinhaContaModoHospedagem(r, meuId, ctxModo, {
-            empresaIds: empresaIdsModo,
+            empresaIds: empresaIdsMinhaContaModo,
           })
         } else if (ehAnfitriao && meuRole === 'profissional') {
           okMinha = atividadeVisivelMinhaContaModoAnfitriao(r, meuId, ctxModo)
@@ -2120,9 +2271,8 @@ export default function AtividadesPage() {
     storyMetaMap,
     meuId,
     somenteMinhaContaEmpresa,
+    empresaIdsMinhaContaModo,
     operaComoEmpresaHospedagem,
-    empresaAgenciaId,
-    empresaHospedagemId,
     ehAnfitriao,
     meuRole,
   ])

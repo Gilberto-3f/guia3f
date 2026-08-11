@@ -55,7 +55,7 @@ const GuiaModoContext = createContext<GuiaModoValue | null>(null)
 export function GuiaModoProvider({ children }: { children: ReactNode }) {
   const { modoAtivo, perfilSimulado } = useModoApresentacao()
   const { userRole, usuarioStatus, profRow, loading: gateLoading } = useProfissionalGate()
-  const [modo, setModoState] = useState<ModoGuia>('guia')
+  const [modo, setModoState] = useState<ModoGuia>(() => lerModoGuiaStorage())
   const [empresaAgenciaId, setEmpresaAgenciaId] = useState<string | null>(null)
   const [empresaAgencia, setEmpresaAgencia] = useState<EmpresaAgenciaResumo | null>(null)
   const [profCategorias, setProfCategorias] = useState<string[]>([])
