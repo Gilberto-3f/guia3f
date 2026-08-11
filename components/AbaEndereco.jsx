@@ -215,6 +215,7 @@ export default function AbaEndereco({
     bairro: empresa.bairro,
     cidade: empresa.cidade,
   })
+  const labelDestinoCorrida = queryEndereco || nomeDestino
   const temMapa = mapaCoordOk || queryEndereco !== ''
   const siteHref = hrefWebsite(empresa.website)
 
@@ -250,7 +251,7 @@ export default function AbaEndereco({
             horarios={empresa.horarios}
             latitude={empresa.latitude}
             longitude={empresa.longitude}
-            nomeDestino={nomeDestino}
+            nomeDestino={labelDestinoCorrida}
           />
         </section>
       ) : null}

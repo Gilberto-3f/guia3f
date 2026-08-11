@@ -338,8 +338,15 @@ export default function VisaoTuristaMobilidade({
     } else if (empId) {
       const empEarly = empresasRef.current.find((e) => e.id === empId)
       if (empEarly) {
+        const labelParts = [empEarly.endereco, empEarly.bairro, empEarly.cidade]
+          .map((p) => String(p ?? '').trim())
+          .filter(Boolean)
         aplicarDestinoNoCard(
-          { nome: empEarly.nome_fantasia, lat: empEarly.latitude, lng: empEarly.longitude },
+          {
+            nome: labelParts.length ? labelParts.join(', ') : empEarly.nome_fantasia,
+            lat: empEarly.latitude,
+            lng: empEarly.longitude,
+          },
           empEarly.id,
         )
       } else if (pontoPreenchido(pesquisa.destino)) {
@@ -367,12 +374,75 @@ export default function VisaoTuristaMobilidade({
         next.destinoEmpresaId != null
           ? empresasRef.current.find((e) => e.id === next.destinoEmpresaId) ?? null
           : null
-      let listaAtual = empresasRef.current
+
+      if (next.destinoEmpresaId && !emp) {
+        try {
+          const resDest = await fetch(
+            `/api/mobilidade/empresa-destino?id=${encodeURIComponent(next.destinoEmpresaId)}`,
+            { credentials: 'include' },
+          )
+          if (!ativo || gen !== openGenRef.current) return
+          if (resDest.ok) {
+            const json = (await resDest.json()) as {
+              empresa?: {
+                id: string
+                nome_fantasia: string
+                cidade: string
+                endereco: string | null
+                bairro: string | null
+                latitude: number
+                longitude: number
+                foto_url: string | null
+                categoria: string | null
+                nome_usuario: string | null
+                label_destino: string
+              }
+            }
+            const data = json.empresa
+            if (data && Number.isFinite(Number(data.latitude)) && Number.isFinite(Number(data.longitude))) {
+              emp = {
+                id: String(data.id),
+                nome_fantasia: String(data.nome_fantasia ?? ''),
+                nome_usuario: data.nome_usuario,
+                descricao_curta: null,
+                categoria: String(data.categoria ?? ''),
+                cidade: String(data.cidade ?? ''),
+                endereco: data.endereco,
+                bairro: data.bairro,
+                status: null,
+                docs_verificado: null,
+                nota_media: null,
+                total_avaliacoes: null,
+                latitude: Number(data.latitude),
+                longitude: Number(data.longitude),
+                foto_url: data.foto_url,
+                whatsapp: null,
+                preco_ticket_inteira: null,
+                preco_ticket_meia: null,
+                preco_diaria: null,
+                segmento: '',
+              }
+              setEmpresas((prev) => (prev.some((e) => e.id === emp!.id) ? prev : [...prev, emp!]))
+              next = {
+                ...next,
+                destino: {
+                  nome: String(data.label_destino || data.nome_fantasia || ''),
+                  lat: Number(data.latitude),
+                  lng: Number(data.longitude),
+                },
+                destinoEmpresaId: emp.id,
+              }
+            }
+          }
+        } catch {
+          /* fallback: select direto abaixo */
+        }
+      }
 
       if (next.destinoEmpresaId && !emp) {
         const { data, error } = await supabase
           .from('empresas')
-          .select('id, nome_fantasia, cidade, endereco, latitude, longitude')
+          .select('id, nome_fantasia, cidade, endereco, bairro, latitude, longitude, foto_url, categoria, nome_usuario')
           .eq('id', next.destinoEmpresaId)
           .maybeSingle()
         if (!ativo || gen !== openGenRef.current) return
@@ -381,38 +451,53 @@ export default function VisaoTuristaMobilidade({
           const lat = Number(data.latitude)
           const lng = Number(data.longitude)
           if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            const endereco =
+              data.endereco != null && String(data.endereco).trim()
+                ? String(data.endereco).trim()
+                : null
+            const bairro =
+              data.bairro != null && String(data.bairro).trim() ? String(data.bairro).trim() : null
+            const cidade = String(data.cidade ?? '')
+            const nome = String(data.nome_fantasia ?? '')
+            const labelParts = [endereco, bairro, cidade].filter(Boolean)
             emp = {
               id: String(data.id),
-              nome_fantasia: String(data.nome_fantasia ?? ''),
-              nome_usuario: null,
+              nome_fantasia: nome,
+              nome_usuario:
+                data.nome_usuario != null ? String(data.nome_usuario).replace(/^@+/, '') : null,
               descricao_curta: null,
-              categoria: '',
-              cidade: String(data.cidade ?? ''),
-              endereco:
-                data.endereco != null && String(data.endereco).trim()
-                  ? String(data.endereco).trim()
-                  : null,
-              bairro: null,
+              categoria: data.categoria != null ? String(data.categoria) : '',
+              cidade,
+              endereco,
+              bairro,
               status: null,
               docs_verificado: null,
               nota_media: null,
               total_avaliacoes: null,
               latitude: lat,
               longitude: lng,
-              foto_url: null,
+              foto_url: data.foto_url != null ? String(data.foto_url) : null,
               whatsapp: null,
               preco_ticket_inteira: null,
               preco_ticket_meia: null,
               preco_diaria: null,
               segmento: '',
             }
-            listaAtual = [...empresasRef.current, emp]
             setEmpresas((prev) => (prev.some((e) => e.id === emp!.id) ? prev : [...prev, emp!]))
+            next = {
+              ...next,
+              destino: {
+                nome: labelParts.length ? labelParts.join(', ') : nome,
+                lat,
+                lng,
+              },
+              destinoEmpresaId: emp.id,
+            }
           }
         }
       }
 
-      if (emp) {
+      if (emp && !next.destino.nome) {
         next = {
           ...next,
           destino: {
@@ -421,6 +506,16 @@ export default function VisaoTuristaMobilidade({
             lng: emp.longitude,
           },
           destinoEmpresaId: emp.id,
+        }
+      } else if (emp) {
+        next = {
+          ...next,
+          destinoEmpresaId: emp.id,
+          destino: {
+            nome: next.destino.nome || emp.nome_fantasia,
+            lat: next.destino.lat ?? emp.latitude,
+            lng: next.destino.lng ?? emp.longitude,
+          },
         }
       }
 
