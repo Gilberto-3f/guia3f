@@ -47,6 +47,8 @@ type AnfitriaoModoValue = {
   empresaHospedagemLiberada: boolean
   varianteUi: string | null
   podeAlternarHospedagem: boolean
+  /** false enquanto categorias/empresa hospedagem ainda carregam. */
+  dadosProntos: boolean
   recarregar: () => Promise<void>
 }
 
@@ -199,6 +201,7 @@ export function AnfitriaoModoProvider({ children }: { children: ReactNode }) {
       empresaHospedagemLiberada,
       varianteUi,
       podeAlternarHospedagem,
+      dadosProntos: anfitriaoDadosProntos,
       recarregar,
     }),
     [
@@ -211,6 +214,7 @@ export function AnfitriaoModoProvider({ children }: { children: ReactNode }) {
       empresaHospedagemLiberada,
       varianteUi,
       podeAlternarHospedagem,
+      anfitriaoDadosProntos,
       recarregar,
     ],
   )
@@ -231,6 +235,7 @@ export function useAnfitriaoModo(): AnfitriaoModoValue {
     empresaHospedagemLiberada: false,
     varianteUi: null,
     podeAlternarHospedagem: false,
+    dadosProntos: true,
     recarregar: async () => {},
   }
 }

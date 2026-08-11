@@ -223,13 +223,23 @@ const USUARIOS_SELECT = `
 export default function AtividadesPage() {
   const router = useRouter()
   const { modoAtivo, perfilSimulado, contextoEmpresaId } = useModoApresentacao()
-  const { ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada } = useAnfitriaoModo()
+  const {
+    ehAnfitriao,
+    modoEfetivo,
+    empresaHospedagemId,
+    empresaHospedagemLiberada,
+    varianteUi: varianteAnfitriao,
+    dadosProntos: anfitriaoDadosProntos,
+  } = useAnfitriaoModo()
   const {
     ehGuia,
     modoEfetivo: modoGuiaEfetivo,
     empresaAgenciaId,
     empresaAgenciaLiberada,
+    varianteUi: varianteGuia,
+    dadosProntos: guiaDadosProntos,
   } = useGuiaModo()
+  const recarregarSeqRef = useRef(0)
   const [aba, setAba] = useState<'amigos' | 'minha'>('amigos')
   const [termoBusca, setTermoBusca] = useState('')
   const [resultadosBusca, setResultadosBusca] = useState<
@@ -351,6 +361,20 @@ export default function AtividadesPage() {
       empresaAgenciaLiberada,
     ],
   )
+
+  /** Empresa real, agência ou hospedagem: só aba Minha Conta (sem Seguindo). */
+  const somenteMinhaContaEmpresa = useMemo(
+    () =>
+      meuRole === 'empresa' ||
+      operaComoEmpresaHospedagem ||
+      varianteGuia === 'empresa' ||
+      varianteAnfitriao === 'empresa',
+    [meuRole, operaComoEmpresaHospedagem, varianteGuia, varianteAnfitriao],
+  )
+
+  /** Dual mode (guia/anfitrião) já hidratou — evita carregar feed profissional e sobrescrever depois. */
+  const dualModoPronto =
+    (!ehGuia || guiaDadosProntos) && (!ehAnfitriao || anfitriaoDadosProntos)
 
   const carregarStoriesMeta = useCallback(async (rows: AtividadeRow[], opcoes?: { merge?: boolean }) => {
     const merge = Boolean(opcoes?.merge)
@@ -1315,9 +1339,13 @@ export default function AtividadesPage() {
   )
 
   const recarregar = useCallback(async () => {
+    const seq = ++recarregarSeqRef.current
+    const aindaValido = () => seq === recarregarSeqRef.current
+
     const {
       data: { session },
     } = await supabase.auth.getSession()
+    if (!aindaValido()) return
     const uid = session?.user?.id ?? null
     setMeuId(uid)
     setMeuEmail(session?.user?.email ?? null)
@@ -1346,8 +1374,25 @@ export default function AtividadesPage() {
     setStoriesRepostAtivosPronto(false)
 
     const { data: urow } = await supabase.from('usuarios').select('role').eq('id', uid).maybeSingle()
+    if (!aindaValido()) return
     const role = (urow as { role?: string } | null)?.role ?? null
     setMeuRole(role)
+
+    const comoEmpresaDual =
+      profissionalOperaComoEmpresaHospedagem(
+        role,
+        ehAnfitriao,
+        modoEfetivo,
+        empresaHospedagemId,
+        empresaHospedagemLiberada,
+      ) ||
+      profissionalOperaComoEmpresaAgencia(
+        role,
+        ehGuia,
+        modoGuiaEfetivo,
+        empresaAgenciaId,
+        empresaAgenciaLiberada,
+      )
 
     if (role === 'empresa') {
       setErroAmigos(null)
@@ -1408,23 +1453,7 @@ export default function AtividadesPage() {
 
     setMinhaEmpresaAtividades(null)
 
-    const comoHospedagem =
-      profissionalOperaComoEmpresaHospedagem(
-        role,
-        ehAnfitriao,
-        modoEfetivo,
-        empresaHospedagemId,
-        empresaHospedagemLiberada,
-      ) ||
-      profissionalOperaComoEmpresaAgencia(
-        role,
-        ehGuia,
-        modoGuiaEfetivo,
-        empresaAgenciaId,
-        empresaAgenciaLiberada,
-      )
-
-    if (comoHospedagem) {
+    if (comoEmpresaDual) {
       setErroAmigos(null)
       setListaAmigos([])
       setQtdSeguindo(0)
@@ -1444,9 +1473,11 @@ export default function AtividadesPage() {
         .order('created_at', { ascending: false })
         .range(0, ATIVIDADES_LIMITE_MINHA_CONTA - 1)
 
+      if (!aindaValido()) return
+
       if (minhaHospRes.error && process.env.NODE_ENV === 'development') {
         // eslint-disable-next-line no-console
-        console.error('[Atividades][hospedagem] erro query Minha conta:', minhaHospRes.error)
+        console.error('[Atividades][hospedagem/agencia] erro query Minha conta:', minhaHospRes.error)
       }
 
       const minhaHospRaw = ((minhaHospRes.data ?? []) as AtividadeRow[]).filter(
@@ -1456,6 +1487,7 @@ export default function AtividadesPage() {
         supabase,
         minhaHospRaw,
       )) as AtividadeRow[]
+      if (!aindaValido()) return
 
       setListaMinha(minhaHosp)
       setOffsetMinha(minhaHosp.length)
@@ -1476,6 +1508,7 @@ export default function AtividadesPage() {
       await carregarPostsMeta(postIdsHosp, { merge: false })
       await carregarStoriesMeta(minhaHosp, { merge: false })
       await carregarStoriesRepostAtivos(minhaHosp)
+      if (!aindaValido()) return
 
       setCarregando(false)
       return
@@ -1489,6 +1522,7 @@ export default function AtividadesPage() {
         incluirModoApresentacao: modoAtivo,
       }),
     ])
+    if (!aindaValido()) return
     const seguindo = [...new Set([...seguindoRede, ...seguindoEmpresas])].filter(
       (id) => Boolean(id) && id !== uid,
     )
@@ -1597,6 +1631,7 @@ export default function AtividadesPage() {
       carregarStoriesMeta(todos, { merge: false }),
     ])
     await carregarStoriesRepostAtivos(todos)
+    if (!aindaValido()) return
 
     setCarregando(false)
   }, [
@@ -1618,6 +1653,7 @@ export default function AtividadesPage() {
 
   const carregarMaisAtividades = useCallback(async () => {
     if (carregandoMaisRef.current) return
+    if (somenteMinhaContaEmpresa) return
     const uid = meuId
     if (!uid) return
     /* Scroll infinito só na aba Seguindo (amigos). */
@@ -1712,7 +1748,7 @@ export default function AtividadesPage() {
         })
       }
     }
-  }, [meuId, carregarEmpresasAvaliacoes, carregarPerfis, carregarPostsMeta, carregarStoriesMeta, carregarStoriesRepostAtivos])
+  }, [meuId, somenteMinhaContaEmpresa, carregarEmpresasAvaliacoes, carregarPerfis, carregarPostsMeta, carregarStoriesMeta, carregarStoriesRepostAtivos])
 
   /** Dispara load more quando o sentinela entra na área visível (IO + scroll, pois IO sozinho falha em alguns casos). */
   const tentarCarregarMaisSeSentinelaVisivel = useCallback(() => {
@@ -1728,18 +1764,19 @@ export default function AtividadesPage() {
   }, [carregarMaisAtividades])
 
   useEffect(() => {
+    if (!dualModoPronto) return
     void recarregar()
-  }, [recarregar])
+  }, [recarregar, dualModoPronto])
 
   useEffect(() => {
-    const onModoAnfitriao = () => {
+    const onModoDual = () => {
       void recarregar()
     }
-    window.addEventListener('anfitriao-modo-change', onModoAnfitriao)
-    window.addEventListener('guia-modo-change', onModoAnfitriao)
+    window.addEventListener('anfitriao-modo-change', onModoDual)
+    window.addEventListener('guia-modo-change', onModoDual)
     return () => {
-      window.removeEventListener('anfitriao-modo-change', onModoAnfitriao)
-      window.removeEventListener('guia-modo-change', onModoAnfitriao)
+      window.removeEventListener('anfitriao-modo-change', onModoDual)
+      window.removeEventListener('guia-modo-change', onModoDual)
     }
   }, [recarregar])
 
@@ -1866,12 +1903,12 @@ export default function AtividadesPage() {
     [marcarMinhaLidas]
   )
 
-  /** Conta empresa ou anfitrião em modo hospedagem: só aba “Minha conta”. */
+  /** Conta empresa / agência / hospedagem: só aba “Minha conta”. */
   useEffect(() => {
-    if ((meuRole === 'empresa' || operaComoEmpresaHospedagem) && meuId) {
+    if (somenteMinhaContaEmpresa && meuId) {
       onAba('minha')
     }
-  }, [meuRole, meuId, onAba, operaComoEmpresaHospedagem])
+  }, [meuId, onAba, somenteMinhaContaEmpresa])
 
   const SWIPE_MIN_PX = 60
   const SWIPE_DOMINANCIA = 1.5
@@ -1886,7 +1923,7 @@ export default function AtividadesPage() {
 
   const tentarTrocarAbaPorSwipe = useCallback(
     (dx: number, dy: number) => {
-      if (meuRole === 'empresa' || operaComoEmpresaHospedagem) return
+      if (somenteMinhaContaEmpresa) return
       if (Math.abs(dx) < SWIPE_MIN_PX) return
       if (Math.abs(dx) <= Math.abs(dy) * SWIPE_DOMINANCIA) return
       if (dx < 0) {
@@ -1897,7 +1934,7 @@ export default function AtividadesPage() {
         if (aba !== 'amigos') onAba('amigos')
       }
     },
-    [aba, meuRole, onAba, operaComoEmpresaHospedagem]
+    [aba, onAba, somenteMinhaContaEmpresa]
   )
 
   const onTouchStartAtividades = useCallback((e: React.TouchEvent) => {
@@ -1969,15 +2006,15 @@ export default function AtividadesPage() {
 
   const listaAtividadesFiltrada = useMemo(() => {
     /* Minha Conta: inclui inbound direto + interações no meu conteúdo vindas da lista Seguindo (ex.: repost).
-       Modo agência/hospedagem: NÃO mistura listaAmigos (conteúdo pessoal do profissional). */
+       Modo agência/hospedagem/empresa: NÃO mistura listaAmigos (conteúdo pessoal do profissional). */
     const raw =
       aba === 'minha'
-        ? operaComoEmpresaHospedagem
+        ? somenteMinhaContaEmpresa
           ? listaMinha
           : mergeAtividadesPorId(listaMinha, listaAmigos)
         : listaAmigos
     const empresaIdsModo =
-      operaComoEmpresaHospedagem
+      somenteMinhaContaEmpresa
         ? [empresaAgenciaId, empresaHospedagemId].filter(
             (id): id is string => id != null && String(id).trim() !== '',
           )
@@ -1994,7 +2031,7 @@ export default function AtividadesPage() {
     return raw.filter((r) => {
       if (aba === 'minha' && meuId) {
         let okMinha = false
-        if (operaComoEmpresaHospedagem) {
+        if (somenteMinhaContaEmpresa) {
           okMinha = atividadeVisivelMinhaContaModoHospedagem(r, meuId, ctxModo, {
             empresaIds: empresaIdsModo,
           })
@@ -2082,6 +2119,7 @@ export default function AtividadesPage() {
     postMetaMap,
     storyMetaMap,
     meuId,
+    somenteMinhaContaEmpresa,
     operaComoEmpresaHospedagem,
     empresaAgenciaId,
     empresaHospedagemId,
@@ -2969,7 +3007,7 @@ export default function AtividadesPage() {
     return null
   }
 
-  if (carregando) {
+  if (carregando || !dualModoPronto) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <p className="text-gray-400">Carregando atividades…</p>
@@ -3001,7 +3039,7 @@ export default function AtividadesPage() {
             >
               <h1 className="text-lg font-bold tracking-tight text-white sm:text-xl">ATIVIDADES</h1>
               <p className="text-center text-xs font-medium leading-tight text-white/90 sm:text-sm">
-                {meuRole === 'empresa' ? 'Minha Conta' : 'Atividades recentes'}
+                {somenteMinhaContaEmpresa ? 'Minha Conta' : 'Atividades recentes'}
               </p>
             </div>
             <div className="relative z-10 flex min-w-0 flex-1 items-center justify-end gap-2">
@@ -3128,7 +3166,7 @@ export default function AtividadesPage() {
       <AbasAtividades
         aba={aba}
         onAba={onAba}
-        somenteMinhaConta={meuRole === 'empresa' || operaComoEmpresaHospedagem}
+        somenteMinhaConta={somenteMinhaContaEmpresa}
       />
 
       <div
@@ -3147,9 +3185,11 @@ export default function AtividadesPage() {
         ) : null}
         {itensAgrupados.length === 0 ? (
           <p className="py-10 text-center text-sm text-gray-400">
-            {aba === 'amigos' && qtdSeguindoRede === 0
-              ? 'Aqui aparecem as interações das empresas da região. Siga turistas e profissionais nos perfis deles para acompanhar também as atividades deles.'
-              : 'Nenhuma atividade por aqui ainda.'}
+            {somenteMinhaContaEmpresa
+              ? 'Nenhuma interação na página da empresa ainda.'
+              : aba === 'amigos' && qtdSeguindoRede === 0
+                ? 'Aqui aparecem as interações das empresas da região. Siga turistas e profissionais nos perfis deles para acompanhar também as atividades deles.'
+                : 'Nenhuma atividade por aqui ainda.'}
           </p>
         ) : (
           <div className="flex flex-col gap-6">

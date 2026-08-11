@@ -45,6 +45,8 @@ type GuiaModoValue = {
   empresaAgenciaLiberada: boolean
   varianteUi: string | null
   podeAlternarAgencia: boolean
+  /** false enquanto categorias/empresa agência ainda carregam. */
+  dadosProntos: boolean
   recarregar: () => Promise<void>
 }
 
@@ -215,6 +217,7 @@ export function GuiaModoProvider({ children }: { children: ReactNode }) {
       empresaAgenciaLiberada,
       varianteUi,
       podeAlternarAgencia,
+      dadosProntos: guiaDadosProntos,
       recarregar,
     }),
     [
@@ -227,6 +230,7 @@ export function GuiaModoProvider({ children }: { children: ReactNode }) {
       empresaAgenciaLiberada,
       varianteUi,
       podeAlternarAgencia,
+      guiaDadosProntos,
       recarregar,
     ],
   )
@@ -247,6 +251,7 @@ export function useGuiaModo(): GuiaModoValue {
     empresaAgenciaLiberada: false,
     varianteUi: null,
     podeAlternarAgencia: false,
+    dadosProntos: true,
     recarregar: async () => {},
   }
 }
