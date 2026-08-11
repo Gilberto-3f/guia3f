@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 
-const DEDUPE_OK_MS = 8_000
+const DEDUPE_OK_MS = 15_000
 
 /** @type {Promise<boolean> | null} */
 let inflightSync: Promise<boolean> | null = null

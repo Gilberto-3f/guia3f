@@ -476,42 +476,38 @@ export default function AtividadesPage() {
     const ids = coletarStoryIdsAtividades(rows)
     if (ids.length === 0) {
       if (!merge) setStoryMetaMap({})
-      return {} as Record<string, { conteudo_url: string | null; autor_tipo?: string | null; autor_id?: string | null }>
+      return {} as Record<
+        string,
+        {
+          conteudo_url: string | null
+          autor_tipo?: string | null
+          autor_id?: string | null
+          empresa_id?: string | null
+        }
+      >
     }
+
+    // Schema real: stories NÃO tem empresa_id (só autor_id/autor_tipo).
+    // Não selecionar empresa_id — evita 42703 no Postgres a cada carga de Atividades.
     const { data, error } = await supabase
       .from('stories')
-      .select('id, conteudo_url, autor_tipo, autor_id, empresa_id')
+      .select('id, conteudo_url, autor_tipo, autor_id')
       .in('id', ids)
+
     if (error) {
-      // Fallback sem empresa_id (schema legado)
-      const fb = await supabase.from('stories').select('id, conteudo_url, autor_tipo, autor_id').in('id', ids)
-      if (fb.error) {
-        console.error('[Atividades] stories meta:', fb.error)
-        if (!merge) setStoryMetaMap({})
-        return {}
-      }
-      const chunkFb: Record<
-        string,
-        { conteudo_url: string | null; autor_tipo?: string | null; autor_id?: string | null; empresa_id?: string | null }
-      > = {}
-      for (const row of fb.data ?? []) {
-        const rec = row as { id: string; conteudo_url?: string | null; autor_tipo?: string | null; autor_id?: string | null }
-        const id = String(rec.id ?? '').trim()
-        if (!id) continue
-        const url = rec.conteudo_url != null && String(rec.conteudo_url).trim() !== '' ? String(rec.conteudo_url) : null
-        chunkFb[id] = {
-          conteudo_url: url,
-          autor_tipo: rec.autor_tipo != null ? String(rec.autor_tipo) : null,
-          autor_id: rec.autor_id != null ? String(rec.autor_id) : null,
-        }
-      }
-      if (merge) setStoryMetaMap((prev) => ({ ...prev, ...chunkFb }))
-      else setStoryMetaMap(chunkFb)
-      return chunkFb
+      console.error('[Atividades] stories meta:', error)
+      if (!merge) setStoryMetaMap({})
+      return {}
     }
+
     const chunk: Record<
       string,
-      { conteudo_url: string | null; autor_tipo?: string | null; autor_id?: string | null; empresa_id?: string | null }
+      {
+        conteudo_url: string | null
+        autor_tipo?: string | null
+        autor_id?: string | null
+        empresa_id?: string | null
+      }
     > = {}
     for (const row of data ?? []) {
       const rec = row as {
@@ -519,18 +515,49 @@ export default function AtividadesPage() {
         conteudo_url?: string | null
         autor_tipo?: string | null
         autor_id?: string | null
-        empresa_id?: string | null
       }
       const id = String(rec.id ?? '').trim()
       if (!id) continue
-      const url = rec.conteudo_url != null && String(rec.conteudo_url).trim() !== '' ? String(rec.conteudo_url) : null
+      const url =
+        rec.conteudo_url != null && String(rec.conteudo_url).trim() !== ''
+          ? String(rec.conteudo_url)
+          : null
       chunk[id] = {
         conteudo_url: url,
         autor_tipo: rec.autor_tipo != null ? String(rec.autor_tipo) : null,
         autor_id: rec.autor_id != null ? String(rec.autor_id) : null,
-        empresa_id: rec.empresa_id != null ? String(rec.empresa_id) : null,
       }
     }
+
+    // Resolve empresa_id via gestor (empresas.usuario_id = stories.autor_id).
+    const autorIds = [
+      ...new Set(
+        Object.values(chunk)
+          .map((m) => (m.autor_id != null ? String(m.autor_id).trim() : ''))
+          .filter(Boolean),
+      ),
+    ]
+    if (autorIds.length > 0) {
+      const { data: emps, error: empErr } = await supabase
+        .from('empresas')
+        .select('id, usuario_id')
+        .in('usuario_id', autorIds)
+      if (!empErr && emps) {
+        const byUid = new Map<string, string>()
+        for (const raw of emps) {
+          const e = raw as { id?: unknown; usuario_id?: unknown }
+          const uid = e.usuario_id != null ? String(e.usuario_id).trim() : ''
+          const eid = e.id != null ? String(e.id).trim() : ''
+          if (uid && eid && !byUid.has(uid)) byUid.set(uid, eid)
+        }
+        for (const sid of Object.keys(chunk)) {
+          const uid = chunk[sid]?.autor_id != null ? String(chunk[sid].autor_id).trim() : ''
+          const eid = uid ? byUid.get(uid) : undefined
+          if (eid) chunk[sid] = { ...chunk[sid], empresa_id: eid }
+        }
+      }
+    }
+
     if (merge) {
       setStoryMetaMap((prev) => ({ ...prev, ...chunk }))
     } else {

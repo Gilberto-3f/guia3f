@@ -26,7 +26,7 @@ export default function SupabaseCookieSync() {
       debounceRef.current = setTimeout(() => {
         debounceRef.current = null
         void syncCookies(session)
-      }, 250)
+      }, 400)
     }
 
     void supabase.auth.getSession().then(({ data: { session } }) => {
