@@ -1,6 +1,7 @@
 /**
- * Presença pública no guia/feed/atividades: assinatura vigente, degustação ativa
- * ou empresa gratuita de profissional dual (anfitrião / guia / van).
+ * Presença pública no guia/feed/atividades: assinatura vigente, degustação ativa,
+ * empresa gratuita de profissional dual (anfitrião / guia / van),
+ * ou legado com `empresas.plano` comercial (contas antigas sem linha em assinaturas).
  * Ciclo vencido sem renovação → fora da listagem para turista/profissional.
  *
  * Cache + inflight dedupe: feed/stories/atividades chamam várias vezes por navegação;
@@ -58,13 +59,57 @@ async function buscarIdsEmpresasGratuitasProfissional(
   return res
 }
 
+/**
+ * Contas antigas (ex.: CDE): `empresas.plano` comercial preenchido sem linha vigente
+ * em `empresa_assinaturas`. Sem isso, aparecem no perfil (dono) mas somem do mapa.
+ */
+function planoCampoComercialLegado(plano: unknown): boolean {
+  const p = String(plano ?? '')
+    .trim()
+    .toLowerCase()
+  if (!p) return false
+  if (p === 'gratuito' || p === 'free' || p === 'none' || p === 'nenhum') return false
+  return true
+}
+
+async function buscarIdsEmpresasPlanoCampoLegado(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient | any,
+): Promise<{ data: { id?: unknown }[] | null; error: { message?: string } | null }> {
+  const run = async (comPreview: boolean) => {
+    let q = supabase
+      .from('empresas')
+      .select('id, plano')
+      .eq('docs_verificado', true)
+      .in('status', ['aprovado', 'ativo'])
+      .not('foto_url', 'is', null)
+      .not('plano', 'is', null)
+    if (comPreview) q = q.eq('somente_modo_apresentacao', false)
+    return q
+  }
+
+  let res = await run(true)
+  const msg = String(res.error?.message ?? '').toLowerCase()
+  if (msg.includes('somente_modo_apresentacao')) {
+    res = await run(false)
+  }
+  if (res.error) {
+    return { data: null, error: res.error }
+  }
+
+  const data = ((res.data ?? []) as { id?: unknown; plano?: unknown }[]).filter((r) =>
+    planoCampoComercialLegado(r.plano),
+  )
+  return { data, error: null }
+}
+
 async function carregarPresencaPublicaRaw(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient | any,
   agora = new Date(),
 ): Promise<PresencaIdsCache> {
   const iso = agoraIso(agora)
-  const [degRes, assRows, gratisRes] = await Promise.all([
+  const [degRes, assRows, gratisRes, legadoRes] = await Promise.all([
     supabase
       .from('empresa_degustacoes')
       .select('empresa_id')
@@ -73,21 +118,21 @@ async function carregarPresencaPublicaRaw(
     // RPC: bypass RLS dono/admin — turista vê só empresas com ciclo regular.
     buscarAssinaturasPresencaPublica(supabase),
     buscarIdsEmpresasGratuitasProfissional(supabase),
+    buscarIdsEmpresasPlanoCampoLegado(supabase),
   ])
 
   const degErr = degRes.error
   const gratisErr = gratisRes.error
-  const degRows = degRes.data
-  const gratisRows = gratisRes.data
+  const legadoErr = legadoRes.error
+  const degRows = degErr ? null : degRes.data
+  const gratisRows = gratisErr ? null : gratisRes.data
+  const legadoRows = legadoErr ? null : legadoRes.data
 
-  if (degErr || gratisErr) {
+  if (degErr || gratisErr || legadoErr) {
     console.warn(
-      '[empresaPresencaPublica] falha parcial:',
-      degErr?.message ?? gratisErr?.message,
+      '[empresaPresencaPublica] falha parcial (mantém fontes ok):',
+      [degErr?.message, gratisErr?.message, legadoErr?.message].filter(Boolean).join(' | '),
     )
-    // Fail-soft: se já havia cache, devolve; senão conjunto vazio (não trava o feed).
-    if (presencaCache) return presencaCache
-    return { at: Date.now(), empIds: [], usuarioIds: [] }
   }
 
   const empSet = new Set<string>()
@@ -103,9 +148,14 @@ async function carregarPresencaPublicaRaw(
   for (const r of gratisRows ?? []) {
     if (r?.id != null) empSet.add(String(r.id))
   }
+  for (const r of legadoRows ?? []) {
+    if (r?.id != null) empSet.add(String(r.id))
+  }
 
+  // Se nada entrou e houve falha total, preserva cache antigo.
   const empIds = [...empSet]
   if (empIds.length === 0) {
+    if (presencaCache) return presencaCache
     return { at: Date.now(), empIds: [], usuarioIds: [] }
   }
 

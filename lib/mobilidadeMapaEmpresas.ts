@@ -70,8 +70,11 @@ export const FILTRO_CIDADE_OPCOES: { pais: PaisGuiaFiltro; label: string; cidade
 ]
 
 function temCoords(row: Record<string, unknown>): boolean {
-  const lat = Number(row.latitude)
-  const lng = Number(row.longitude)
+  const latRaw = row.latitude
+  const lngRaw = row.longitude
+  if (latRaw == null || lngRaw == null || latRaw === '' || lngRaw === '') return false
+  const lat = typeof latRaw === 'number' ? latRaw : Number(String(latRaw).trim().replace(',', '.'))
+  const lng = typeof lngRaw === 'number' ? lngRaw : Number(String(lngRaw).trim().replace(',', '.'))
   return Number.isFinite(lat) && Number.isFinite(lng)
 }
 
@@ -80,6 +83,14 @@ function mapRow(row: Record<string, unknown>): EmpresaMapaMobilidade | null {
   const id = String(row.id ?? '')
   if (!id) return null
   const categoria = String(row.categoria ?? '')
+  const lat =
+    typeof row.latitude === 'number'
+      ? row.latitude
+      : Number(String(row.latitude).trim().replace(',', '.'))
+  const lng =
+    typeof row.longitude === 'number'
+      ? row.longitude
+      : Number(String(row.longitude).trim().replace(',', '.'))
   return {
     id,
     nome_fantasia: String(row.nome_fantasia ?? ''),
@@ -93,8 +104,8 @@ function mapRow(row: Record<string, unknown>): EmpresaMapaMobilidade | null {
     docs_verificado: null,
     nota_media: row.nota_media != null ? Number(row.nota_media) : null,
     total_avaliacoes: null,
-    latitude: Number(row.latitude),
-    longitude: Number(row.longitude),
+    latitude: lat,
+    longitude: lng,
     foto_url: row.foto_url != null ? String(row.foto_url) : null,
     whatsapp: null,
     preco_ticket_inteira: null,

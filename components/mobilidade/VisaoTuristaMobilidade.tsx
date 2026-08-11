@@ -658,7 +658,15 @@ export default function VisaoTuristaMobilidade({
           }
           setEmpresasErro(String(json.error ?? 'Falha ao carregar atrativos.'))
         } else {
-          setEmpresas(Array.isArray(json.empresas) ? json.empresas : [])
+          const apiLista = Array.isArray(json.empresas) ? json.empresas : []
+          // API é fonte principal; mantém pins injetados (Chamar corrida) até entrarem na API.
+          setEmpresas((prev) => {
+            const byId = new Map(apiLista.map((e) => [e.id, e]))
+            for (const e of prev) {
+              if (!byId.has(e.id)) byId.set(e.id, e)
+            }
+            return [...byId.values()]
+          })
           setEmpresasErro(null)
         }
       } catch {
@@ -681,8 +689,9 @@ export default function VisaoTuristaMobilidade({
     setCarregandoEmpresas(true)
     void carregar(0)
 
-    // Contas antigas sem lat/lng: reparo em background + refresh dos pins.
+    // Contas antigas: reparo de coords + refresh (presença legado CDE / dual).
     let reparoTimer: ReturnType<typeof setTimeout> | null = null
+    let reparoTimer2: ReturnType<typeof setTimeout> | null = null
     reparoTimer = setTimeout(() => {
       if (!ativo) return
       void (async () => {
@@ -694,8 +703,23 @@ export default function VisaoTuristaMobilidade({
           if (!ativo || !res.ok) return
           const json = (await res.json()) as { repaired?: number; remaining?: number }
           if (!ativo) return
-          if (Number(json.repaired) > 0 || Number(json.remaining) > 0) {
-            await carregar(0)
+          // Sempre refresca: contas com coords já ok (legado CDE) entram via presença atualizada.
+          await carregar(0)
+          if (Number(json.remaining) > 0) {
+            reparoTimer2 = setTimeout(() => {
+              if (!ativo) return
+              void fetch('/api/mobilidade/reparar-coords', {
+                method: 'POST',
+                credentials: 'include',
+              })
+                .then(async (r2) => {
+                  if (!ativo || !r2.ok) return
+                  await carregar(0)
+                })
+                .catch(() => {
+                  /* ignore */
+                })
+            }, 4000)
           }
         } catch {
           /* ignore */
@@ -707,6 +731,7 @@ export default function VisaoTuristaMobilidade({
       ativo = false
       if (retryTimer) clearTimeout(retryTimer)
       if (reparoTimer) clearTimeout(reparoTimer)
+      if (reparoTimer2) clearTimeout(reparoTimer2)
     }
   }, [])
 

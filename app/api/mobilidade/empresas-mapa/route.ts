@@ -4,7 +4,7 @@ import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { buscarEmpresasMapaMobilidade } from '@/lib/mobilidadeMapaEmpresas'
 
 /**
- * Pins do mapa — mesma elegibilidade do guia (presença pública).
+ * Pins do mapa — mesma elegibilidade do guia (presença pública + legado plano).
  * Se faltar lat/lng, backfill geocode (até 400/request) + persiste.
  * Cap alto (5000): não esconder empresas visíveis no guia.
  */
