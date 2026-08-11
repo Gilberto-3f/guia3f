@@ -67,6 +67,8 @@ type Empresa = {
   palavras_chave?: unknown
   docs_verificado?: boolean | null
   somente_anfitriao?: boolean | null
+  somente_guia?: boolean | null
+  somente_van?: boolean | null
   hospedagem_disponibilidade?: string | null
 }
 
@@ -191,7 +193,11 @@ export default function ListagemCategoriaPage() {
   const empresaTemBotaoDinamico = useCallback(
     (empresa: Empresa) => {
       const emDegustacao = degustacaoPlanoPorEmpresa.has(empresa.id)
-      const somenteAnfitriao = empresa.somente_anfitriao === true
+      // Dual gratuito (anfitrião / agência guia / agência van): mesmos serviços liberados.
+      const somenteAnfitriao =
+        empresa.somente_anfitriao === true ||
+        empresa.somente_guia === true ||
+        empresa.somente_van === true
       // Presença no guia já filtra ciclo irregular — não rebloqueia o botão por assinatura (evita flash).
       return empresaTemBotaoDinamicoPublico(
         empresa.plano,

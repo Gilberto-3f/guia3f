@@ -34,8 +34,8 @@ function comOffsetDeterministico(base: GeoPoint, empresaId: string): GeoPoint {
   return { lat: base.lat + dLat, lng: base.lng + dLng }
 }
 
-function fallbackCentroCidade(cidade: string, empresaId: string): GeoPoint | null {
-  const key = normalizarCidadeKey(cidade)
+function fallbackCentroCidade(cidadeOuTexto: string, empresaId: string): GeoPoint | null {
+  const key = normalizarCidadeKey(cidadeOuTexto)
   const base =
     CENTRO_CIDADE[key] ??
     (key.includes('foz')
@@ -43,9 +43,10 @@ function fallbackCentroCidade(cidade: string, empresaId: string): GeoPoint | nul
       : key === 'cde' ||
           key.includes('ciudad del este') ||
           key.includes('cidade do leste') ||
+          key.includes('ciudad del') ||
           (key.includes('este') && (key.includes('ciudad') || key.includes('cidade')))
         ? CENTRO_CIDADE['ciudad del este']
-        : key.includes('iguaz')
+        : key.includes('iguaz') || key.includes('puerto')
           ? CENTRO_CIDADE['puerto iguazu']
           : null)
   if (!base) return null
@@ -54,6 +55,7 @@ function fallbackCentroCidade(cidade: string, empresaId: string): GeoPoint | nul
 
 /**
  * Resolve lat/lng (Mapbox + fallback Tríplice) sem persistir — útil no salvar do drawer.
+ * Sempre tenta centro da cidade a partir de cidade/bairro/endereço (cobre CDE e agências).
  */
 export async function resolverCoordsEmpresa(opts: {
   id?: string | null
@@ -62,26 +64,38 @@ export async function resolverCoordsEmpresa(opts: {
   cidade?: string | null
 }): Promise<GeoPoint | null> {
   const id = String(opts.id ?? 'tmp')
+  const cidade = String(opts.cidade ?? '').trim()
+  const endereco = String(opts.endereco ?? '').trim()
+  const bairro = String(opts.bairro ?? '').trim()
+  const blob = [endereco, bairro, cidade].filter(Boolean).join(', ')
+
   const query = montarQueryEnderecoEmpresa({
-    endereco: opts.endereco,
-    bairro: opts.bairro,
-    cidade: opts.cidade,
+    endereco,
+    bairro,
+    cidade,
   })
 
   let geo: GeoPoint | null = null
   if (query.length >= 5) {
     geo = await forwardGeocodeMapbox(query)
   }
-  if (!geo && opts.cidade) {
-    const soCidade = String(opts.cidade).trim()
-    if (soCidade.length >= 3) {
-      // "CDE" (3) e demais abreviações
-      geo = soCidade.length >= 5 ? await forwardGeocodeMapbox(soCidade) : null
-      if (!geo) geo = fallbackCentroCidade(soCidade, id)
-    }
+  if (!geo && cidade.length >= 5) {
+    geo = await forwardGeocodeMapbox(cidade)
   }
   if (!geo) {
-    geo = fallbackCentroCidade(String(opts.cidade ?? ''), id)
+    geo = fallbackCentroCidade(cidade, id)
+  }
+  if (!geo && blob) {
+    geo = fallbackCentroCidade(blob, id)
+  }
+  // Último recurso Tríplice: endereço BR/PY típico sem cidade legível
+  if (!geo && blob.length >= 5) {
+    const n = normalizarCidadeKey(blob)
+    if (n.includes('paragu') || n.includes('avenida') || n.includes('calle')) {
+      geo = fallbackCentroCidade('ciudad del este', id)
+    } else if (n.includes('brasil') || n.includes('rua ') || n.includes('avenida')) {
+      geo = fallbackCentroCidade('foz do iguacu', id)
+    }
   }
   return geo
 }

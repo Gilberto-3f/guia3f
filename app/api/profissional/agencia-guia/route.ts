@@ -5,6 +5,7 @@ import {
   categoriasIncluemGuia,
 } from '@/lib/guiaDualMode'
 import { assertUserSession } from '@/lib/apiUserSession'
+import { resolverCoordsEmpresa } from '@/lib/empresaCoordsBackfill'
 
 const usernameRegex = /^[a-z0-9._]{3,20}$/
 
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
 
     const { data: prof } = await admin
       .from('profissionais')
-      .select('id, categorias, empresa_agencia_id')
+      .select('id, categorias, empresa_agencia_id, foto_perfil_url, foto_url')
       .eq('usuario_id', userId)
       .maybeSingle()
 
@@ -65,6 +66,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'username_taken' }, { status: 409 })
     }
 
+    const fotoProf =
+      prof.foto_perfil_url != null && String(prof.foto_perfil_url).trim()
+        ? String(prof.foto_perfil_url)
+        : prof.foto_url != null && String(prof.foto_url).trim()
+          ? String(prof.foto_url)
+          : null
+
     const { data: empresa, error: empErr } = await admin
       .from('empresas')
       .insert({
@@ -79,6 +87,7 @@ export async function POST(req: NextRequest) {
         bairro: bairro || null,
         whatsapp,
         descricao_curta: descricaoCurta || null,
+        foto_url: fotoProf,
         plano: 'gratuito',
         status: 'aguardando_aprovacao',
       })
@@ -90,6 +99,20 @@ export async function POST(req: NextRequest) {
     }
 
     const empresaId = String(empresa.id)
+
+    const geo = await resolverCoordsEmpresa({
+      id: empresaId,
+      endereco,
+      bairro: bairro || null,
+      cidade,
+    })
+    if (geo) {
+      await admin
+        .from('empresas')
+        .update({ latitude: geo.lat, longitude: geo.lng })
+        .eq('id', empresaId)
+    }
+
     const { error: linkErr } = await admin
       .from('profissionais')
       .update({ empresa_agencia_id: empresaId })

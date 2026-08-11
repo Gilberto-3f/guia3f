@@ -14,6 +14,9 @@ import {
 
 /** Colunas para pin + card + backfill de coords. */
 const COLUNAS_MAPA =
+  'id, nome_fantasia, nome_usuario, categoria, cidade, endereco, bairro, latitude, longitude, foto_url, nota_media, plano, somente_anfitriao, somente_guia, somente_van'
+
+const COLUNAS_MAPA_SEM_DUAL =
   'id, nome_fantasia, nome_usuario, categoria, cidade, endereco, bairro, latitude, longitude, foto_url, nota_media, plano, somente_anfitriao'
 
 /** Mesmo universo do guia (presença pública); sem cap baixo que esconda regulares. */
@@ -105,22 +108,31 @@ async function fetchEmpresasPresencaChunks(
   ids: string[],
 ): Promise<{ rows: Record<string, unknown>[]; error: string | null }> {
   const rows: Record<string, unknown>[] = []
+  let selectCols = COLUNAS_MAPA
 
   for (let i = 0; i < ids.length; i += CHUNK_IDS) {
     const slice = ids.slice(i, i + CHUNK_IDS)
 
-    const run = async (comPreview: boolean) => {
+    const run = async (comPreview: boolean, cols: string) => {
       const q = aplicarFiltroEmpresasGuiaPlanoOuDegustacao(
-        supabase.from('empresas').select(COLUNAS_MAPA).in('id', slice),
+        supabase.from('empresas').select(cols).in('id', slice),
         { comPreviewFilter: comPreview },
       )
       return q.order('nota_media', { ascending: false })
     }
 
-    let res = await run(true)
+    let res = await run(true, selectCols)
+    const msg = String(res.error?.message ?? '').toLowerCase()
+    if (
+      (msg.includes('somente_guia') || msg.includes('somente_van')) &&
+      (msg.includes('column') || msg.includes('does not exist'))
+    ) {
+      selectCols = COLUNAS_MAPA_SEM_DUAL
+      res = await run(true, selectCols)
+    }
     const previewMsg = String(res.error?.message ?? '').toLowerCase()
     if (previewMsg.includes('somente_modo_apresentacao')) {
-      res = await run(false)
+      res = await run(false, selectCols)
     }
     if (res.error) {
       return { rows: [], error: String(res.error.message ?? 'Falha ao carregar atrativos do mapa.') }
@@ -162,7 +174,8 @@ export async function buscarEmpresasMapaMobilidade(
       let score = 0
       if (cidade.includes('este') || cidade.includes('cde') || cidade.includes('leste')) score += 2
       if (cat.includes('servi') || cat.includes('local')) score += 2
-      if (r.somente_anfitriao) score += 1
+      if (r.somente_anfitriao || r.somente_guia || r.somente_van) score += 3
+      if (r.endereco) score += 1
       return score
     }
     const ordenados = [...semCoords].sort((a, b) => prioridade(b) - prioridade(a))

@@ -53,10 +53,10 @@ export function aplicarFiltroEmpresasGuiaPlanoOuDegustacao(query: any, opts?: { 
 }
 
 const COLUNAS_EMPRESA_GUIA =
-  'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, docs_verificado, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria, palavras_chave, plano, somente_anfitriao, hospedagem_disponibilidade'
+  'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, docs_verificado, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria, palavras_chave, plano, somente_anfitriao, somente_guia, somente_van, hospedagem_disponibilidade'
 
 const COLUNAS_EMPRESA_GUIA_SEM_PALAVRAS =
-  'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, docs_verificado, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria, plano, somente_anfitriao, hospedagem_disponibilidade'
+  'id, nome_fantasia, nome_usuario, descricao_curta, categoria, cidade, endereco, bairro, status, docs_verificado, nota_media, total_avaliacoes, latitude, longitude, foto_url, whatsapp, preco_ticket_inteira, preco_ticket_meia, preco_diaria, plano, somente_anfitriao, somente_guia, somente_van, hospedagem_disponibilidade'
 
 /** Lista empresas do guia por categoria/cidade (mesma elegibilidade do mapa: presença pública vigente). */
 export async function buscarEmpresasListagemGuia(
@@ -106,9 +106,19 @@ export async function buscarEmpresasListagemGuia(
     const slice = ids.slice(i, i + CHUNK)
 
     let res = await queryChunk(select, slice, true)
-    const msg = String(res.error?.message ?? '').toLowerCase()
+    let msg = String(res.error?.message ?? '').toLowerCase()
     if (msg.includes('palavras_chave') && (msg.includes('column') || msg.includes('does not exist'))) {
       select = COLUNAS_EMPRESA_GUIA_SEM_PALAVRAS
+      res = await queryChunk(select, slice, true)
+      msg = String(res.error?.message ?? '').toLowerCase()
+    }
+    if (
+      (msg.includes('somente_guia') || msg.includes('somente_van')) &&
+      (msg.includes('column') || msg.includes('does not exist'))
+    ) {
+      select = select
+        .replace(', somente_guia', '')
+        .replace(', somente_van', '')
       res = await queryChunk(select, slice, true)
     }
     const previewMsg = String(res.error?.message ?? '').toLowerCase()

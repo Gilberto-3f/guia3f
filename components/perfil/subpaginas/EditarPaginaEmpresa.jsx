@@ -473,6 +473,23 @@ export default function EditarPaginaEmpresa({ empresa, empresaId, onSalvo }) {
         return
       }
 
+      // Reforço server-side (service role) — garante coords mesmo se o client falhar no Mapbox/RLS.
+      try {
+        await fetch('/api/empresa/geocode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            empresa_id: empresaId,
+            endereco: payload.endereco,
+            bairro: payload.bairro,
+            cidade: formData.cidade,
+          }),
+        })
+      } catch {
+        /* ignore — payload já tentou persistir lat/lng */
+      }
+
       if (publicUrlPerfil) {
         setFotoAtual(publicUrlPerfil)
         setNovaFotoArquivo(null)

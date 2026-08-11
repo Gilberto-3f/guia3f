@@ -298,6 +298,10 @@ export default function EmpresaPage() {
       const empresaData = empresaRaw as Record<string, unknown>
       const isPreview = Boolean(empresaData.somente_modo_apresentacao)
       const somenteAnfitriao = Boolean(empresaData.somente_anfitriao)
+      const gratisProfissional =
+        somenteAnfitriao ||
+        Boolean(empresaData.somente_guia) ||
+        Boolean(empresaData.somente_van)
       const donoId = empresaData.usuario_id != null ? String(empresaData.usuario_id) : null
       const viewerEmail = session?.user?.email ?? meuEmail ?? null
       const ehDono = Boolean(viewerUid && donoId && String(viewerUid) === String(donoId))
@@ -317,7 +321,7 @@ export default function EmpresaPage() {
         return
       }
 
-      if (somenteAnfitriao && !liberadaAnfitriao) {
+      if (gratisProfissional && !liberadaAnfitriao) {
         setEmpresa(null)
         router.replace(ehDono ? '/guia' : '/guia')
         return
@@ -336,9 +340,10 @@ export default function EmpresaPage() {
         if (uRole?.role != null) roleViewer = String(uRole.role)
       }
       const ehAdmin = roleViewer === 'admin'
-      if (!ehDono && !ehAdmin && !somenteAnfitriao) {
+      if (!ehDono && !ehAdmin && !gratisProfissional) {
         const vigente = await empresaTemPresencaPublicaVigente(supabase, empresaId, {
           somenteAnfitriao,
+          presencaGratuitaProfissional: gratisProfissional,
         })
         if (!vigente) {
           setEmpresa(null)
@@ -362,6 +367,53 @@ export default function EmpresaPage() {
   useEffect(() => {
     void carregarEmpresa()
   }, [carregarEmpresa])
+
+  /** Dono: repara lat/lng ausentes (contas antigas / agências sem geocode no create). */
+  useEffect(() => {
+    if (!empresa || !usuarioId || loading) return
+    if (String(empresa.usuario_id ?? '') !== usuarioId) return
+    const lat = empresa.latitude != null ? Number(empresa.latitude) : NaN
+    const lng = empresa.longitude != null ? Number(empresa.longitude) : NaN
+    if (Number.isFinite(lat) && Number.isFinite(lng)) return
+    const endereco = empresa.endereco != null ? String(empresa.endereco).trim() : ''
+    const cidade = empresa.cidade != null ? String(empresa.cidade).trim() : ''
+    if (!endereco && !cidade) return
+
+    let cancelado = false
+    void (async () => {
+      try {
+        const res = await fetch('/api/empresa/geocode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            empresa_id: empresaId,
+            endereco: endereco || null,
+            bairro: empresa.bairro != null ? String(empresa.bairro) : null,
+            cidade: cidade || null,
+          }),
+        })
+        if (!res.ok || cancelado) return
+        const json = (await res.json()) as { latitude?: number; longitude?: number }
+        if (
+          !cancelado &&
+          Number.isFinite(Number(json.latitude)) &&
+          Number.isFinite(Number(json.longitude))
+        ) {
+          setEmpresa((prev) =>
+            prev
+              ? { ...prev, latitude: Number(json.latitude), longitude: Number(json.longitude) }
+              : prev,
+          )
+        }
+      } catch {
+        /* ignore */
+      }
+    })()
+    return () => {
+      cancelado = true
+    }
+  }, [empresa, usuarioId, loading, empresaId])
 
   /** Após login na mesma aba, `usuarioId` hidrata — um único silent refresh (sem duplicar no boot). */
   const usuarioIdInicialRef = useRef<string | null>(null)
