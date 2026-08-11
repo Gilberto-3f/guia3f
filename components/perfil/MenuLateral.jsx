@@ -403,6 +403,7 @@ function secoesProfissional(ctx) {
   const gAplic = [
     { Icon: History, label: 'Minhas compras', subpagina: 'historico-compras' },
     { Icon: Scale, label: 'Denúncias e decisões', subpagina: 'historico-decisoes' },
+    itemConfig,
   ]
   return [
     ...(ctx.ehAnfitriao ? [pastaAnfitriao(ctx)] : []),
@@ -457,6 +458,7 @@ function secoesProfissionalAguardandoDocs(ctx) {
       items: [
         { Icon: History, label: 'Minhas compras', subpagina: 'historico-compras' },
         { Icon: Scale, label: 'Denúncias e decisões', subpagina: 'historico-decisoes' },
+        itemConfig,
       ],
     },
     { tipo: 'sair' },
