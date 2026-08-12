@@ -28,9 +28,10 @@ const IDIOMAS = [
  * @param {{
  *   variant?: 'turista' | 'profissional' | 'empresa' | 'admin'
  *   onAbrirRegras?: () => void
+ *   onAbrirMudarSenha?: () => void
  * }} props
  */
-export default function Configuracoes({ variant = 'turista', onAbrirRegras }) {
+export default function Configuracoes({ variant = 'turista', onAbrirRegras, onAbrirMudarSenha }) {
   const router = useRouter()
   const locale = useLocale()
   const { modoNoturno, setModoNoturno } = useModoNoturno()
@@ -130,15 +131,17 @@ export default function Configuracoes({ variant = 'turista', onAbrirRegras }) {
           <ChevronDown className="h-4 w-4 shrink-0 -rotate-90 text-gray-400" aria-hidden />
         </button>
 
-        <Link
-          href="/recuperar-senha"
+        <button
+          type="button"
+          onClick={() => onAbrirMudarSenha?.()}
           className="flex w-full items-center gap-3 px-3 py-3 text-left transition hover:bg-gray-50"
         >
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-600">
             <KeyRound className="h-5 w-5" strokeWidth={1.75} aria-hidden />
           </span>
           <span className="flex-1 text-sm font-medium text-gray-800">Mudar senha</span>
-        </Link>
+          <ChevronDown className="h-4 w-4 shrink-0 -rotate-90 text-gray-400" aria-hidden />
+        </button>
 
         <button
           type="button"

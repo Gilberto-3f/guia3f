@@ -681,5 +681,22 @@
     "servicosLocais": "Local Services",
     "tabGuia": "GUIDE",
     "tabMobilidade": "MOBILITY"
+  },
+  "MudarSenha": {
+    "hint": "Enter your current password and choose a new one. Other devices will be signed out.",
+    "current": "Current password",
+    "next": "New password",
+    "confirm": "Confirm new password",
+    "confirmButton": "CONFIRM",
+    "saving": "Saving…",
+    "forgot": "Forgot password",
+    "success": "Password changed successfully.",
+    "valCurrent": "Enter your current password.",
+    "valPassword": "Password must be at least 8 characters, with letters and numbers.",
+    "valMatch": "Passwords do not match.",
+    "valSame": "The new password must be different from the current one.",
+    "wrongPassword": "Incorrect current password. Attempts remaining: {remaining}.",
+    "locked": "Too many attempts. Try again in about {minutes} minute(s).",
+    "genericError": "Could not change the password. Please try again."
   }
 }

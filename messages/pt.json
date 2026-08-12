@@ -681,5 +681,22 @@
     "servicosLocais": "Serviços Locais",
     "tabGuia": "GUIA",
     "tabMobilidade": "MOBILIDADE"
+  },
+  "MudarSenha": {
+    "hint": "Informe a senha atual e escolha uma nova. Os outros dispositivos serão desconectados.",
+    "current": "Senha atual",
+    "next": "Nova senha",
+    "confirm": "Confirmar nova senha",
+    "confirmButton": "CONFIRMAR",
+    "saving": "Salvando…",
+    "forgot": "Esqueci a senha",
+    "success": "Senha alterada com sucesso.",
+    "valCurrent": "Informe a senha atual.",
+    "valPassword": "A senha deve ter no mínimo 8 caracteres, com letras e números.",
+    "valMatch": "As senhas não coincidem.",
+    "valSame": "A nova senha deve ser diferente da atual.",
+    "wrongPassword": "Senha atual incorreta. Tentativas restantes: {remaining}.",
+    "locked": "Muitas tentativas. Tente novamente em cerca de {minutes} minuto(s).",
+    "genericError": "Não foi possível alterar a senha. Tente novamente."
   }
 }

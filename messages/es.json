@@ -681,5 +681,22 @@
     "servicosLocais": "Servicios Locales",
     "tabGuia": "GUÍA",
     "tabMobilidade": "MOVILIDAD"
+  },
+  "MudarSenha": {
+    "hint": "Ingresa tu contraseña actual y elige una nueva. Los demás dispositivos se desconectarán.",
+    "current": "Contraseña actual",
+    "next": "Nueva contraseña",
+    "confirm": "Confirmar nueva contraseña",
+    "confirmButton": "CONFIRMAR",
+    "saving": "Guardando…",
+    "forgot": "Olvidé la contraseña",
+    "success": "Contraseña cambiada con éxito.",
+    "valCurrent": "Ingresa la contraseña actual.",
+    "valPassword": "La contraseña debe tener al menos 8 caracteres, con letras y números.",
+    "valMatch": "Las contraseñas no coinciden.",
+    "valSame": "La nueva contraseña debe ser distinta de la actual.",
+    "wrongPassword": "Contraseña actual incorrecta. Intentos restantes: {remaining}.",
+    "locked": "Demasiados intentos. Vuelve a intentarlo en unos {minutes} minuto(s).",
+    "genericError": "No se pudo cambiar la contraseña. Inténtalo de nuevo."
   }
 }
