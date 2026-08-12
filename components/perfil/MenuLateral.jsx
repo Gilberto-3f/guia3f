@@ -76,6 +76,7 @@ import MinhasAtividades from '@/components/perfil/subpaginas/MinhasAtividades'
 import PostIsoladoDrawer from '@/components/perfil/subpaginas/PostIsoladoDrawer'
 import Configuracoes from '@/components/perfil/subpaginas/Configuracoes'
 import MudarSenha from '@/components/perfil/subpaginas/MudarSenha'
+import ExcluirConta from '@/components/perfil/subpaginas/ExcluirConta'
 import RegrasEcossistema from '@/components/perfil/subpaginas/RegrasEcossistema'
 import Comissoes from '@/components/perfil/subpaginas/Comissoes'
 import TabelaValores from '@/components/perfil/subpaginas/TabelaValores'
@@ -1424,6 +1425,7 @@ export default function MenuLateral({
         'minhas-atividades': 'Minhas Atividades',
         configuracoes: 'Configurações',
         'mudar-senha': 'Mudar senha',
+        'excluir-conta': 'Excluir conta',
         'regras-ecossistema': 'Regras do ecossistema',
         comissoes: 'Comissões',
         tabela: 'Serviços Tabelados',
@@ -1587,8 +1589,10 @@ export default function MenuLateral({
           variant={menuVariantEfetivo}
           onAbrirRegras={() => abrirPagina('Regras do ecossistema', 'regras-ecossistema')}
           onAbrirMudarSenha={() => abrirPagina('Mudar senha', 'mudar-senha')}
+          onAbrirExcluirConta={() => abrirPagina('Excluir conta', 'excluir-conta')}
         />
       )
+    if (id === 'excluir-conta') return <ExcluirConta />
     if (id === 'mudar-senha')
       return (
         <MudarSenha

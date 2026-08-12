@@ -698,5 +698,28 @@
     "wrongPassword": "Contraseña actual incorrecta. Intentos restantes: {remaining}.",
     "locked": "Demasiados intentos. Vuelve a intentarlo en unos {minutes} minuto(s).",
     "genericError": "No se pudo cambiar la contraseña. Inténtalo de nuevo."
+  },
+  "ExcluirConta": {
+    "warningTitle": "Esta acción es definitiva.",
+    "warningAccess": "No será posible restaurar el acceso a esta cuenta.",
+    "warningData": "Perfil, fotos, documentos y publicaciones se eliminarán y no se podrán recuperar.",
+    "warningLegal": "Algunos registros operativos o legales pueden permanecer anonimizados, sin identificarte.",
+    "continue": "Continuar",
+    "step2Hint": "Confirma con la contraseña actual para eliminar la cuenta en este dispositivo y en todos los demás.",
+    "current": "Contraseña actual",
+    "checkbox": "Entiendo que no puedo recuperar esta cuenta ni los datos eliminados.",
+    "confirmButton": "ELIMINAR CUENTA",
+    "saving": "Eliminando…",
+    "back": "Volver",
+    "valCurrent": "Ingresa la contraseña actual.",
+    "valConfirm": "Marca la confirmación para continuar.",
+    "wrongPassword": "Contraseña actual incorrecta. Intentos restantes: {remaining}.",
+    "locked": "Demasiados intentos. Vuelve a intentarlo en unos {minutes} minuto(s).",
+    "activeRide": "Hay un viaje o agendamiento en curso. Finalízalo o cancélalo antes de eliminar la cuenta.",
+    "activeReservation": "Hay una reserva de hospedaje en curso. Finalízala o cancélala antes de eliminar la cuenta.",
+    "activeManifesto": "Hay un manifiesto en curso. Finalízalo antes de eliminar la cuenta.",
+    "adminForbidden": "Las cuentas administrativas no se pueden eliminar por este flujo.",
+    "rpcMissing": "La eliminación aún no está disponible en este entorno. Aplica la migración en la base.",
+    "genericError": "No se pudo eliminar la cuenta. Inténtalo de nuevo."
   }
 }

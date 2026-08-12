@@ -698,5 +698,28 @@
     "wrongPassword": "Senha atual incorreta. Tentativas restantes: {remaining}.",
     "locked": "Muitas tentativas. Tente novamente em cerca de {minutes} minuto(s).",
     "genericError": "Não foi possível alterar a senha. Tente novamente."
+  },
+  "ExcluirConta": {
+    "warningTitle": "Esta ação é definitiva.",
+    "warningAccess": "Não será possível restaurar o acesso a esta conta.",
+    "warningData": "Perfil, fotos, documentos e publicações serão excluídos e não poderão ser recuperados.",
+    "warningLegal": "Alguns registros operacionais ou legais podem permanecer anonimizados, sem identificá-lo.",
+    "continue": "Continuar",
+    "step2Hint": "Confirme com a senha atual para excluir a conta neste dispositivo e em todos os outros.",
+    "current": "Senha atual",
+    "checkbox": "Entendi que não posso recuperar esta conta nem os dados excluídos.",
+    "confirmButton": "EXCLUIR CONTA",
+    "saving": "Excluindo…",
+    "back": "Voltar",
+    "valCurrent": "Informe a senha atual.",
+    "valConfirm": "Marque a confirmação para continuar.",
+    "wrongPassword": "Senha atual incorreta. Tentativas restantes: {remaining}.",
+    "locked": "Muitas tentativas. Tente novamente em cerca de {minutes} minuto(s).",
+    "activeRide": "Há uma corrida ou agendamento em andamento. Conclua ou cancele antes de excluir a conta.",
+    "activeReservation": "Há uma reserva de hospedagem em andamento. Conclua ou cancele antes de excluir a conta.",
+    "activeManifesto": "Há um manifesto em andamento. Conclua-o antes de excluir a conta.",
+    "adminForbidden": "Contas administrativas não podem ser excluídas por este fluxo.",
+    "rpcMissing": "A exclusão ainda não está disponível neste ambiente. Aplique a migration no banco.",
+    "genericError": "Não foi possível excluir a conta. Tente novamente."
   }
 }

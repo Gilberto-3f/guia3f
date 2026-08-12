@@ -29,9 +29,15 @@ const IDIOMAS = [
  *   variant?: 'turista' | 'profissional' | 'empresa' | 'admin'
  *   onAbrirRegras?: () => void
  *   onAbrirMudarSenha?: () => void
+ *   onAbrirExcluirConta?: () => void
  * }} props
  */
-export default function Configuracoes({ variant = 'turista', onAbrirRegras, onAbrirMudarSenha }) {
+export default function Configuracoes({
+  variant = 'turista',
+  onAbrirRegras,
+  onAbrirMudarSenha,
+  onAbrirExcluirConta,
+}) {
   const router = useRouter()
   const locale = useLocale()
   const { modoNoturno, setModoNoturno } = useModoNoturno()
@@ -143,18 +149,19 @@ export default function Configuracoes({ variant = 'turista', onAbrirRegras, onAb
           <ChevronDown className="h-4 w-4 shrink-0 -rotate-90 text-gray-400" aria-hidden />
         </button>
 
-        <button
-          type="button"
-          onClick={() =>
-            window.alert('Fluxo de exclusão de conta: em breve com confirmação por e-mail.')
-          }
-          className="flex w-full items-center gap-3 px-3 py-3 text-left transition hover:bg-gray-50"
-        >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-600">
-            <Trash2 className="h-5 w-5" strokeWidth={1.75} aria-hidden />
-          </span>
-          <span className="flex-1 text-sm font-medium text-gray-800">Excluir conta</span>
-        </button>
+        {variant !== 'admin' ? (
+          <button
+            type="button"
+            onClick={() => onAbrirExcluirConta?.()}
+            className="flex w-full items-center gap-3 px-3 py-3 text-left transition hover:bg-gray-50"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-600">
+              <Trash2 className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+            </span>
+            <span className="flex-1 text-sm font-medium text-gray-800">Excluir conta</span>
+            <ChevronDown className="h-4 w-4 shrink-0 -rotate-90 text-gray-400" aria-hidden />
+          </button>
+        ) : null}
       </div>
     </div>
   )

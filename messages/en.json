@@ -698,5 +698,28 @@
     "wrongPassword": "Incorrect current password. Attempts remaining: {remaining}.",
     "locked": "Too many attempts. Try again in about {minutes} minute(s).",
     "genericError": "Could not change the password. Please try again."
+  },
+  "ExcluirConta": {
+    "warningTitle": "This action is permanent.",
+    "warningAccess": "You will not be able to restore access to this account.",
+    "warningData": "Your profile, photos, documents and posts will be deleted and cannot be recovered.",
+    "warningLegal": "Some operational or legal records may remain anonymized, without identifying you.",
+    "continue": "Continue",
+    "step2Hint": "Confirm with your current password to delete the account on this device and all others.",
+    "current": "Current password",
+    "checkbox": "I understand that I cannot recover this account or the deleted data.",
+    "confirmButton": "DELETE ACCOUNT",
+    "saving": "Deleting…",
+    "back": "Back",
+    "valCurrent": "Enter your current password.",
+    "valConfirm": "Check the confirmation box to continue.",
+    "wrongPassword": "Incorrect current password. Attempts remaining: {remaining}.",
+    "locked": "Too many attempts. Try again in about {minutes} minute(s).",
+    "activeRide": "There is an active ride or booking. Finish or cancel it before deleting the account.",
+    "activeReservation": "There is an active lodging reservation. Finish or cancel it before deleting the account.",
+    "activeManifesto": "There is an active passenger manifest. Finish it before deleting the account.",
+    "adminForbidden": "Admin accounts cannot be deleted through this flow.",
+    "rpcMissing": "Account deletion is not available in this environment yet. Apply the database migration.",
+    "genericError": "Could not delete the account. Please try again."
   }
 }
