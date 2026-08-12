@@ -39,8 +39,8 @@ export default function ChatCorridaMobilidade({
   onMsgsRef.current = onMensagensChange
 
   useEffect(() => {
-    void supabase.auth.getUser().then(({ data }) => {
-      setMeuId(data.user?.id ?? null)
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      setMeuId(session?.user?.id ?? null)
     })
   }, [])
 
