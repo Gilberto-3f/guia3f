@@ -55,8 +55,10 @@ export async function resumirSessaoAposIdle(): Promise<void> {
         const { data: refreshed, error } = await supabase.auth.refreshSession(session)
         if (error) {
           console.warn('[authResume] refreshSession:', error.message)
+          // Não reenvia JWT morto aos cookies / REST (evita 401 em massa).
+          return
         }
-        const s = refreshed?.session ?? session
+        const s = refreshed?.session
         if (s?.access_token && s.refresh_token) {
           await syncSessionCookiesToServer(s)
         }

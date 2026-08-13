@@ -45,6 +45,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'missing_tokens' }, { status: 400 })
   }
 
+  // Não chama setSession (→ GET /user no Auth) com JWT já expirado.
+  // O cliente deve refreshSession antes e só então sincronizar cookies.
+  if (!jwtAindaValido(access_token)) {
+    return NextResponse.json({ error: 'expired_access', skipped: true }, { status: 409 })
+  }
+
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

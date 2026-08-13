@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 import Image from 'next/image'
 import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
+import { rpcAnon } from '@/lib/rpcAnon'
 import { supabase } from '@/lib/supabase'
 
 function isoDate(d: Date) {
@@ -119,6 +120,9 @@ function linkEhRotaInterna(url: string): boolean {
   return url.startsWith('/') && !url.startsWith('//')
 }
 
+/** Ids já contabilizados nesta sessão (evita rajada ao voltar do idle / remount). */
+const impressoesRegistradas = new Set<string>()
+
 function SlideEnvoltorio({ anuncio, children }: { anuncio: AnuncioSlide; children: ReactNode }) {
   const hrefResolvido = (() => {
     const raw = anuncio.link_url != null ? String(anuncio.link_url).trim() : ''
@@ -128,8 +132,8 @@ function SlideEnvoltorio({ anuncio, children }: { anuncio: AnuncioSlide; childre
   })()
 
   const registrarClique = useCallback(() => {
-    void supabase.rpc('registrar_clique_anuncio_home', { p_anuncio_id: anuncio.id }).then(({ error }) => {
-      if (error) console.warn('[PublicidadeHome] clique:', error.message)
+    void rpcAnon('registrar_clique_anuncio_home', { p_anuncio_id: anuncio.id }).then((res) => {
+      if (!res.ok) console.warn('[PublicidadeHome] clique:', res.error)
     })
   }, [anuncio.id])
 
@@ -302,12 +306,21 @@ export default function PublicidadeHome() {
     if (!n) return
     const id = anuncios[indice]?.id
     if (!id) return
-    const t = setTimeout(() => {
-      void supabase.rpc('registrar_impressao_anuncio_home', { p_anuncio_id: id }).then(({ error }) => {
-        if (error) console.warn('[PublicidadeHome] impressão:', error.message)
+    if (impressoesRegistradas.has(id)) return
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+
+    const t = window.setTimeout(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+      if (impressoesRegistradas.has(id)) return
+      impressoesRegistradas.add(id)
+      void rpcAnon('registrar_impressao_anuncio_home', { p_anuncio_id: id }).then((res) => {
+        if (!res.ok) {
+          impressoesRegistradas.delete(id)
+          console.warn('[PublicidadeHome] impressão:', res.error)
+        }
       })
     }, 1000)
-    return () => clearTimeout(t)
+    return () => window.clearTimeout(t)
   }, [anuncios, indice, n])
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
