@@ -357,7 +357,7 @@ export default function PublicidadeHome() {
   const blocoH = 'min-h-[176px] h-[176px] sm:h-[208px]'
 
   return (
-    <div className="shrink-0 px-4 pb-2">
+    <div className="shrink-0 px-3 pb-2 sm:px-4">
       <div className="w-full">
         {n > 0 ? (
           <div className="w-full">
@@ -366,12 +366,20 @@ export default function PublicidadeHome() {
               onTouchStart={onTouchStart}
               onTouchEnd={onTouchEnd}
             >
+              {/*
+                Track com w-full (largura do viewport) + slides flex-basis 100%.
+                Sem isso o Chrome Android colapsa o slide à largura da imagem
+                e o banner fica estreito/desalinhado; o Safari (iOS) mascarava o bug.
+              */}
               <div
-                className="flex transition-transform duration-300 ease-out"
+                className="flex w-full transition-transform duration-300 ease-out"
                 style={{ transform: `translateX(-${indice * 100}%)` }}
               >
                 {anuncios.map((anuncio, slideIdx) => (
-                  <div key={anuncio.id} className="w-full shrink-0">
+                  <div
+                    key={anuncio.id}
+                    className="w-full min-w-full max-w-full shrink-0 grow-0 basis-full"
+                  >
                     <SlideEnvoltorio anuncio={anuncio}>
                       <BlocoImagemBanner
                         anuncio={anuncio}
