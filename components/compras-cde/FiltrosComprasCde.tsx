@@ -314,7 +314,10 @@ export default function FiltrosComprasCde({ filtros, filtrosPadrao, onChange, on
           aria-modal="true"
           aria-label={fase === 1 ? 'Escolha uma Categoria' : 'Subcategorias Disponíveis'}
         >
-          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-4 py-3">
+          <div
+            className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-4 pb-3"
+            style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))' }}
+          >
             <h3 className="min-w-0 flex-1 text-sm font-bold text-[#001f3f]">
               {fase === 1 ? 'Escolha uma Categoria' : 'Subcategorias Disponíveis'}
             </h3>
