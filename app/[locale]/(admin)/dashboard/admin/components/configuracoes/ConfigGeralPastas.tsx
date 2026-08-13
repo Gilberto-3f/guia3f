@@ -37,7 +37,7 @@ export function ConfigGeralPastas() {
   const [salvandoPrazos, setSalvandoPrazos] = useState(false)
   const [mensagem, setMensagem] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null)
 
-  const [abertaPagamentos, setAbertaPagamentos] = useState(true)
+  const [abertaPagamentos, setAbertaPagamentos] = useState(false)
   const [abertaMobilidade, setAbertaMobilidade] = useState(false)
   const [abertaCotacoes, setAbertaCotacoes] = useState(false)
   const [abertaPrazos, setAbertaPrazos] = useState(false)

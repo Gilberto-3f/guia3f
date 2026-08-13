@@ -30,12 +30,12 @@ export function SubabasConformidade({ value }: { value: ConfigConformidadeSubId 
             className={[
               'flex min-h-[40px] items-center justify-center rounded-lg py-2 text-xs font-bold uppercase tracking-wide transition sm:text-sm',
               active
-                ? 'min-w-0 flex-1 gap-1.5 bg-[#001f3f] px-3 text-white shadow-sm'
-                : 'w-10 shrink-0 bg-gray-100 px-2 text-[#001f3f] hover:bg-gray-200',
+                ? 'min-w-0 flex-1 gap-1.5 bg-[#00D443] px-3 text-white shadow-sm'
+                : 'w-10 shrink-0 bg-gray-100 px-2 text-[#00D443] hover:bg-gray-200',
             ].join(' ')}
           >
             <Icon
-              className={['h-4 w-4 shrink-0 sm:h-5 sm:w-5', active ? 'text-white' : 'text-[#001f3f]'].join(' ')}
+              className={['h-4 w-4 shrink-0 sm:h-5 sm:w-5', active ? 'text-white' : 'text-[#00D443]'].join(' ')}
               strokeWidth={2.25}
               aria-hidden
             />

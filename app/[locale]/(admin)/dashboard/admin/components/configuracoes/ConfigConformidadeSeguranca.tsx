@@ -32,7 +32,7 @@ function ConteudoProtocoloReacao() {
 }
 
 export function ConfigConformidadeSeguranca() {
-  const [abertaSeguranca, setAbertaSeguranca] = useState(true)
+  const [abertaSeguranca, setAbertaSeguranca] = useState(false)
   const [abertaReacao, setAbertaReacao] = useState(false)
 
   return (
