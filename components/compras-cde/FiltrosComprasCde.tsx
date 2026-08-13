@@ -308,56 +308,89 @@ export default function FiltrosComprasCde({ filtros, filtrosPadrao, onChange, on
 
       {popupCat ? (
         <div
-          className="fixed inset-0 z-[160] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setPopupCat(false)
-          }}
-          role="presentation"
+          className="fixed inset-0 z-[160] flex flex-col bg-white"
+          style={{ height: 'var(--app-height, 100dvh)' }}
+          role="dialog"
+          aria-modal="true"
+          aria-label={fase === 1 ? 'Escolha uma Categoria' : 'Subcategorias Disponíveis'}
         >
-          <div
-            className="flex h-[min(85dvh,32rem)] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white sm:rounded-2xl"
-            role="dialog"
-            aria-modal="true"
-            aria-label={fase === 1 ? 'Escolha uma Categoria' : 'Subcategorias Disponíveis'}
-          >
-            <div className="flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3">
-              <h3 className="min-w-0 flex-1 text-sm font-bold text-[#001f3f]">
-                {fase === 1 ? 'Escolha uma Categoria' : 'Subcategorias Disponíveis'}
-              </h3>
-              <div className="flex shrink-0 items-center gap-1">
-                <button
-                  type="button"
-                  onClick={limparCategoriasPopup}
-                  className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
-                  aria-label="Reiniciar filtros de categoria"
-                  title="Reiniciar"
-                >
-                  <RotateCcw className="h-5 w-5" aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPopupCat(false)}
-                  className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
-                  aria-label="Fechar"
-                >
-                  <X className="h-5 w-5" aria-hidden />
-                </button>
-              </div>
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-4 py-3">
+            <h3 className="min-w-0 flex-1 text-sm font-bold text-[#001f3f]">
+              {fase === 1 ? 'Escolha uma Categoria' : 'Subcategorias Disponíveis'}
+            </h3>
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={limparCategoriasPopup}
+                className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
+                aria-label="Reiniciar filtros de categoria"
+                title="Reiniciar"
+              >
+                <RotateCcw className="h-5 w-5" aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => setPopupCat(false)}
+                className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
+                aria-label="Fechar"
+              >
+                <X className="h-5 w-5" aria-hidden />
+              </button>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-              {fase === 1 ? (
-                <ul className="space-y-1.5">
-                  {categorias.map((c) => {
-                    const ativo = catTemp === c.id
-                    const qtd = contagemCat[c.id] ?? 0
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+            {fase === 1 ? (
+              <ul className="space-y-1.5">
+                {categorias.map((c) => {
+                  const ativo = catTemp === c.id
+                  const qtd = contagemCat[c.id] ?? 0
+                  return (
+                    <li key={c.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCatTemp(c.id)
+                          setSubsTemp([])
+                          setFase(2)
+                        }}
+                        className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-medium text-gray-900 ${
+                          ativo ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200 bg-white'
+                        }`}
+                      >
+                        <span
+                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                            ativo ? 'border-[#0097b2] bg-[#0097b2]' : 'border-gray-300 bg-white'
+                          }`}
+                        >
+                          {ativo ? <Check className="h-2.5 w-2.5 text-white" aria-hidden /> : null}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-gray-900">{c.nome}</span>
+                        <span className="shrink-0 tabular-nums text-xs font-semibold text-gray-400">
+                          {qtd}
+                        </span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <ul className="space-y-1.5">
+                {subcats.length === 0 ? (
+                  <p className="py-4 text-center text-sm text-gray-600">
+                    Nenhuma subcategoria ainda — busque só pela categoria.
+                  </p>
+                ) : (
+                  subcats.map((s) => {
+                    const ativo = subsTemp.includes(s.id)
+                    const qtd = contagemSub[s.id] ?? 0
                     return (
-                      <li key={c.id}>
+                      <li key={s.id}>
                         <button
                           type="button"
                           onClick={() => {
-                            setCatTemp(c.id)
-                            setSubsTemp([])
-                            setFase(2)
+                            setSubsTemp((prev) =>
+                              ativo ? prev.filter((id) => id !== s.id) : [...prev, s.id],
+                            )
                           }}
                           className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-medium text-gray-900 ${
                             ativo ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200 bg-white'
@@ -370,77 +403,37 @@ export default function FiltrosComprasCde({ filtros, filtrosPadrao, onChange, on
                           >
                             {ativo ? <Check className="h-2.5 w-2.5 text-white" aria-hidden /> : null}
                           </span>
-                          <span className="min-w-0 flex-1 truncate text-gray-900">{c.nome}</span>
+                          <span className="min-w-0 flex-1 truncate text-gray-900">{s.nome}</span>
                           <span className="shrink-0 tabular-nums text-xs font-semibold text-gray-400">
                             {qtd}
                           </span>
                         </button>
                       </li>
                     )
-                  })}
-                </ul>
-              ) : (
-                <ul className="space-y-1.5">
-                  {subcats.length === 0 ? (
-                    <p className="py-4 text-center text-sm text-gray-600">
-                      Nenhuma subcategoria ainda — busque só pela categoria.
-                    </p>
-                  ) : (
-                    subcats.map((s) => {
-                      const ativo = subsTemp.includes(s.id)
-                      const qtd = contagemSub[s.id] ?? 0
-                      return (
-                        <li key={s.id}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSubsTemp((prev) =>
-                                ativo ? prev.filter((id) => id !== s.id) : [...prev, s.id],
-                              )
-                            }}
-                            className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-medium text-gray-900 ${
-                              ativo ? 'border-[#0097b2] bg-[#0097b2]/10' : 'border-gray-200 bg-white'
-                            }`}
-                          >
-                            <span
-                              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                                ativo ? 'border-[#0097b2] bg-[#0097b2]' : 'border-gray-300 bg-white'
-                              }`}
-                            >
-                              {ativo ? <Check className="h-2.5 w-2.5 text-white" aria-hidden /> : null}
-                            </span>
-                            <span className="min-w-0 flex-1 truncate text-gray-900">{s.nome}</span>
-                            <span className="shrink-0 tabular-nums text-xs font-semibold text-gray-400">
-                              {qtd}
-                            </span>
-                          </button>
-                        </li>
-                      )
-                    })
-                  )}
-                </ul>
-              )}
-            </div>
-            <div className="flex shrink-0 gap-2 border-t p-4">
-              {fase === 2 ? (
-                <button
-                  type="button"
-                  onClick={() => setFase(1)}
-                  className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-700"
-                >
-                  Voltar
-                </button>
-              ) : null}
+                  })
+                )}
+              </ul>
+            )}
+          </div>
+          <div className="flex shrink-0 gap-2 border-t border-gray-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            {fase === 2 ? (
               <button
                 type="button"
-                disabled={!catTemp}
-                onClick={confirmarCategoria}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#00D443] py-2.5 text-sm font-bold text-white disabled:opacity-50"
+                onClick={() => setFase(1)}
+                className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-700"
               >
-                <Search className="h-4 w-4" aria-hidden />
-                BUSCAR
+                Voltar
               </button>
-            </div>
+            ) : null}
+            <button
+              type="button"
+              disabled={!catTemp}
+              onClick={confirmarCategoria}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#00D443] py-2.5 text-sm font-bold text-white disabled:opacity-50"
+            >
+              <Search className="h-4 w-4" aria-hidden />
+              BUSCAR
+            </button>
           </div>
         </div>
       ) : null}
