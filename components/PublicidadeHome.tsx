@@ -194,6 +194,10 @@ export default function PublicidadeHome() {
   const [anuncios, setAnuncios] = useState<AnuncioSlide[]>([])
   const [carregando, setCarregando] = useState(true)
   const [indice, setIndice] = useState(0)
+  /** Android: banner maior para igualar o visual do iOS (mesmo CSS px renderiza menor no Chrome). */
+  const [androidBanner, setAndroidBanner] = useState(false)
+  const [viewportW, setViewportW] = useState(0)
+  const viewportRef = useRef<HTMLDivElement | null>(null)
   const touchStartX = useRef<number | null>(null)
   /** Evita reaplicar rotação no fetch (bug: avançava 2× e “grudava” no mesmo criativo). */
   const rotacaoAplicadaRef = useRef(false)
@@ -202,6 +206,28 @@ export default function PublicidadeHome() {
 
   indiceRef.current = indice
   anunciosRef.current = anuncios
+
+  useLayoutEffect(() => {
+    try {
+      setAndroidBanner(/Android/i.test(navigator.userAgent || ''))
+    } catch {
+      setAndroidBanner(false)
+    }
+  }, [])
+
+  useLayoutEffect(() => {
+    const el = viewportRef.current
+    if (!el) return
+    const medir = () => setViewportW(el.clientWidth)
+    medir()
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', medir)
+      return () => window.removeEventListener('resize', medir)
+    }
+    const ro = new ResizeObserver(medir)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [carregando, anuncios.length])
 
   const aplicarSlides = useCallback((slides: AnuncioSlide[]) => {
     if (!rotacaoAplicadaRef.current) {
@@ -350,11 +376,11 @@ export default function PublicidadeHome() {
   }
 
   const alt = t('adImageAlt')
-  /**
-   * Altura do modelo iOS (antes: h-44 / sm:h-52), em px fixos.
-   * Evita rem (Android costuma escalar fonte e encolher o banner).
-   */
-  const blocoH = 'min-h-[176px] h-[176px] sm:h-[208px]'
+  // iOS: 176/208 (referência). Android: ~+30% para compensar escala visual do Chrome.
+  const blocoH = androidBanner
+    ? 'min-h-[232px] h-[232px] sm:h-[272px]'
+    : 'min-h-[176px] h-[176px] sm:h-[208px]'
+  const slideW = viewportW > 0 ? viewportW : undefined
 
   return (
     <div className="shrink-0 px-3 pb-2 sm:px-4">
@@ -362,23 +388,29 @@ export default function PublicidadeHome() {
         {n > 0 ? (
           <div className="w-full">
             <div
+              ref={viewportRef}
               className="relative w-full overflow-hidden rounded-lg"
               onTouchStart={onTouchStart}
               onTouchEnd={onTouchEnd}
             >
-              {/*
-                Track com w-full (largura do viewport) + slides flex-basis 100%.
-                Sem isso o Chrome Android colapsa o slide à largura da imagem
-                e o banner fica estreito/desalinhado; o Safari (iOS) mascarava o bug.
-              */}
               <div
-                className="flex w-full transition-transform duration-300 ease-out"
-                style={{ transform: `translateX(-${indice * 100}%)` }}
+                className="flex transition-transform duration-300 ease-out will-change-transform"
+                style={{
+                  transform:
+                    slideW != null
+                      ? `translate3d(-${indice * slideW}px,0,0)`
+                      : `translate3d(-${indice * 100}%,0,0)`,
+                }}
               >
                 {anuncios.map((anuncio, slideIdx) => (
                   <div
                     key={anuncio.id}
-                    className="w-full min-w-full max-w-full shrink-0 grow-0 basis-full"
+                    className="shrink-0 grow-0"
+                    style={
+                      slideW != null
+                        ? { width: slideW, minWidth: slideW, maxWidth: slideW }
+                        : { width: '100%', minWidth: '100%', flexBasis: '100%' }
+                    }
                   >
                     <SlideEnvoltorio anuncio={anuncio}>
                       <BlocoImagemBanner
