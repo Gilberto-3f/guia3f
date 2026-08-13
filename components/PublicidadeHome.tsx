@@ -88,7 +88,7 @@ function BlocoImagemBanner({
   const usarNextImage = imagem && isSupabasePublicStorageUrl(imagem)
 
   return (
-    <div className={`relative w-full overflow-hidden rounded-lg bg-gray-200 ${classNameHeight}`}>
+    <div className={`relative h-full w-full overflow-hidden rounded-lg bg-gray-200 ${classNameHeight}`}>
       {imagem ? (
         usarNextImage ? (
           <Image
@@ -107,7 +107,7 @@ function BlocoImagemBanner({
             key={anuncio.id}
             src={imagem}
             alt={alt}
-            className="absolute inset-0 h-full w-full object-cover"
+            className="h-full w-full object-cover"
             fetchPriority={priorizarCarregamento ? 'high' : 'auto'}
           />
         )
@@ -350,8 +350,11 @@ export default function PublicidadeHome() {
   }
 
   const alt = t('adImageAlt')
-  /** Mesma proporção do upload (empresa): 2:1 — altura pelo width, igual em iOS/Android (sem rem). */
-  const blocoH = 'aspect-[2/1] w-full'
+  /**
+   * Altura do modelo iOS (antes: h-44 / sm:h-52), em px fixos.
+   * Evita rem (Android costuma escalar fonte e encolher o banner).
+   */
+  const blocoH = 'min-h-[176px] h-[176px] sm:h-[208px]'
 
   return (
     <div className="shrink-0 px-4 pb-2">
