@@ -1,11 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { BarChart3, Filter, Gift } from 'lucide-react'
+import { BarChart3, Filter, Gift, PackageSearch, ShoppingCart } from 'lucide-react'
 import { AdminSecaoChevron } from '../../shared/AdminSecaoChevron'
 import { AnaliseBeneficios } from './AnaliseBeneficios'
 import { FunilConversaoGeral } from './FunilConversaoGeral'
 import { EstatisticasMercado } from './EstatisticasMercado'
+import { DrenaStokAdm } from './DrenaStokAdm'
+import { CatalogosDrenaStokGeral } from './CatalogosDrenaStokGeral'
 import { useEmpresasAdm } from '../../../hooks/useEmpresasAdm'
 import { useComissaoOfertaAdm } from '../../../hooks/useComissaoOfertaAdm'
 
@@ -14,6 +16,8 @@ export function EmpresasAdm() {
   const [secoes, setSecoes] = useState({
     analise: false,
     estatisticas: false,
+    drenaStok: false,
+    catalogosDrena: false,
     funil: false,
   })
 
@@ -49,6 +53,34 @@ export function EmpresasAdm() {
         onToggle={() => toggle('estatisticas')}
       >
         <EstatisticasMercado />
+      </AdminSecaoChevron>
+
+      <AdminSecaoChevron
+        titulo="Drena-Stok"
+        tituloGrande
+        icone={ShoppingCart}
+        corTitulo="#0097b2"
+        aberta={secoes.drenaStok}
+        onToggle={() => toggle('drenaStok')}
+      >
+        <DrenaStokAdm />
+      </AdminSecaoChevron>
+
+      <AdminSecaoChevron
+        titulo="Catálogos Drena-Stok (geral)"
+        tituloGrande
+        icone={PackageSearch}
+        corTitulo="#0097b2"
+        aberta={secoes.catalogosDrena}
+        onToggle={() => toggle('catalogosDrena')}
+      >
+        <CatalogosDrenaStokGeral
+          busca={busca}
+          onBuscaChange={setBusca}
+          empresas={empresas}
+          loading={loading}
+        />
+        {error ? <div className="mt-2 text-xs text-rose-600">{error.message}</div> : null}
       </AdminSecaoChevron>
 
       <AdminSecaoChevron
