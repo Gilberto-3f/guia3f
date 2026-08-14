@@ -229,10 +229,7 @@ export default function HistoricoCompras({ usuarioId }) {
       const res = await fetch(
         `/api/mobilidade/chat/item-esquecido?solicitacao_id=${encodeURIComponent(sid)}`,
       )
-      const json = (await res.json()) as {
-        conversa_id?: string | null
-        status?: string | null
-      }
+      const json = await res.json()
       if (!res.ok || !json.conversa_id) {
         setConversasPorSol((prev) => {
           const next = { ...prev }
