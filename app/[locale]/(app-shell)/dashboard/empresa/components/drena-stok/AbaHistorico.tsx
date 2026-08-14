@@ -103,6 +103,8 @@ function PainelArquivo() {
   const [r100Aberto, setR100Aberto] = useState(false)
   const [recsAberto, setRecsAberto] = useState(false)
   const [catsAberto, setCatsAberto] = useState(false)
+  const [catsFiltroAberto, setCatsFiltroAberto] = useState(false)
+  const [catsMotorAberto, setCatsMotorAberto] = useState(false)
   const [grafAberto, setGrafAberto] = useState(false)
 
   const p = arq.payload
@@ -217,27 +219,44 @@ function PainelArquivo() {
             icone={BarChart3}
             corTitulo={AZUL}
           >
-            <div className="space-y-4">
-              <div>
-                <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">Filtro · Categorias</h3>
-                <ListaRankingNome itens={p.categorias?.filtroCategorias ?? []} />
-              </div>
-              <div>
-                <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">
-                  Filtro · Subcategorias
-                </h3>
-                <ListaRankingNome itens={p.categorias?.filtroSubcategorias ?? []} />
-              </div>
-              <div>
-                <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">Motor · Categorias</h3>
-                <ListaRankingNome itens={p.categorias?.motorCategorias ?? []} />
-              </div>
-              <div>
-                <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">
-                  Motor · Subcategorias
-                </h3>
-                <ListaRankingNome itens={p.categorias?.motorSubcategorias ?? []} />
-              </div>
+            <div className="space-y-3">
+              <ChevronPasta
+                titulo="Pelo filtro"
+                aberto={catsFiltroAberto}
+                onToggle={() => setCatsFiltroAberto((v) => !v)}
+                icone={Search}
+                corTitulo={AZUL}
+              >
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">Categorias</h3>
+                    <ListaRankingNome itens={p.categorias?.filtroCategorias ?? []} />
+                  </div>
+                  <div>
+                    <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">Subcategorias</h3>
+                    <ListaRankingNome itens={p.categorias?.filtroSubcategorias ?? []} />
+                  </div>
+                </div>
+              </ChevronPasta>
+
+              <ChevronPasta
+                titulo="Pelo motor de busca"
+                aberto={catsMotorAberto}
+                onToggle={() => setCatsMotorAberto((v) => !v)}
+                icone={Search}
+                corTitulo={VERDE}
+              >
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">Categorias</h3>
+                    <ListaRankingNome itens={p.categorias?.motorCategorias ?? []} />
+                  </div>
+                  <div>
+                    <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">Subcategorias</h3>
+                    <ListaRankingNome itens={p.categorias?.motorSubcategorias ?? []} />
+                  </div>
+                </div>
+              </ChevronPasta>
             </div>
           </ChevronPasta>
 
@@ -248,15 +267,9 @@ function PainelArquivo() {
             icone={BarChart3}
             corTitulo={VERDE}
           >
-            <div className="space-y-4">
-              <div>
-                <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">Pizza</h3>
-                <PizzaCategorias fatias={p.graficos?.pizza ?? []} />
-              </div>
-              <div>
-                <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">Lista · desempenho</h3>
-                <ListaRankingNome itens={p.graficos?.listaDesempenho ?? []} rotuloTotal="evt." />
-              </div>
+            <div>
+              <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">Pizza</h3>
+              <PizzaCategorias fatias={p.graficos?.pizza ?? []} />
             </div>
           </ChevronPasta>
 

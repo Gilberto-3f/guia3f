@@ -37,6 +37,8 @@ export default function AbaComprasCde() {
   const [rankingAberto, setRankingAberto] = useState(false)
   const [recsAberto, setRecsAberto] = useState(false)
   const [catsAberto, setCatsAberto] = useState(false)
+  const [catsFiltroAberto, setCatsFiltroAberto] = useState(false)
+  const [catsMotorAberto, setCatsMotorAberto] = useState(false)
   const [graficosAberto, setGraficosAberto] = useState(false)
   const [infoDesempenhoAberto, setInfoDesempenhoAberto] = useState(false)
   useModalScrollLock(infoDesempenhoAberto)
@@ -192,41 +194,50 @@ export default function AbaComprasCde() {
             icone={BarChart3}
             corTitulo={AZUL}
           >
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase text-gray-500">
-                  <Search className="h-3.5 w-3.5" aria-hidden />
-                  Filtro · Categorias (popup)
-                </h3>
-                <ListaRankingNome itens={d.filtroCategorias} vazio="Nenhum filtro de categoria." />
-              </div>
-              <div>
-                <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase text-gray-500">
-                  <Search className="h-3.5 w-3.5" aria-hidden />
-                  Filtro · Subcategorias (popup)
-                </h3>
-                <ListaRankingNome
-                  itens={d.filtroSubcategorias}
-                  vazio="Nenhum filtro de subcategoria."
-                />
-              </div>
-              <div>
-                <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase text-gray-500">
-                  <Search className="h-3.5 w-3.5" aria-hidden />
-                  Motor · Categorias (produto clicado)
-                </h3>
-                <ListaRankingNome itens={d.motorCategorias} vazio="Nenhum clique com categoria." />
-              </div>
-              <div>
-                <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase text-gray-500">
-                  <Search className="h-3.5 w-3.5" aria-hidden />
-                  Motor · Subcategorias (produto clicado)
-                </h3>
-                <ListaRankingNome
-                  itens={d.motorSubcategorias}
-                  vazio="Nenhum clique com subcategoria."
-                />
-              </div>
+            <div className="space-y-3">
+              <ChevronPasta
+                titulo="Pelo filtro"
+                aberto={catsFiltroAberto}
+                onToggle={() => setCatsFiltroAberto((v) => !v)}
+                icone={Search}
+                corTitulo={AZUL}
+              >
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">Categorias</h3>
+                    <ListaRankingNome itens={d.filtroCategorias} vazio="Nenhuma categoria filtrada." />
+                  </div>
+                  <div>
+                    <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">Subcategorias</h3>
+                    <ListaRankingNome
+                      itens={d.filtroSubcategorias}
+                      vazio="Nenhuma subcategoria filtrada."
+                    />
+                  </div>
+                </div>
+              </ChevronPasta>
+
+              <ChevronPasta
+                titulo="Pelo motor de busca"
+                aberto={catsMotorAberto}
+                onToggle={() => setCatsMotorAberto((v) => !v)}
+                icone={Search}
+                corTitulo={VERDE}
+              >
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">Categorias</h3>
+                    <ListaRankingNome itens={d.motorCategorias} vazio="Nenhum clique com categoria." />
+                  </div>
+                  <div>
+                    <h3 className="mb-2 text-xs font-bold uppercase text-gray-500">Subcategorias</h3>
+                    <ListaRankingNome
+                      itens={d.motorSubcategorias}
+                      vazio="Nenhum clique com subcategoria."
+                    />
+                  </div>
+                </div>
+              </ChevronPasta>
             </div>
           </ChevronPasta>
 
