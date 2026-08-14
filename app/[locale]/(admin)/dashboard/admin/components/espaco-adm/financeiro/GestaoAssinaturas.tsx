@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { BadgeCheck, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import { usePermissao } from '../../../hooks/usePermissao'
@@ -41,6 +41,12 @@ type ItemGestaoAssinatura = {
   empresa: EmpresaCardInfo
 }
 
+type GrupoEmpresaAssinaturas = {
+  empresaId: string
+  empresa: EmpresaCardInfo
+  itens: ItemGestaoAssinatura[]
+}
+
 function tabCls(ativa: boolean) {
   return [
     'flex min-h-[44px] flex-1 items-center justify-center rounded-xl px-3 py-2.5 text-sm font-bold uppercase tracking-wide transition',
@@ -64,6 +70,42 @@ function labelBadge(badge: string | undefined) {
   return badge ?? ''
 }
 
+function textoBadgeExtra(badge: string | undefined) {
+  if (badge === 'ATIVO') return ' — assinatura regular'
+  if (badge === 'INATIVO') return ' — pagamento pendente / assinatura bloqueada'
+  if (badge === 'MODO_DEGUSTACAO') return ' — período de degustação ativo'
+  if (badge === 'DEGUSTACAO_ENCERRADA') return ' — período de degustação encerrado'
+  return ''
+}
+
+/** Prioridade do status agregado no card da empresa. */
+function prioridadeBadge(badge: string | undefined) {
+  if (badge === 'ATIVO') return 4
+  if (badge === 'MODO_DEGUSTACAO') return 3
+  if (badge === 'INATIVO') return 2
+  if (badge === 'DEGUSTACAO_ENCERRADA') return 1
+  return 0
+}
+
+function badgeAgregado(itens: ItemGestaoAssinatura[]) {
+  let melhor: string | undefined
+  let score = -1
+  for (const item of itens) {
+    const s = prioridadeBadge(item.status_badge)
+    if (s > score) {
+      score = s
+      melhor = item.status_badge
+    }
+  }
+  return melhor
+}
+
+function tituloChevronItem(item: ItemGestaoAssinatura, index: number, total: number) {
+  if (item.tipo === 'degustacao') return total > 1 ? `Degustação ${index + 1}` : 'Degustação'
+  if (item.tipo === 'solicitacao') return total > 1 ? `Solicitação ${index + 1}` : 'Solicitação'
+  return total > 1 ? `Contratação ${index + 1}` : 'Contratação'
+}
+
 function formatarData(iso: string | null | undefined) {
   if (!iso) return '—'
   try {
@@ -71,6 +113,33 @@ function formatarData(iso: string | null | undefined) {
   } catch {
     return '—'
   }
+}
+
+function agruparPorEmpresa(items: ItemGestaoAssinatura[]): GrupoEmpresaAssinaturas[] {
+  const map = new Map<string, GrupoEmpresaAssinaturas>()
+  for (const item of items) {
+    const empresaId = String(item.empresa?.empresa_id ?? '').trim()
+    if (!empresaId) continue
+    const existente = map.get(empresaId)
+    if (existente) {
+      existente.itens.push(item)
+    } else {
+      map.set(empresaId, {
+        empresaId,
+        empresa: item.empresa,
+        itens: [item],
+      })
+    }
+  }
+
+  return [...map.values()].map((g) => ({
+    ...g,
+    itens: [...g.itens].sort((a, b) => {
+      const ta = new Date(a.assinado_em).getTime()
+      const tb = new Date(b.assinado_em).getTime()
+      return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0)
+    }),
+  }))
 }
 
 function CabecalhoEmpresaCard({ empresa }: { empresa: EmpresaCardInfo }) {
@@ -98,23 +167,7 @@ function CabecalhoEmpresaCard({ empresa }: { empresa: EmpresaCardInfo }) {
   )
 }
 
-function CardAssinaturaItem({
-  item,
-  aba,
-  validandoId,
-  recusandoId,
-  onConfirmar,
-  onRecusar,
-}: {
-  item: ItemGestaoAssinatura
-  aba: AbaGestao
-  validandoId: string | null
-  recusandoId: string | null
-  onConfirmar: (id: string) => void
-  onRecusar: (id: string) => void
-}) {
-  const [assinaturaAberta, setAssinaturaAberta] = useState(true)
-  const mostrarAcoes = aba === 'solicitacoes' && item.tipo === 'solicitacao'
+function DetalheAssinatura({ item }: { item: ItemGestaoAssinatura }) {
   const lembreteVencimento =
     item.dias_para_vencimento != null &&
     item.dias_para_vencimento <= 5 &&
@@ -122,105 +175,173 @@ function CardAssinaturaItem({
     item.status_badge === 'ATIVO'
 
   return (
-    <li className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-      {aba === 'assinantes' && item.status_badge ? (
-        <div className={`px-4 py-2 text-center text-xs font-bold uppercase tracking-wide ${badgeStatusCls(item.status_badge)}`}>
+    <div className="mt-2 space-y-1.5 rounded-lg border border-gray-100 bg-white px-3 py-3 text-sm text-gray-800">
+      {item.status_badge ? (
+        <p className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${badgeStatusCls(item.status_badge)}`}>
           {labelBadge(item.status_badge)}
-          {item.status_badge === 'ATIVO' ? ' — assinatura regular' : ''}
-          {item.status_badge === 'INATIVO' ? ' — pagamento pendente / assinatura bloqueada' : ''}
-          {item.status_badge === 'MODO_DEGUSTACAO' ? ' — período de degustação ativo' : ''}
-          {item.status_badge === 'DEGUSTACAO_ENCERRADA' ? ' — período de degustação encerrado' : ''}
+        </p>
+      ) : null}
+      <p>
+        <span className="font-semibold text-gray-600">Plano:</span> {item.plano_titulo}
+      </p>
+      <p>
+        <span className="font-semibold text-gray-600">Modalidade:</span> {item.modalidade_label}
+      </p>
+      <p>
+        <span className="font-semibold text-gray-600">Forma de pagamento:</span> {item.forma_pagamento_label}
+      </p>
+      {item.valor > 0 ? (
+        <p>
+          <span className="font-semibold text-gray-600">Valor:</span> R${' '}
+          {item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+        </p>
+      ) : null}
+      <p className="text-xs text-gray-500">Assinatura em {formatarData(item.assinado_em)}</p>
+      {item.vencimento_em ? (
+        <p className="text-xs text-gray-500">Vencimento: {formatarData(item.vencimento_em)}</p>
+      ) : null}
+      {item.expira_em ? (
+        <p className="text-xs text-gray-500">Expira em {formatarData(item.expira_em)}</p>
+      ) : null}
+      {item.visita_agendada_em ? (
+        <p className="text-xs font-medium text-[#001f3f]">
+          Visita agendada: {formatarData(item.visita_agendada_em)}
+        </p>
+      ) : null}
+      {item.visita_responsavel_nome ? (
+        <p className="text-xs text-gray-600">Responsável: {item.visita_responsavel_nome}</p>
+      ) : null}
+      {item.visita_responsavel_whatsapp ? (
+        <p className="text-xs text-gray-600">WhatsApp: {item.visita_responsavel_whatsapp}</p>
+      ) : null}
+      {lembreteVencimento ? (
+        <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-xs font-semibold text-amber-900">
+          Lembrete: vencimento do plano em {item.dias_para_vencimento} dia(s).
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+function SecaoAssinaturaChevron({
+  item,
+  index,
+  total,
+  aba,
+  validandoId,
+  recusandoId,
+  onConfirmar,
+  onRecusar,
+}: {
+  item: ItemGestaoAssinatura
+  index: number
+  total: number
+  aba: AbaGestao
+  validandoId: string | null
+  recusandoId: string | null
+  onConfirmar: (id: string) => void
+  onRecusar: (id: string) => void
+}) {
+  const [aberta, setAberta] = useState(false)
+  const mostrarAcoes = aba === 'solicitacoes' && item.tipo === 'solicitacao'
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setAberta((v) => !v)}
+        className="flex w-full items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2.5 text-left"
+        aria-expanded={aberta}
+      >
+        <span className="min-w-0 truncate text-xs font-bold uppercase tracking-wide text-gray-700">
+          {tituloChevronItem(item, index, total)}
+          {item.plano_titulo ? ` · ${item.plano_titulo}` : ''}
+        </span>
+        {aberta ? (
+          <ChevronUp className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />
+        ) : (
+          <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />
+        )}
+      </button>
+
+      {aberta ? (
+        <>
+          <DetalheAssinatura item={item} />
+          {mostrarAcoes ? (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                disabled={validandoId === item.id || recusandoId === item.id}
+                onClick={() => onConfirmar(item.id)}
+                className="flex items-center justify-center gap-2 rounded-xl bg-[#00D443] py-3 text-sm font-bold uppercase tracking-wide text-white hover:bg-[#00b83b] disabled:opacity-50"
+              >
+                {validandoId === item.id ? (
+                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                ) : (
+                  <BadgeCheck className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
+                )}
+                {validandoId === item.id ? 'Confirmando…' : 'Confirmar'}
+              </button>
+              <button
+                type="button"
+                disabled={validandoId === item.id || recusandoId === item.id}
+                onClick={() => onRecusar(item.id)}
+                className="flex items-center justify-center gap-2 rounded-xl bg-[#0097b2] py-3 text-sm font-bold uppercase tracking-wide text-white hover:bg-[#008099] disabled:opacity-50"
+              >
+                {recusandoId === item.id ? (
+                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                ) : null}
+                {recusandoId === item.id ? 'Recusando…' : 'Recusar'}
+              </button>
+            </div>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  )
+}
+
+function CardEmpresaAssinaturas({
+  grupo,
+  aba,
+  validandoId,
+  recusandoId,
+  onConfirmar,
+  onRecusar,
+}: {
+  grupo: GrupoEmpresaAssinaturas
+  aba: AbaGestao
+  validandoId: string | null
+  recusandoId: string | null
+  onConfirmar: (id: string) => void
+  onRecusar: (id: string) => void
+}) {
+  const badge = aba === 'assinantes' ? badgeAgregado(grupo.itens) : undefined
+
+  return (
+    <li className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      {badge ? (
+        <div className={`px-4 py-2 text-center text-xs font-bold uppercase tracking-wide ${badgeStatusCls(badge)}`}>
+          {labelBadge(badge)}
+          {textoBadgeExtra(badge)}
         </div>
       ) : null}
 
-      <div className="p-4">
-        <CabecalhoEmpresaCard empresa={item.empresa} />
-
-        <button
-          type="button"
-          onClick={() => setAssinaturaAberta((v) => !v)}
-          className="mt-4 flex w-full items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2.5 text-left"
-          aria-expanded={assinaturaAberta}
-        >
-          <span className="text-xs font-bold uppercase tracking-wide text-gray-700">Assinatura</span>
-          {assinaturaAberta ? (
-            <ChevronUp className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />
-          ) : (
-            <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />
-          )}
-        </button>
-
-        {assinaturaAberta ? (
-          <div className="mt-2 space-y-1.5 rounded-lg border border-gray-100 bg-white px-3 py-3 text-sm text-gray-800">
-            <p>
-              <span className="font-semibold text-gray-600">Plano:</span> {item.plano_titulo}
-            </p>
-            <p>
-              <span className="font-semibold text-gray-600">Modalidade:</span> {item.modalidade_label}
-            </p>
-            <p>
-              <span className="font-semibold text-gray-600">Forma de pagamento:</span> {item.forma_pagamento_label}
-            </p>
-            {item.valor > 0 ? (
-              <p>
-                <span className="font-semibold text-gray-600">Valor:</span> R${' '}
-                {item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </p>
-            ) : null}
-            <p className="text-xs text-gray-500">Assinatura em {formatarData(item.assinado_em)}</p>
-            {item.vencimento_em ? (
-              <p className="text-xs text-gray-500">Vencimento: {formatarData(item.vencimento_em)}</p>
-            ) : null}
-            {item.expira_em ? (
-              <p className="text-xs text-gray-500">Expira em {formatarData(item.expira_em)}</p>
-            ) : null}
-            {item.visita_agendada_em ? (
-              <p className="text-xs font-medium text-[#001f3f]">
-                Visita agendada: {formatarData(item.visita_agendada_em)}
-              </p>
-            ) : null}
-            {item.visita_responsavel_nome ? (
-              <p className="text-xs text-gray-600">Responsável: {item.visita_responsavel_nome}</p>
-            ) : null}
-            {item.visita_responsavel_whatsapp ? (
-              <p className="text-xs text-gray-600">WhatsApp: {item.visita_responsavel_whatsapp}</p>
-            ) : null}
-            {lembreteVencimento ? (
-              <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-xs font-semibold text-amber-900">
-                Lembrete: vencimento do plano em {item.dias_para_vencimento} dia(s).
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-
-        {mostrarAcoes ? (
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              disabled={validandoId === item.id || recusandoId === item.id}
-              onClick={() => onConfirmar(item.id)}
-              className="flex items-center justify-center gap-2 rounded-xl bg-[#00D443] py-3 text-sm font-bold uppercase tracking-wide text-white hover:bg-[#00b83b] disabled:opacity-50"
-            >
-              {validandoId === item.id ? (
-                <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-              ) : (
-                <BadgeCheck className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
-              )}
-              {validandoId === item.id ? 'Confirmando…' : 'Confirmar'}
-            </button>
-            <button
-              type="button"
-              disabled={validandoId === item.id || recusandoId === item.id}
-              onClick={() => onRecusar(item.id)}
-              className="flex items-center justify-center gap-2 rounded-xl bg-[#0097b2] py-3 text-sm font-bold uppercase tracking-wide text-white hover:bg-[#008099] disabled:opacity-50"
-            >
-              {recusandoId === item.id ? (
-                <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-              ) : null}
-              {recusandoId === item.id ? 'Recusando…' : 'Recusar'}
-            </button>
-          </div>
-        ) : null}
+      <div className="space-y-3 p-4">
+        <CabecalhoEmpresaCard empresa={grupo.empresa} />
+        {grupo.itens.map((item, index) => (
+          <SecaoAssinaturaChevron
+            key={`${item.tipo}-${item.id}`}
+            item={item}
+            index={index}
+            total={grupo.itens.length}
+            aba={aba}
+            validandoId={validandoId}
+            recusandoId={recusandoId}
+            onConfirmar={onConfirmar}
+            onRecusar={onRecusar}
+          />
+        ))}
       </div>
     </li>
   )
@@ -239,6 +360,8 @@ export function GestaoAssinaturas() {
   const [validandoId, setValidandoId] = useState<string | null>(null)
   const [recusandoId, setRecusandoId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
+
+  const grupos = useMemo(() => agruparPorEmpresa(items), [items])
 
   const carregar = useCallback(async () => {
     if (!isAdminFinanceiro) return
@@ -339,16 +462,16 @@ export function GestaoAssinaturas() {
           <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
           Carregando…
         </div>
-      ) : items.length === 0 ? (
+      ) : grupos.length === 0 ? (
         <p className="py-10 text-center text-sm text-gray-500">
           {aba === 'solicitacoes' ? 'Nenhuma solicitação pendente.' : 'Nenhum assinante registrado.'}
         </p>
       ) : (
         <ul className="space-y-3">
-          {items.map((item) => (
-            <CardAssinaturaItem
-              key={`${item.tipo}-${item.id}`}
-              item={item}
+          {grupos.map((grupo) => (
+            <CardEmpresaAssinaturas
+              key={grupo.empresaId}
+              grupo={grupo}
               aba={aba}
               validandoId={validandoId}
               recusandoId={recusandoId}

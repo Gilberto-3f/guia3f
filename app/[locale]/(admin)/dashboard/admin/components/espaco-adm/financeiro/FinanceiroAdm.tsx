@@ -2,16 +2,15 @@
 
 import { useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { CreditCard, Handshake, Percent, Users } from 'lucide-react'
+import { CreditCard, Percent, Users } from 'lucide-react'
 import { AdminSecaoChevron } from '../../shared/AdminSecaoChevron'
 import { ConfigPlanos } from './ConfigPlanos'
 import { ConfigComissoes } from './ConfigComissoes'
-import { CadastroEmpresasParceiras } from './CadastroEmpresasParceiras'
 import { GestaoAssinaturas } from './GestaoAssinaturas'
 
 const COR_LOGO = '#0097b2'
 
-type SecaoId = 'planos' | 'assinaturas' | 'comissoes' | 'parceiras'
+type SecaoId = 'planos' | 'assinaturas' | 'comissoes'
 
 type SecaoMeta = {
   titulo: string
@@ -35,14 +34,9 @@ const SECOES: Record<SecaoId, SecaoMeta> = {
     Icon: Percent,
     descricao: 'Regras de divisão de comissões por tipo de serviço e modelo de indicação.',
   },
-  parceiras: {
-    titulo: 'Empresas Parceiras',
-    Icon: Handshake,
-    descricao: 'Cadastro e gestão das empresas parceiras da rede.',
-  },
 }
 
-const ORDEM_SECOES: SecaoId[] = ['planos', 'assinaturas', 'comissoes', 'parceiras']
+const ORDEM_SECOES: SecaoId[] = ['planos', 'assinaturas', 'comissoes']
 
 export function FinanceiroAdm() {
   const [secoes, setSecoes] = useState<Record<SecaoId, boolean>>(() =>
@@ -61,8 +55,6 @@ export function FinanceiroAdm() {
         return <GestaoAssinaturas />
       case 'comissoes':
         return <ConfigComissoes />
-      case 'parceiras':
-        return <CadastroEmpresasParceiras />
       default:
         return null
     }
