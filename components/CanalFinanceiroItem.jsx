@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { DollarSign, FileText, CheckCircle, Eye, MessageCircle } from 'lucide-react'
+import { DollarSign, FileText, CheckCircle, Eye, MessageCircle, Handshake } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import { supabase } from '@/lib/supabase'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
@@ -30,11 +30,15 @@ import { openWhatsAppChat } from '@/lib/whatsapp-empresa'
  *   userTipo: 'profissional' | 'empresa'
  *   destinoRotulo?: string | null
  *   onItemLido?: (itemId: string) => void | Promise<void>
+ *   onItemAtualizado?: (itemId: string, patch: Record<string, unknown>) => void
  * }} props
  */
-export default function CanalFinanceiroItem({ item, userTipo, destinoRotulo = null, onItemLido }) {
+export default function CanalFinanceiroItem({ item, userTipo, destinoRotulo = null, onItemLido, onItemAtualizado }) {
   const [marcandoLida, setMarcandoLida] = useState(false)
   const [lidaLocal, setLidaLocal] = useState(false)
+  const [reforcando, setReforcando] = useState(false)
+  const [erroReforcar, setErroReforcar] = useState('')
+  const [cedeuLocal, setCedeuLocal] = useState(false)
 
   const detalhes =
     item.metadata && typeof item.metadata === 'object' && Object.keys(item.metadata).length > 0
@@ -63,6 +67,19 @@ export default function CanalFinanceiroItem({ item, userTipo, destinoRotulo = nu
     detalhes.recomendado_em != null && String(detalhes.recomendado_em).trim() !== ''
       ? String(detalhes.recomendado_em)
       : null
+
+  const parceriaId =
+    detalhes.parceria_id != null && String(detalhes.parceria_id).trim()
+      ? String(detalhes.parceria_id).trim()
+      : ''
+  const cedeuFatia = cedeuLocal || detalhes.cedeu_fatia === true
+  const podeReforcarParceria =
+    userTipo === 'profissional' &&
+    kind === 'parceria_comissao_empresa' &&
+    String(detalhes.papel ?? '') === 'indicado' &&
+    detalhes.pode_reforcar !== false &&
+    !cedeuFatia &&
+    Boolean(parceriaId)
 
   const getIcon = () => {
     switch (item.tipo) {
@@ -119,6 +136,43 @@ export default function CanalFinanceiroItem({ item, userTipo, destinoRotulo = nu
       console.error('Erro ao marcar como lida:', e)
     } finally {
       setMarcandoLida(false)
+    }
+  }
+
+  const reforcarParceria = async () => {
+    if (!parceriaId || reforcando) return
+    setReforcando(true)
+    setErroReforcar('')
+    try {
+      const res = await fetch(`/api/profissional/parcerias/${encodeURIComponent(parceriaId)}/reforcar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ canal_item_id: item.id }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setErroReforcar(String(json.error ?? 'Não foi possível reforçar a parceria.'))
+        return
+      }
+      setCedeuLocal(true)
+      if (typeof onItemAtualizado === 'function') {
+        onItemAtualizado(item.id, {
+          mensagem:
+            'Parceria reforçada: você cedeu sua fatia das comissões de empresas ao indicador. Ele passa a receber 100% nesta parceria.',
+          comprovante_detalhes: {
+            ...detalhes,
+            cedeu_fatia: true,
+            pode_reforcar: false,
+            split_regular_pct: 0,
+            split_indicador_pct: 100,
+          },
+        })
+      }
+      notificarBadgeCanais()
+    } catch {
+      setErroReforcar('Não foi possível reforçar a parceria.')
+    } finally {
+      setReforcando(false)
     }
   }
 
@@ -216,6 +270,36 @@ export default function CanalFinanceiroItem({ item, userTipo, destinoRotulo = nu
               <Eye size={14} aria-hidden />
               Ver comprovante
             </a>
+          ) : null}
+
+          {kind === 'parceria_comissao_empresa' ? (
+            <p className="mb-2 text-xs font-medium text-[#0097b2]">
+              {cedeuFatia
+                ? 'Fatia do indicado cedida — indicador 100% nas comissões de empresas.'
+                : `Split atual: indicado ${Number(detalhes.split_regular_pct) || 50}% · indicador ${Number(detalhes.split_indicador_pct) || 50}% (só comissões de empresas).`}
+            </p>
+          ) : null}
+
+          {podeReforcarParceria ? (
+            <div className="mb-2 space-y-1.5">
+              <button
+                type="button"
+                onClick={() => void reforcarParceria()}
+                disabled={reforcando}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#00D443] px-3 py-2.5 text-sm font-bold text-white disabled:opacity-60"
+              >
+                <Handshake size={16} aria-hidden />
+                {reforcando ? 'Reforçando…' : 'REFORÇAR PARCERIA'}
+              </button>
+              <p className="text-[11px] leading-snug text-gray-500">
+                Cede sua fatia das comissões de empresas ao profissional que indicou. Não altera o valor da rota tabelada.
+              </p>
+              {erroReforcar ? <p className="text-xs text-red-600">{erroReforcar}</p> : null}
+            </div>
+          ) : null}
+
+          {cedeuFatia && kind === 'parceria_comissao_empresa' && String(detalhes.papel ?? '') === 'indicado' ? (
+            <p className="mb-2 text-xs font-semibold text-emerald-700">Parceria reforçada — fatia cedida.</p>
           ) : null}
 
           <p className="text-xs text-gray-400">{new Date(item.created_at).toLocaleString('pt-BR')}</p>

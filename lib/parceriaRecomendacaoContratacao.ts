@@ -1,9 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { categoriasIncluemAnfitriao } from '@/lib/anfitriaoDualMode'
 import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresa'
-import { inserirNotificacaoCanalFinanceiroProfissional } from '@/lib/canalFinanceiroProfissional'
 import { buscarConfigComissoesAtiva, parProfissionaisOrdenado } from '@/lib/configComissoesRuntime'
-import { formatProfissionalCategorias } from '@/app/[locale]/(admin)/dashboard/admin/components/verificacao/verificacaoFormatters'
+import { emitirRecibosParceriaComissaoEmpresa } from '@/lib/parceriaComissaoEmpresaRecibo'
 import {
   mapParceiroFinanceiroMeta,
   notificarAnfitriaoPropostaParceriaBase,
@@ -265,68 +264,23 @@ export async function processarContratacaoRecomendacaoProfissional(
     })
   }
 
-  const config = await buscarConfigComissoesAtiva(supabase)
-  const splitRegular = config.empresa_split.regular
-  const splitIndicador = config.empresa_split.indicador
-  const nomeIndicado = String(indicado.nome_completo ?? 'Profissional')
-  const catIndicado = formatProfissionalCategorias(
-    Array.isArray(indicado.categorias) ? indicado.categorias.map(String) : [],
-  )
   const catsIndicado = Array.isArray(indicado.categorias) ? indicado.categorias.map(String) : []
   const catsIndicador = Array.isArray(indicador?.categorias) ? indicador.categorias.map(String) : []
   const indicadoEhAnfitriao = categoriasIncluemAnfitriao(catsIndicado)
   const indicadorEhAnfitriao = categoriasIncluemAnfitriao(catsIndicador)
 
-  const metaComum = {
-    recomendacao_id: recomendacaoId,
-    parceria_id: parceriaId,
-    manifesto_id: manifestoId ?? null,
-    turista_usuario_id: turistaUsuarioId,
-    split_regular_pct: splitRegular,
-    split_indicador_pct: splitIndicador,
-    dados_atendimento: dadosAtendimento,
-  }
-
   // Anfitrião/hospedagem: CONTRATAR só redireciona — avisos financeiros saem na reserva.
-  if (!indicadoEhAnfitriao) {
-    const msgIndicado =
-      placaVermelha && params.omitirManifesto
-        ? `Turista ${dadosAtendimento.username} iniciou contratação particular via indicação (drawer de mobilidade). Comissão de serviço regular: ${splitRegular}% (config. ADM).`
-        : placaVermelha
-          ? `Turista ${dadosAtendimento.username} entrou no seu manifesto. Comissão de serviço regular: ${splitRegular}% (config. ADM).`
-          : `Turista ${dadosAtendimento.username} aceitou sua indicação e foi direcionado à contratação. Comissão de serviço regular: ${splitRegular}% (config. ADM).`
-
-    await Promise.all([
-      inserirNotificacaoCanalFinanceiroProfissional(supabase, {
-        profissionalUsuarioId: profissionalIndicadoUsuarioId,
-        tipo: 'extrato_comissao',
-        titulo: 'Contratação via recomendação — serviço regular',
-        mensagem: msgIndicado,
-        comprovanteDetalhes: {
-          ...metaComum,
-          papel: 'regular_contratado',
-          prof_prospector_usuario_id: indicadorUsuarioId,
-          profissional_contratado_usuario_id: profissionalIndicadoUsuarioId,
-        },
-      }),
-      indicadorUsuarioId && !indicadorEhAnfitriao
-        ? inserirNotificacaoCanalFinanceiroProfissional(supabase, {
-            profissionalUsuarioId: indicadorUsuarioId,
-            tipo: 'extrato_parceria',
-            titulo: 'Parceria formada — comissão por indicação',
-            mensagem: `${nomeIndicado} (${catIndicado}) foi contratado pelo turista que você indicou. Sua parte nas comissões de parceria: ${splitIndicador}%.`,
-            comprovanteDetalhes: {
-              ...metaComum,
-              papel: 'indicador',
-              prof_prospector_usuario_id: indicadorUsuarioId,
-              profissional_contratado_usuario_id: profissionalIndicadoUsuarioId,
-            },
-          })
-        : Promise.resolve(),
-    ])
+  if (!indicadoEhAnfitriao && indicadorUsuarioId) {
+    await emitirRecibosParceriaComissaoEmpresa(supabase, {
+      recomendacaoId,
+      parceriaId: parceriaId ?? null,
+      indicadoUsuarioId: profissionalIndicadoUsuarioId,
+      indicadorUsuarioId,
+      turistaUsuarioId,
+    })
 
     // Base pronta (módulo mobilidade): anfitrião recomendou profissional regular.
-    if (indicadorEhAnfitriao && indicadorUsuarioId) {
+    if (indicadorEhAnfitriao) {
       await notificarAnfitriaoPropostaParceriaBase(supabase, {
         anfitriaoUsuarioId: indicadorUsuarioId,
         recomendacaoId,

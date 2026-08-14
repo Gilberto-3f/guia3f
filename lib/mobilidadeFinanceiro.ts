@@ -1,6 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { buscarConfigComissoesAtiva } from '@/lib/configComissoesRuntime'
 import { inserirNotificacaoCanalFinanceiroProfissional } from '@/lib/canalFinanceiroProfissional'
+import {
+  emitirRecibosParceriaComissaoEmpresa,
+  resolverPartesRecomendacao,
+} from '@/lib/parceriaComissaoEmpresaRecibo'
 
 export type RegimeFinanceiroMobilidade = 'tabelada' | 'urbana'
 
@@ -206,6 +210,21 @@ export async function liquidarComissaoCorridaMobilidade(
         },
       })
       if (rInd.id) canalIds.push(rInd.id)
+    }
+
+    // Recibo SEPARADO: parceria 50/50 das comissões de empresas (não mistura com a rota).
+    if (recId && indicadorUsuarioId) {
+      const partes = await resolverPartesRecomendacao(admin, recId)
+      if (partes?.indicadoUsuarioId && partes.indicadorUsuarioId) {
+        await emitirRecibosParceriaComissaoEmpresa(admin, {
+          recomendacaoId: recId,
+          parceriaId: partes.parceriaId,
+          indicadoUsuarioId: partes.indicadoUsuarioId,
+          indicadorUsuarioId: partes.indicadorUsuarioId,
+          turistaUsuarioId: row.turista_id != null ? String(row.turista_id) : null,
+          solicitacaoId: params.solicitacaoId,
+        })
+      }
     }
   }
 

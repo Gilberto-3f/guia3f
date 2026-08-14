@@ -712,6 +712,11 @@ export default function CanalFinanceiroUsuario({
                     userTipo={modoAnfitriaoFinanceiro && item.empresa_id ? 'empresa' : tipo}
                     destinoRotulo={modoAnfitriaoFinanceiro ? item.destino_rotulo : null}
                     onItemLido={marcarItemRelatorioLido}
+                    onItemAtualizado={(itemId, patch) => {
+                      setItens((prev) =>
+                        prev.map((row) => (row.id === itemId ? { ...row, ...patch } : row)),
+                      )
+                    }}
                   />
                 ),
               )
