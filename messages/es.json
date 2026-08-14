@@ -324,7 +324,7 @@
     "carregandoValores": "Cargando valores tabulados…",
     "pedirAcompanhamentoGuia": "Quiero acompañamiento exclusivo de Guía de Turismo (aunque sea dentro de la ciudad)",
     "formaPagamento": "Forma de pago",
-    "pagamentoDepoisHint": "En la v1 el pago se informa al profesional (efectivo). PIX/tarjeta vendrán después.",
+    "pagamentoInicioHint": "El pago no se procesa en la aplicación. Paga directamente al profesional al inicio del servicio usando la forma seleccionada.",
     "agendarTitulo": "Agendar (opcional)",
     "lugaresLabel": "Número de asientos / pasajeros",
     "lugaresHint": "El valor se cobra por asiento en el vehículo.",

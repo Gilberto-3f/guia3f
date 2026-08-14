@@ -3,7 +3,16 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
-import { Car, ChevronDown, ClipboardList, MapPin, Navigation, UserRound, X } from 'lucide-react'
+import {
+  Car,
+  ChevronDown,
+  ClipboardList,
+  Info,
+  MapPin,
+  Navigation,
+  UserRound,
+  X,
+} from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import ChatCorridaMobilidade from '@/components/mobilidade/ChatCorridaMobilidade'
@@ -300,6 +309,13 @@ export default function DrawerAtendimentoAtivoMobilidade({
             </ul>
           ) : null}
         </div>
+
+        {papel === 'turista' && atendimento.modalidade !== 'motorista_app' ? (
+          <div className="mt-3 flex gap-2 rounded-xl border border-[#0097b2]/30 bg-[#0097b2]/5 px-3 py-2.5 text-sm text-gray-700">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#0097b2]" aria-hidden />
+            <p>{t('pagamentoInicioHint')}</p>
+          </div>
+        ) : null}
 
         {/* Chat (chevron + badge) */}
         {atendimento.conversa_id ? (

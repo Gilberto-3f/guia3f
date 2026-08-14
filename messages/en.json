@@ -324,7 +324,7 @@
     "carregandoValores": "Loading table fares…",
     "pedirAcompanhamentoGuia": "I want exclusive Tour Guide accompaniment (even within the city)",
     "formaPagamento": "Payment method",
-    "pagamentoDepoisHint": "In v1 payment is told to the professional (cash). PIX/card come later.",
+    "pagamentoInicioHint": "Payment is not processed by the app. Pay the professional directly at the start of the service using the selected method.",
     "agendarTitulo": "Schedule (optional)",
     "lugaresLabel": "Number of seats / passengers",
     "lugaresHint": "The fare is charged per seat in the vehicle.",

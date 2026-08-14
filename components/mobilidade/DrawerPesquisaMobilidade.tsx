@@ -1310,6 +1310,12 @@ export default function DrawerPesquisaMobilidade({
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: COR }}>
                 {t('formaPagamento')}
               </p>
+              {modalidade !== 'motorista_app' ? (
+                <div className="mb-3 flex gap-2 rounded-lg border border-[#0097b2]/30 bg-[#0097b2]/5 px-3 py-2.5 text-sm text-gray-700">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#0097b2]" aria-hidden />
+                  <p>{t('pagamentoInicioHint')}</p>
+                </div>
+              ) : null}
               <ul className="space-y-2">
                 {PAGAMENTOS_ORDEM.map((id) => (
                   <li key={id}>
