@@ -5,6 +5,11 @@ import { joinSupabaseRow } from '@/lib/supabaseJoinRow'
 
 export const KIND_PARCERIA_COMISSAO_EMPRESA = 'parceria_comissao_empresa'
 
+function percentualConfig(valor: unknown, fallback: number): number {
+  const numero = Number(valor)
+  return Number.isFinite(numero) ? Math.min(100, Math.max(0, numero)) : fallback
+}
+
 export type EmitirReciboParceriaParams = {
   recomendacaoId: string
   parceriaId?: string | null
@@ -64,14 +69,10 @@ export async function emitirRecibosParceriaComissaoEmpresa(
       .select('id, cedeu_fatia_empresa_em, recibo_comissao_empresa_emitido_em')
       .eq('id', parceriaId)
       .maybeSingle()
-    if (parErr && /cedeu_fatia_empresa|recibo_comissao_empresa/i.test(parErr.message)) {
-      const { data: parMin } = await supabase
-        .from('parcerias_profissionais')
-        .select('id')
-        .eq('id', parceriaId)
-        .maybeSingle()
-      if (!parMin?.id) parceriaId = ''
-    } else if (!par?.id) {
+    if (parErr) {
+      return { ok: false, error: parErr.message }
+    }
+    if (!par?.id) {
       parceriaId = ''
     } else {
       cedeuFatia = Boolean(par.cedeu_fatia_empresa_em)
@@ -88,15 +89,10 @@ export async function emitirRecibosParceriaComissaoEmpresa(
       .eq('profissional_a_id', profA)
       .eq('profissional_b_id', profB)
       .maybeSingle()
-    if (parErr && /cedeu_fatia_empresa|recibo_comissao_empresa/i.test(parErr.message)) {
-      const { data: parMin } = await supabase
-        .from('parcerias_profissionais')
-        .select('id')
-        .eq('profissional_a_id', profA)
-        .eq('profissional_b_id', profB)
-        .maybeSingle()
-      if (parMin?.id) parceriaId = String(parMin.id)
-    } else if (par?.id) {
+    if (parErr) {
+      return { ok: false, error: parErr.message }
+    }
+    if (par?.id) {
       parceriaId = String(par.id)
       cedeuFatia = Boolean(par.cedeu_fatia_empresa_em)
       if (!params.forcar && par.recibo_comissao_empresa_emitido_em) {
@@ -106,8 +102,8 @@ export async function emitirRecibosParceriaComissaoEmpresa(
   }
 
   const config = await buscarConfigComissoesAtiva(supabase)
-  let splitRegular = Math.min(100, Math.max(0, Number(config.empresa_split?.regular) || 50))
-  let splitIndicador = Math.min(100, Math.max(0, Number(config.empresa_split?.indicador) || 50))
+  let splitRegular = percentualConfig(config.empresa_split?.regular, 50)
+  let splitIndicador = percentualConfig(config.empresa_split?.indicador, 50)
   if (cedeuFatia) {
     splitRegular = 0
     splitIndicador = 100
@@ -129,14 +125,14 @@ export async function emitirRecibosParceriaComissaoEmpresa(
   }
 
   const msgIndicado = cedeuFatia
-    ? `Parceria de comissões de empresas reforçada: sua fatia (${Number(config.empresa_split?.regular) || 50}%) foi cedida a ${nomeIndicador}. Ele passa a receber 100% das comissões de empresas desta parceria. Este recibo não inclui o valor da rota tabelada.`
+    ? `Parceria de comissões de empresas reforçada: sua fatia (${percentualConfig(config.empresa_split?.regular, 50)}%) foi cedida a ${nomeIndicador}. Ele passa a receber 100% das comissões de empresas desta parceria. Este recibo não inclui o valor da rota tabelada.`
     : `Parceria de comissões de empresas (separada da rota tabelada): você (executor) recebe ${splitRegular}% e ${nomeIndicador} (quem indicou) recebe ${splitIndicador}% das comissões pagas pelas empresas. Use REFORÇAR PARCERIA para ceder sua fatia ao indicador.`
 
   const msgIndicador = cedeuFatia
     ? `Parceria reforçada: ${nomeIndicado} cedeu a fatia dele. Você recebe 100% das comissões de empresas desta parceria. Este recibo não inclui a comissão pela venda da rota tabelada.`
     : `Parceria de comissões de empresas (separada da rota tabelada): sua parte é ${splitIndicador}% e a de ${nomeIndicado} (executor) é ${splitRegular}%. Se o colega reforçar a parceria, a fatia dele passa para você.`
 
-  await Promise.all([
+  const [reciboIndicado, reciboIndicador] = await Promise.all([
     inserirNotificacaoCanalFinanceiroProfissional(supabase, {
       profissionalUsuarioId: indicadoUsuarioId,
       tipo: 'extrato_parceria',
@@ -164,6 +160,15 @@ export async function emitirRecibosParceriaComissaoEmpresa(
       },
     }),
   ])
+  if (!reciboIndicado.ok || !reciboIndicador.ok) {
+    return {
+      ok: false,
+      error:
+        reciboIndicado.error ??
+        reciboIndicador.error ??
+        'Não foi possível emitir os recibos da parceria.',
+    }
+  }
 
   const agora = new Date().toISOString()
   if (parceriaId) {
@@ -171,10 +176,7 @@ export async function emitirRecibosParceriaComissaoEmpresa(
       .from('parcerias_profissionais')
       .update({ recibo_comissao_empresa_emitido_em: agora })
       .eq('id', parceriaId)
-    // Sem migration: segue mesmo assim (idempotência fraca via ausência de rechamada no mesmo fluxo).
-    if (markErr && !/recibo_comissao_empresa/i.test(markErr.message)) {
-      /* ignore */
-    }
+    if (markErr) return { ok: false, error: markErr.message }
   }
 
   return { ok: true, parceriaId: parceriaId || undefined }
@@ -188,7 +190,6 @@ export async function reforcarParceriaCederFatiaEmpresa(
   params: {
     parceriaId: string
     indicadoUsuarioId: string
-    canalItemId?: string | null
   },
 ): Promise<{ ok: boolean; error?: string; jaCedido?: boolean }> {
   const parceriaId = String(params.parceriaId ?? '').trim()
@@ -204,7 +205,7 @@ export async function reforcarParceriaCederFatiaEmpresa(
     .maybeSingle()
   if (!eu?.id) return { ok: false, error: 'Profissional não encontrado.' }
 
-  const { data: row } = await supabase
+  const { data: row, error: rowErr } = await supabase
     .from('parcerias_profissionais')
     .select(
       `
@@ -218,37 +219,22 @@ export async function reforcarParceriaCederFatiaEmpresa(
     .eq('id', parceriaId)
     .maybeSingle()
 
-  let rowSafe = row
-  if (!rowSafe?.id) {
-    const { data: rowMin, error: rowErr } = await supabase
-      .from('parcerias_profissionais')
-      .select(
-        `
-        id, profissional_a_id, profissional_b_id, recomendacao_id,
-        recomendacao:recomendacao_id (
-          profissional_indicador_id, profissional_indicado_id
-        )
-      `,
-      )
-      .eq('id', parceriaId)
-      .maybeSingle()
-    if (rowErr || !rowMin?.id) return { ok: false, error: 'Parceria não encontrada.' }
-    rowSafe = { ...rowMin, cedeu_fatia_empresa_em: null }
-  }
+  if (rowErr) return { ok: false, error: rowErr.message }
+  if (!row?.id) return { ok: false, error: 'Parceria não encontrada.' }
 
   const profId = String(eu.id)
   const isParte =
-    String(rowSafe.profissional_a_id) === profId || String(rowSafe.profissional_b_id) === profId
+    String(row.profissional_a_id) === profId || String(row.profissional_b_id) === profId
   if (!isParte) return { ok: false, error: 'Você não participa desta parceria.' }
 
-  const rec = joinSupabaseRow(rowSafe.recomendacao)
+  const rec = joinSupabaseRow(row.recomendacao)
   const indicadoIdRec =
     rec?.profissional_indicado_id != null ? String(rec.profissional_indicado_id) : ''
-  if (indicadoIdRec && indicadoIdRec !== profId) {
+  if (!indicadoIdRec || indicadoIdRec !== profId) {
     return { ok: false, error: 'Apenas o profissional indicado pode reforçar a parceria.' }
   }
 
-  if (rowSafe.cedeu_fatia_empresa_em) {
+  if (row.cedeu_fatia_empresa_em) {
     return { ok: true, jaCedido: true }
   }
 
@@ -263,6 +249,9 @@ export async function reforcarParceriaCederFatiaEmpresa(
       .maybeSingle()
     indicadorUsuarioId = ind?.usuario_id != null ? String(ind.usuario_id) : ''
   }
+  if (!indicadorUsuarioId) {
+    return { ok: false, error: 'Profissional indicador não encontrado.' }
+  }
 
   const agora = new Date().toISOString()
   const { error: updErr } = await supabase
@@ -273,9 +262,7 @@ export async function reforcarParceriaCederFatiaEmpresa(
     })
     .eq('id', parceriaId)
 
-  if (updErr && !/cedeu_fatia_empresa/i.test(updErr.message)) {
-    return { ok: false, error: updErr.message }
-  }
+  if (updErr) return { ok: false, error: updErr.message }
 
   const nomeIndicado = String(eu.nome_completo ?? 'Profissional')
 
@@ -312,33 +299,6 @@ export async function reforcarParceriaCederFatiaEmpresa(
       .eq('id', item.id)
   }
 
-  // Se o contains falhar por tipagem JSONB, ainda atualiza o item clicado.
-  if (params.canalItemId) {
-    const { data: item } = await supabase
-      .from('canal_financeiro')
-      .select('id, comprovante_detalhes')
-      .eq('id', params.canalItemId)
-      .maybeSingle()
-    if (item?.id) {
-      const det =
-        item.comprovante_detalhes && typeof item.comprovante_detalhes === 'object'
-          ? { ...(item.comprovante_detalhes as Record<string, unknown>) }
-          : {}
-      det.cedeu_fatia = true
-      det.cedeu_fatia_em = agora
-      det.pode_reforcar = false
-      det.split_regular_pct = 0
-      det.split_indicador_pct = 100
-      await supabase
-        .from('canal_financeiro')
-        .update({
-          comprovante_detalhes: det,
-          mensagem: `Parceria reforçada em ${new Date(agora).toLocaleString('pt-BR')}: você cedeu sua fatia das comissões de empresas ao indicador. Ele passa a receber 100% nesta parceria.`,
-        })
-        .eq('id', item.id)
-    }
-  }
-
   if (indicadorUsuarioId) {
     await inserirNotificacaoCanalFinanceiroProfissional(supabase, {
       profissionalUsuarioId: indicadorUsuarioId,
@@ -349,7 +309,7 @@ export async function reforcarParceriaCederFatiaEmpresa(
         kind: KIND_PARCERIA_COMISSAO_EMPRESA,
         papel: 'indicador',
         parceria_id: parceriaId,
-        recomendacao_id: rowSafe.recomendacao_id != null ? String(rowSafe.recomendacao_id) : null,
+        recomendacao_id: row.recomendacao_id != null ? String(row.recomendacao_id) : null,
         cedeu_fatia: true,
         cedeu_fatia_em: agora,
         split_regular_pct: 0,

@@ -141,13 +141,15 @@ export default function CanalFinanceiroItem({ item, userTipo, destinoRotulo = nu
 
   const reforcarParceria = async () => {
     if (!parceriaId || reforcando) return
+    const confirmou = window.confirm(
+      'Ao reforçar a parceria, você cede permanentemente sua fatia das comissões de empresas ao profissional que indicou você. O valor da rota tabelada não será alterado. Deseja continuar?',
+    )
+    if (!confirmou) return
     setReforcando(true)
     setErroReforcar('')
     try {
       const res = await fetch(`/api/profissional/parcerias/${encodeURIComponent(parceriaId)}/reforcar`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ canal_item_id: item.id }),
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {

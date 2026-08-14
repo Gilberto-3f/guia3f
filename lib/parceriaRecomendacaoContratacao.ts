@@ -2,7 +2,6 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { categoriasIncluemAnfitriao } from '@/lib/anfitriaoDualMode'
 import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresa'
 import { buscarConfigComissoesAtiva, parProfissionaisOrdenado } from '@/lib/configComissoesRuntime'
-import { emitirRecibosParceriaComissaoEmpresa } from '@/lib/parceriaComissaoEmpresaRecibo'
 import {
   mapParceiroFinanceiroMeta,
   notificarAnfitriaoPropostaParceriaBase,
@@ -269,25 +268,15 @@ export async function processarContratacaoRecomendacaoProfissional(
   const indicadoEhAnfitriao = categoriasIncluemAnfitriao(catsIndicado)
   const indicadorEhAnfitriao = categoriasIncluemAnfitriao(catsIndicador)
 
-  // Anfitrião/hospedagem: CONTRATAR só redireciona — avisos financeiros saem na reserva.
-  if (!indicadoEhAnfitriao && indicadorUsuarioId) {
-    await emitirRecibosParceriaComissaoEmpresa(supabase, {
+  // O recibo 50/50 só é emitido após concluir a rota. Aqui permanece apenas
+  // a proposta-base quando um anfitrião recomenda um profissional regular.
+  if (!indicadoEhAnfitriao && indicadorEhAnfitriao && indicadorUsuarioId) {
+    await notificarAnfitriaoPropostaParceriaBase(supabase, {
+      anfitriaoUsuarioId: indicadorUsuarioId,
       recomendacaoId,
-      parceriaId: parceriaId ?? null,
-      indicadoUsuarioId: profissionalIndicadoUsuarioId,
-      indicadorUsuarioId,
-      turistaUsuarioId,
+      parceriaId,
+      colega: mapParceiroFinanceiroMeta(indicado),
     })
-
-    // Base pronta (módulo mobilidade): anfitrião recomendou profissional regular.
-    if (indicadorEhAnfitriao) {
-      await notificarAnfitriaoPropostaParceriaBase(supabase, {
-        anfitriaoUsuarioId: indicadorUsuarioId,
-        recomendacaoId,
-        parceriaId,
-        colega: mapParceiroFinanceiroMeta(indicado),
-      })
-    }
   }
 
   return {

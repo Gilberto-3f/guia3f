@@ -8,13 +8,13 @@ import { reforcarParceriaCederFatiaEmpresa } from '@/lib/parceriaComissaoEmpresa
  * Não altera o recibo/split da rota tabelada.
  */
 export async function POST(
-  req: Request,
+  _req: Request,
   ctx: { params: Promise<{ id: string }> },
 ) {
   const auth = await assertUserSession()
   if (!auth.ok) return auth.error
 
-  if (auth.role !== 'profissional' && auth.role !== 'admin') {
+  if (auth.role !== 'profissional') {
     return NextResponse.json({ error: 'Apenas profissionais podem reforçar parceria.' }, { status: 403 })
   }
 
@@ -22,18 +22,6 @@ export async function POST(
   if (!parceriaId) {
     return NextResponse.json({ error: 'id obrigatório.' }, { status: 400 })
   }
-
-  let body: Record<string, unknown> = {}
-  try {
-    body = (await req.json()) as Record<string, unknown>
-  } catch {
-    body = {}
-  }
-
-  const canalItemId =
-    body.canal_item_id != null && String(body.canal_item_id).trim()
-      ? String(body.canal_item_id).trim()
-      : null
 
   let admin
   try {
@@ -45,7 +33,6 @@ export async function POST(
   const res = await reforcarParceriaCederFatiaEmpresa(admin, {
     parceriaId,
     indicadoUsuarioId: auth.userId,
-    canalItemId,
   })
 
   if (!res.ok) {
