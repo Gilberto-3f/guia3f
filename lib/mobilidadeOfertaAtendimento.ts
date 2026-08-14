@@ -38,10 +38,10 @@ export async function carregarParceiroRecomendacaoOferta(
   const pctTabelada = Number(cfg?.mobilidade_tabelada?.indicador)
   const pctSplit = Number(cfg?.empresa_split?.indicador)
   const percentual =
-    Number.isFinite(pctTabelada) && pctTabelada > 0
-      ? pctTabelada
-      : Number.isFinite(pctSplit) && pctSplit > 0
-        ? pctSplit
+    Number.isFinite(pctTabelada)
+      ? Math.min(100, Math.max(0, pctTabelada))
+      : Number.isFinite(pctSplit)
+        ? Math.min(100, Math.max(0, pctSplit))
         : 30
 
   const foto =

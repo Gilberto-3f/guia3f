@@ -15,10 +15,10 @@ const DEFAULT_CONFIG: ConfiguracoesComissoes = {
     plataforma: 5,
   },
   mobilidade_tabelada: {
-    taxa: 15,
-    regular: 60,
+    taxa: 100,
+    regular: 70,
     indicador: 30,
-    plataforma: 10,
+    plataforma: 0,
   },
   mobilidade_urbana: { taxa: 0 },
 }

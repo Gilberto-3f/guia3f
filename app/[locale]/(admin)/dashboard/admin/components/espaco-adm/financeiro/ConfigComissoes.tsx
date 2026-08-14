@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Car, Handshake, Smartphone, UserRound } from 'lucide-react'
 import ChevronPasta from '@/app/[locale]/(app-shell)/empresa/components/menu-empresa/hospedagem/ChevronPasta'
 import { useFinanceiroAdm, type ConfiguracoesComissoes } from '../../../hooks/useFinanceiroAdm'
@@ -56,19 +56,22 @@ export function ConfigComissoes() {
 
   useEffect(() => {
     if (config) {
-      setLocalConfig(JSON.parse(JSON.stringify(config)) as ConfiguracoesComissoes)
+      const cloned = JSON.parse(JSON.stringify(config)) as ConfiguracoesComissoes
+      const indicador = limitarPercentual(Number(cloned.mobilidade_tabelada?.indicador ?? 0))
+      const plataforma = Math.min(
+        100 - indicador,
+        limitarPercentual(Number(cloned.mobilidade_tabelada?.plataforma ?? 0)),
+      )
+      cloned.mobilidade_tabelada = {
+        ...cloned.mobilidade_tabelada,
+        taxa: 100,
+        regular: 100 - indicador - plataforma,
+        indicador,
+        plataforma,
+      }
+      setLocalConfig(cloned)
     }
   }, [config])
-
-  const totalComIndicacao = useMemo(() => {
-    if (!localConfig) return 0
-    const mobilidade = localConfig.mobilidade_tabelada
-    return (
-      Number(mobilidade?.regular ?? 0) +
-      Number(mobilidade?.indicador ?? 0) +
-      Number(mobilidade?.plataforma ?? 0)
-    )
-  }, [localConfig])
 
   if (!isAdminFinanceiro) {
     return (
@@ -82,29 +85,28 @@ export function ConfigComissoes() {
     return <div className="p-4 text-sm text-gray-500">Carregando configurações de comissão...</div>
   }
 
-  const updateNested = (path: string[], value: number) => {
+  const updateModeloComIndicacao = (campo: 'indicador' | 'plataforma', value: number) => {
     setLocalConfig((prev) => {
       if (!prev) return prev
       const cloned = JSON.parse(JSON.stringify(prev)) as ConfiguracoesComissoes
-      let cursor: Record<string, unknown> = cloned as unknown as Record<string, unknown>
-      for (let i = 0; i < path.length - 1; i++) {
-        cursor = cursor[path[i]] as Record<string, unknown>
+      let indicador = limitarPercentual(Number(cloned.mobilidade_tabelada?.indicador ?? 0))
+      let plataforma = limitarPercentual(Number(cloned.mobilidade_tabelada?.plataforma ?? 0))
+      if (campo === 'indicador') indicador = limitarPercentual(value)
+      if (campo === 'plataforma') plataforma = limitarPercentual(value)
+      plataforma = Math.min(100 - indicador, plataforma)
+      cloned.mobilidade_tabelada = {
+        ...cloned.mobilidade_tabelada,
+        taxa: 100,
+        regular: 100 - indicador - plataforma,
+        indicador,
+        plataforma,
       }
-      cursor[path[path.length - 1]] = limitarPercentual(value)
       return cloned
     })
     setFeedback(null)
   }
 
   const handleSalvar = async () => {
-    if (totalComIndicacao !== 100) {
-      setFeedback({
-        tipo: 'erro',
-        texto: `No modelo com indicação, os percentuais devem somar 100%. Total atual: ${totalComIndicacao}%.`,
-      })
-      return
-    }
-
     setSaving(true)
     setFeedback(null)
     const res = await salvarConfiguracoes(localConfig)
@@ -160,14 +162,9 @@ export function ConfigComissoes() {
         corTitulo={AZUL}
       >
         <div className="space-y-4">
-          <div className="max-w-xs">
-            <CampoPercentual
-              label="Taxa sobre o valor tabelado (%)"
-              value={Number(localConfig.mobilidade_tabelada?.taxa ?? 0)}
-              onChange={(value) => updateNested(['mobilidade_tabelada', 'taxa'], value)}
-            />
-            <p className="mt-1 text-xs text-gray-500">Valor permitido: de 0% a 100%.</p>
-          </div>
+          <p className="text-xs text-gray-500">
+            Os percentuais abaixo são calculados diretamente sobre o valor integral da rota tabelada.
+          </p>
 
           <ChevronPasta
             titulo="Modelo 1 - Com Indicação"
@@ -182,25 +179,21 @@ export function ConfigComissoes() {
               <CampoPercentual
                 label="Profissional executor (%)"
                 value={Number(localConfig.mobilidade_tabelada?.regular ?? 0)}
-                onChange={(value) => updateNested(['mobilidade_tabelada', 'regular'], value)}
+                disabled
               />
               <CampoPercentual
                 label="Parceiro que indicou (%)"
                 value={Number(localConfig.mobilidade_tabelada?.indicador ?? 0)}
-                onChange={(value) => updateNested(['mobilidade_tabelada', 'indicador'], value)}
+                onChange={(value) => updateModeloComIndicacao('indicador', value)}
               />
               <CampoPercentual
                 label="Plataforma (%)"
                 value={Number(localConfig.mobilidade_tabelada?.plataforma ?? 0)}
-                onChange={(value) => updateNested(['mobilidade_tabelada', 'plataforma'], value)}
+                onChange={(value) => updateModeloComIndicacao('plataforma', value)}
               />
             </div>
-            <p
-              className={`mt-3 text-xs font-semibold ${
-                totalComIndicacao === 100 ? 'text-emerald-700' : 'text-red-700'
-              }`}
-            >
-              Total: {totalComIndicacao}% {totalComIndicacao === 100 ? '— válido' : '— deve somar 100%'}
+            <p className="mt-3 text-xs font-semibold text-emerald-700">
+              O percentual do executor é calculado automaticamente para completar 100%.
             </p>
           </ChevronPasta>
 
@@ -239,7 +232,7 @@ export function ConfigComissoes() {
       <button
         type="button"
         onClick={() => void handleSalvar()}
-        disabled={saving || totalComIndicacao !== 100}
+        disabled={saving}
         className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#00D443] px-4 py-3 text-sm font-bold text-white hover:bg-[#00b83b] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-40"
       >
         <UserRound className="h-5 w-5 text-white" strokeWidth={2.25} aria-hidden />

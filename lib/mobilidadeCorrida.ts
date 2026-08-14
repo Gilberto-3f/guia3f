@@ -118,7 +118,7 @@ export type ConcluirCorridaResult =
 
 /**
  * Conclui a corrida aceita: libera profissional, encerra chat,
- * conclui manifesto (placa vermelha) e liquida comissão (v1).
+ * conclui manifesto (placa vermelha) e gera os recibos financeiros da rota.
  */
 export async function concluirCorridaMobilidade(
   admin: SupabaseClient,

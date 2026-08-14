@@ -27,8 +27,9 @@ function formatBrl(n: number): string {
 }
 
 /**
- * Liquida comissão da corrida (v1: dinheiro + extrato no canal).
- * Tabelada: taxa ADM sobre valor_estimado + split regular/indicador/plataforma.
+ * Liquida a rota no canal financeiro.
+ * Tabelada sem indicação: executor recebe 100% do valor tabelado.
+ * Tabelada com indicação: valor integral dividido entre executor, indicador e plataforma.
  * Urbana (motorista_app sem fronteira): taxa 0 — só registra metadata.
  */
 export async function liquidarComissaoCorridaMobilidade(
@@ -101,12 +102,11 @@ export async function liquidarComissaoCorridaMobilidade(
     regime = 'urbana'
   } else {
     const t = cfg.mobilidade_tabelada
-    taxaPct = Number(t?.taxa) || 0
-    splitRegular = Number(t?.regular) || 0
-    splitIndicador = Number(t?.indicador) || 0
-    splitPlataforma = Number(t?.plataforma) || 0
-    pool = money((valorCorrida * taxaPct) / 100)
-    valorPlataforma = money((pool * splitPlataforma) / 100)
+    const indicadorConfigurado = Math.min(100, Math.max(0, Number(t?.indicador) || 0))
+    const plataformaConfigurada = Math.min(
+      100 - indicadorConfigurado,
+      Math.max(0, Number(t?.plataforma) || 0),
+    )
 
     let indicadorUsuarioId: string | null = null
     const recId = row.recomendacao_id != null ? String(row.recomendacao_id) : ''
@@ -127,63 +127,76 @@ export async function liquidarComissaoCorridaMobilidade(
     }
 
     if (indicadorUsuarioId) {
-      valorRegular = money((pool * splitRegular) / 100)
-      valorIndicador = money((pool * splitIndicador) / 100)
+      splitIndicador = indicadorConfigurado
+      splitPlataforma = plataformaConfigurada
+      splitRegular = 100 - splitIndicador - splitPlataforma
     } else {
-      // Sem indicação: regular fica com regular+indicador do pool
-      valorRegular = money((pool * (splitRegular + splitIndicador)) / 100)
-      valorIndicador = 0
+      splitRegular = 100
+      splitIndicador = 0
+      splitPlataforma = 0
     }
+
+    // A base é sempre o valor tabelado integral da rota.
+    taxaPct = 100
+    pool = valorCorrida
+    valorRegular = money((valorCorrida * splitRegular) / 100)
+    valorIndicador = money((valorCorrida * splitIndicador) / 100)
+    valorPlataforma = money(Math.max(0, valorCorrida - valorRegular - valorIndicador))
 
     const rota = `${row.origem_nome ?? '—'} → ${row.destino_nome ?? '—'}`
 
-    if (valorRegular > 0 || pool === 0) {
-      const rRegular = await inserirNotificacaoCanalFinanceiroProfissional(admin, {
-        profissionalUsuarioId: params.profissionalUsuarioId,
-        tipo: 'extrato_comissao',
-        titulo: 'Resumo da corrida — comissão',
-        mensagem: `Resumo da corrida: ${rota}. Valor ${formatBrl(valorCorrida)}. Sua parte na taxa (${taxaPct}%): ${formatBrl(valorRegular)}. Pagamento: ${pagamentoInformado}.`,
-        valor: valorRegular,
-        comprovanteDetalhes: {
-          kind: 'mobilidade_corrida',
-          solicitacao_id: params.solicitacaoId,
-          regime: 'tabelada',
-          papel: 'regular',
-          valor_corrida: valorCorrida,
-          taxa_pct: taxaPct,
-          pool,
-          split_regular_pct: splitRegular,
-          split_indicador_pct: splitIndicador,
-          split_plataforma_pct: splitPlataforma,
-          valor_regular: valorRegular,
-          valor_indicador: valorIndicador,
-          valor_plataforma: valorPlataforma,
-          pagamento: pagamentoInformado,
-          pagamento_confirmado_dinheiro: pagamentoConfirmadoDinheiro,
-          bonus_voluntario: bonusVoluntario,
-          recomendacao_id: recId || null,
-          origem_nome: row.origem_nome,
-          destino_nome: row.destino_nome,
-        },
-      })
-      if (rRegular.id) canalIds.push(rRegular.id)
-    }
+    const mensagemExecutor = indicadorUsuarioId
+      ? `Recibo da rota tabelada: ${rota}. O turista deve pagar ${formatBrl(valorCorrida)} diretamente ao executor no início do atendimento. Parte líquida do executor (${splitRegular}%): ${formatBrl(valorRegular)}. Comissão pela venda destinada ao indicador (${splitIndicador}%): ${formatBrl(valorIndicador)}. Forma informada: ${pagamentoInformado}.`
+      : `Recibo da rota tabelada: ${rota}. O turista deve pagar ${formatBrl(valorCorrida)} diretamente ao executor no início do atendimento. Parte integral do executor (100%): ${formatBrl(valorRegular)}. Forma informada: ${pagamentoInformado}.`
+
+    const rRegular = await inserirNotificacaoCanalFinanceiroProfissional(admin, {
+      profissionalUsuarioId: params.profissionalUsuarioId,
+      tipo: 'recibo_atendimento',
+      titulo: 'Recibo da rota tabelada — atendimento',
+      mensagem: mensagemExecutor,
+      valor: valorRegular,
+      comprovanteDetalhes: {
+        kind: 'mobilidade_rota_tabelada',
+        solicitacao_id: params.solicitacaoId,
+        regime: 'tabelada',
+        papel: 'executor',
+        base_calculo: 'valor_tabelado_integral',
+        valor_corrida: valorCorrida,
+        taxa_pct: taxaPct,
+        pool,
+        split_regular_pct: splitRegular,
+        split_indicador_pct: splitIndicador,
+        split_plataforma_pct: splitPlataforma,
+        valor_regular: valorRegular,
+        valor_indicador: valorIndicador,
+        valor_plataforma: valorPlataforma,
+        pagamento: pagamentoInformado,
+        pagamento_confirmado_dinheiro: pagamentoConfirmadoDinheiro,
+        bonus_voluntario: bonusVoluntario,
+        recomendacao_id: recId || null,
+        origem_nome: row.origem_nome,
+        destino_nome: row.destino_nome,
+      },
+    })
+    if (rRegular.id) canalIds.push(rRegular.id)
 
     if (indicadorUsuarioId && valorIndicador > 0) {
       const rInd = await inserirNotificacaoCanalFinanceiroProfissional(admin, {
         profissionalUsuarioId: indicadorUsuarioId,
-        tipo: 'extrato_parceria',
-        titulo: 'Resumo da corrida — parceria',
-        mensagem: `Resumo da corrida: ${rota}. Sua parte na taxa (${taxaPct}%): ${formatBrl(valorIndicador)}.`,
+        tipo: 'extrato_comissao',
+        titulo: 'Recibo da rota tabelada — comissão pela venda',
+        mensagem: `Rota tabelada vendida por sua recomendação: ${rota}. Valor da rota ${formatBrl(valorCorrida)}. Sua comissão pela venda (${splitIndicador}% do valor tabelado): ${formatBrl(valorIndicador)}. Este recibo não inclui a parceria 50/50 das comissões de empresas.`,
         valor: valorIndicador,
         comprovanteDetalhes: {
-          kind: 'mobilidade_corrida',
+          kind: 'mobilidade_venda_rota_tabelada',
           solicitacao_id: params.solicitacaoId,
           regime: 'tabelada',
-          papel: 'indicador',
+          papel: 'indicador_venda_rota',
+          base_calculo: 'valor_tabelado_integral',
           valor_corrida: valorCorrida,
           taxa_pct: taxaPct,
           pool,
+          split_indicador_pct: splitIndicador,
           valor_indicador: valorIndicador,
           pagamento: pagamentoInformado,
           recomendacao_id: recId,
@@ -201,7 +214,7 @@ export async function liquidarComissaoCorridaMobilidade(
       profissionalUsuarioId: params.profissionalUsuarioId,
       tipo: 'extrato_comissao',
       titulo: 'Resumo da corrida — bônus',
-      mensagem: `Resumo da corrida: turista ofereceu bônus de ${formatBrl(bonusVoluntario)} (fora da taxa da plataforma).`,
+      mensagem: `Resumo da corrida: turista ofereceu bônus de ${formatBrl(bonusVoluntario)} (fora do valor tabelado da rota).`,
       valor: bonusVoluntario,
       comprovanteDetalhes: {
         kind: 'mobilidade_bonus_voluntario',

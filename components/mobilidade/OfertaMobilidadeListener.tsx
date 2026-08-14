@@ -497,6 +497,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
         financeiro?: {
           valorCorrida?: number
           valorRegular?: number
+          valorIndicador?: number
           bonusVoluntario?: number
         } | null
       }
@@ -511,7 +512,11 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
       } else if (corrida.valor_estimado != null) {
         valorTxt = formatBrl(corrida.valor_estimado)
       }
-      if (json.financeiro?.valorRegular != null && json.financeiro.valorRegular > 0) {
+      if (
+        json.financeiro?.valorRegular != null &&
+        json.financeiro.valorRegular > 0 &&
+        json.financeiro.valorRegular !== json.financeiro.valorCorrida
+      ) {
         detalhes.push(t('finSuaComissao', { v: formatBrl(json.financeiro.valorRegular) }))
       }
       if (json.financeiro?.bonusVoluntario != null && json.financeiro.bonusVoluntario > 0) {
