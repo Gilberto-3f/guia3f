@@ -21,6 +21,8 @@ import { rotuloFormaPagamentoReservaHospedagem } from '@/lib/reservaHospedagem'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import AvatarImage from '@/components/AvatarImage'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
+import ChatCorridaMobilidade from '@/components/mobilidade/ChatCorridaMobilidade'
+import PopupItemEsquecido from '@/components/perfil/subpaginas/emergencia/PopupItemEsquecido'
 
 const STATUS_ROTULO = {
   pendente: 'Aguardando anfitrião',
@@ -85,6 +87,28 @@ function ehMobilidade(tipo) {
   return tipo === 'mobilidade' || tipo === 'mobilidade_corrida'
 }
 
+/** @param {{ id?: string, referencia_id?: string | null, metadata?: Record<string, unknown> }} item */
+function solicitacaoIdDoItem(item) {
+  const meta = item.metadata && typeof item.metadata === 'object' ? item.metadata : {}
+  if (meta.solicitacao_id != null && String(meta.solicitacao_id).trim()) {
+    return String(meta.solicitacao_id).trim()
+  }
+  if (item.referencia_id != null && String(item.referencia_id).trim()) {
+    return String(item.referencia_id).trim()
+  }
+  const id = String(item.id ?? '')
+  if (id.startsWith('mob-')) return id.slice(4)
+  return null
+}
+
+const STATUS_MOB_ATIVOS = new Set(['aceita', 'a_caminho', 'no_local', 'em_viagem', 'buscando', 'pendente'])
+
+function podeItemEsquecido(item) {
+  if (!ehMobilidade(item.tipo)) return false
+  if (!solicitacaoIdDoItem(item)) return false
+  return !STATUS_MOB_ATIVOS.has(String(item.status ?? '').toLowerCase())
+}
+
 function podeCancelarReserva(item) {
   if (String(item.tipo) !== 'reserva_hospedagem') return false
   const status = String(item.status ?? '')
@@ -102,6 +126,9 @@ export default function HistoricoCompras({ usuarioId }) {
   const [mobilidadeExtra, setMobilidadeExtra] = useState([])
   const [abertoId, setAbertoId] = useState(/** @type {string | null} */ (null))
   const [cancelandoId, setCancelandoId] = useState(/** @type {string | null} */ (null))
+  const [popupItemSolId, setPopupItemSolId] = useState(/** @type {string | null} */ (null))
+  /** @type {[Record<string, { conversaId: string, status: string }>, Function]} */
+  const [conversasPorSol, setConversasPorSol] = useState({})
 
   const carregar = useCallback(async () => {
     if (!usuarioId) {
@@ -161,6 +188,7 @@ export default function HistoricoCompras({ usuarioId }) {
               pendente: false,
               metadata: {
                 kind: 'mobilidade_corrida',
+                solicitacao_id: String(s.id),
                 profissional_nome: nome,
                 profissional_username:
                   prof?.nome_usuario != null
@@ -193,6 +221,42 @@ export default function HistoricoCompras({ usuarioId }) {
   useEffect(() => {
     void carregar()
   }, [carregar])
+
+  const carregarConversaSolicitacao = useCallback(async (solicitacaoId) => {
+    const sid = String(solicitacaoId ?? '').trim()
+    if (!sid) return
+    try {
+      const res = await fetch(
+        `/api/mobilidade/chat/item-esquecido?solicitacao_id=${encodeURIComponent(sid)}`,
+      )
+      const json = (await res.json()) as {
+        conversa_id?: string | null
+        status?: string | null
+      }
+      if (!res.ok || !json.conversa_id) {
+        setConversasPorSol((prev) => {
+          const next = { ...prev }
+          delete next[sid]
+          return next
+        })
+        return
+      }
+      setConversasPorSol((prev) => ({
+        ...prev,
+        [sid]: { conversaId: String(json.conversa_id), status: String(json.status ?? 'encerrada') },
+      }))
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!abertoId || aba !== 'servicos') return
+    const item = [...itens, ...mobilidadeExtra].find((i) => i.id === abertoId)
+    if (!item || !ehMobilidade(item.tipo)) return
+    const sid = solicitacaoIdDoItem(item)
+    if (sid) void carregarConversaSolicitacao(sid)
+  }, [abertoId, aba, itens, mobilidadeExtra, carregarConversaSolicitacao])
 
   const tabCls = (ativo) =>
     `flex-1 py-2.5 text-center text-xs font-semibold tracking-wide transition-colors ${
@@ -415,42 +479,80 @@ export default function HistoricoCompras({ usuarioId }) {
                   {expandivel && expandido ? (
                     <div className="border-t border-gray-100 px-3 py-3">
                       {mobilidade ? (
-                        <ul className="space-y-1.5 text-sm text-gray-800">
-                          {quando ? (
+                        <>
+                          <ul className="space-y-1.5 text-sm text-gray-800">
+                            {quando ? (
+                              <li>
+                                <span className="font-semibold text-gray-600">Quando: </span>
+                                {quando}
+                              </li>
+                            ) : null}
                             <li>
-                              <span className="font-semibold text-gray-600">Quando: </span>
-                              {quando}
+                              <span className="font-semibold text-gray-600">Origem: </span>
+                              {meta.origem_nome != null ? String(meta.origem_nome) : '—'}
                             </li>
-                          ) : null}
-                          <li>
-                            <span className="font-semibold text-gray-600">Origem: </span>
-                            {meta.origem_nome != null ? String(meta.origem_nome) : '—'}
-                          </li>
-                          <li>
-                            <span className="font-semibold text-gray-600">Destino: </span>
-                            {meta.destino_nome != null ? String(meta.destino_nome) : '—'}
-                          </li>
-                          {valorTxt ? (
                             <li>
-                              <span className="font-semibold text-gray-600">Valor: </span>
-                              {valorTxt}
+                              <span className="font-semibold text-gray-600">Destino: </span>
+                              {meta.destino_nome != null ? String(meta.destino_nome) : '—'}
                             </li>
-                          ) : null}
-                          {formaPag ? (
+                            {valorTxt ? (
+                              <li>
+                                <span className="font-semibold text-gray-600">Valor: </span>
+                                {valorTxt}
+                              </li>
+                            ) : null}
+                            {formaPag ? (
+                              <li>
+                                <span className="font-semibold text-gray-600">Pagamento: </span>
+                                {formaPag}
+                              </li>
+                            ) : null}
                             <li>
-                              <span className="font-semibold text-gray-600">Pagamento: </span>
-                              {formaPag}
+                              <span className="font-semibold text-gray-600">Passageiros: </span>
+                              {meta.lugares != null ? Number(meta.lugares) : 1}
                             </li>
-                          ) : null}
-                          <li>
-                            <span className="font-semibold text-gray-600">Passageiros: </span>
-                            {meta.lugares != null ? Number(meta.lugares) : 1}
-                          </li>
-                          <li>
-                            <span className="font-semibold text-gray-600">Tipo: </span>
-                            {meta.atendimento === 'agendado' ? 'Agendado' : 'Imediato'}
-                          </li>
-                        </ul>
+                            <li>
+                              <span className="font-semibold text-gray-600">Tipo: </span>
+                              {meta.atendimento === 'agendado' ? 'Agendado' : 'Imediato'}
+                            </li>
+                          </ul>
+                          {(() => {
+                            const solId = solicitacaoIdDoItem(item)
+                            const conv = solId ? conversasPorSol[solId] : null
+                            const mostrarArquivo = conv && conv.status === 'encerrada'
+                            const mostrarAtivo = conv && conv.status === 'aberta'
+                            return (
+                              <div className="mt-3 space-y-3">
+                                {mostrarArquivo || mostrarAtivo ? (
+                                  <ChatCorridaMobilidade
+                                    conversaId={conv.conversaId}
+                                    compact
+                                    somenteLeitura={mostrarArquivo}
+                                    titulo="Item esquecido"
+                                    hint={
+                                      mostrarAtivo
+                                        ? 'Chat aberto — combine a devolução'
+                                        : undefined
+                                    }
+                                    permiteEncerrar={Boolean(mostrarAtivo)}
+                                    onEncerrada={() => {
+                                      if (solId) void carregarConversaSolicitacao(solId)
+                                    }}
+                                  />
+                                ) : null}
+                                {podeItemEsquecido(item) && solId && !mostrarAtivo ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setPopupItemSolId(solId)}
+                                    className="w-full rounded-xl bg-[#0097b2] py-2.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-[#007d94]"
+                                  >
+                                    Item esquecido
+                                  </button>
+                                ) : null}
+                              </div>
+                            )
+                          })()}
+                        </>
                       ) : (
                         <button
                           type="button"
@@ -469,6 +571,19 @@ export default function HistoricoCompras({ usuarioId }) {
           </ul>
         )}
       </div>
+
+      <PopupItemEsquecido
+        aberto={Boolean(popupItemSolId)}
+        solicitacaoId={popupItemSolId ?? ''}
+        onFechar={() => {
+          const sid = popupItemSolId
+          setPopupItemSolId(null)
+          if (sid) void carregarConversaSolicitacao(sid)
+        }}
+        onChatEncerrado={() => {
+          if (popupItemSolId) void carregarConversaSolicitacao(popupItemSolId)
+        }}
+      />
     </div>
   )
 }

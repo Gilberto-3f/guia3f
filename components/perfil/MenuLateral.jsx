@@ -22,7 +22,6 @@ import {
   Eye,
   Paperclip,
   Scale,
-  Search,
   Settings,
   Shield,
   ShoppingBag,
@@ -62,7 +61,6 @@ import {
 import { contarNaoLidasChatAdmMembro } from '@/lib/ecossistemaConversas'
 import { GUIA_CHAT_ADM_BADGE_EVENT } from '@/lib/chat-adm-badge-events'
 
-import EmergenciaItemEsquecido from '@/components/perfil/subpaginas/emergencia/EmergenciaItemEsquecido'
 import EmergenciaSocorro from '@/components/perfil/subpaginas/emergencia/EmergenciaSocorro'
 import EmergenciaMensageiroAdm from '@/components/perfil/subpaginas/emergencia/EmergenciaMensageiroAdm'
 import EmergenciaPreLiberacao from '@/components/perfil/subpaginas/emergencia/EmergenciaPreLiberacao'
@@ -254,7 +252,6 @@ function secaoUsuario(itensPrincipais) {
 function secoesTurista(opts = {}) {
   const mostrarPreLiberacao = opts.mostrarPreLiberacao !== false
   const gEmergencia = [
-    { Icon: Search, label: 'Item esquecido', subpagina: 'emergencia-item-esquecido' },
     { Icon: AlertTriangle, label: 'SOCORRO', subpagina: 'emergencia-socorro' },
     { Icon: MessageSquare, label: 'Chat ADM', href: '/chat-adm' },
   ]
@@ -1416,7 +1413,6 @@ export default function MenuLateral({
         return
       }
       const titulos = {
-        'emergencia-item-esquecido': 'Item esquecido',
         'emergencia-socorro': 'SOCORRO',
         'emergencia-adm': 'Chat ADM',
         'emergencia-pre-liberacao': 'Pré-liberação de Cadastro',
@@ -1527,7 +1523,6 @@ export default function MenuLateral({
     if (!usuarioIdEfetivo && id !== 'modo-apresentacao') return null
     const histTipo = topo.historicoTipo || 'contratacoes'
 
-    if (id === 'emergencia-item-esquecido') return <EmergenciaItemEsquecido />
     if (id === 'emergencia-socorro') return <EmergenciaSocorro />
     if (id === 'emergencia-adm')
       return (

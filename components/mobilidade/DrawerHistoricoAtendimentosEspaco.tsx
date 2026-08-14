@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronDown, ChevronUp, History, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, History, MessageSquare, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import AvatarImage from '@/components/AvatarImage'
+import ChatCorridaMobilidade from '@/components/mobilidade/ChatCorridaMobilidade'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import type { AtendimentoDiaItem } from '@/app/api/mobilidade/atendimentos-dia/route'
 
@@ -16,6 +17,8 @@ type Props = {
 }
 
 type Aba = 'hoje' | 'historico'
+
+type ConversaInfo = { conversaId: string; status: string }
 
 function formatBrl(n: number): string {
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -31,6 +34,8 @@ export default function DrawerHistoricoAtendimentosEspaco({ aberto, onFechar }: 
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState('')
   const [abertoId, setAbertoId] = useState<string | null>(null)
+  const [conversas, setConversas] = useState<Record<string, ConversaInfo>>({})
+  const [abrindoChatId, setAbrindoChatId] = useState<string | null>(null)
 
   const carregar = useCallback(async () => {
     setLoading(true)
@@ -53,6 +58,34 @@ export default function DrawerHistoricoAtendimentosEspaco({ aberto, onFechar }: 
     }
   }, [aba, t])
 
+  const carregarConversa = useCallback(async (solicitacaoId: string) => {
+    const sid = String(solicitacaoId ?? '').trim()
+    if (!sid) return
+    try {
+      const res = await fetch(
+        `/api/mobilidade/chat/item-esquecido?solicitacao_id=${encodeURIComponent(sid)}`,
+      )
+      const json = (await res.json()) as {
+        conversa_id?: string | null
+        status?: string | null
+      }
+      if (!res.ok || !json.conversa_id) {
+        setConversas((prev) => {
+          const next = { ...prev }
+          delete next[sid]
+          return next
+        })
+        return
+      }
+      setConversas((prev) => ({
+        ...prev,
+        [sid]: { conversaId: String(json.conversa_id), status: String(json.status ?? 'encerrada') },
+      }))
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
   useEffect(() => {
     if (!aberto) {
       setAba('hoje')
@@ -61,6 +94,39 @@ export default function DrawerHistoricoAtendimentosEspaco({ aberto, onFechar }: 
     }
     void carregar()
   }, [aberto, carregar])
+
+  useEffect(() => {
+    if (!abertoId) return
+    void carregarConversa(abertoId)
+  }, [abertoId, carregarConversa])
+
+  const abrirChatItemEsquecido = async (solicitacaoId: string) => {
+    if (abrindoChatId) return
+    setAbrindoChatId(solicitacaoId)
+    try {
+      const res = await fetch('/api/mobilidade/chat/item-esquecido', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ solicitacao_id: solicitacaoId }),
+      })
+      const json = (await res.json()) as { conversa_id?: string; status?: string; error?: string }
+      if (!res.ok || !json.conversa_id) {
+        window.alert(json.error ?? 'Não foi possível abrir o chat.')
+        return
+      }
+      setConversas((prev) => ({
+        ...prev,
+        [solicitacaoId]: {
+          conversaId: String(json.conversa_id),
+          status: String(json.status ?? 'aberta'),
+        },
+      }))
+    } catch {
+      window.alert('Não foi possível abrir o chat.')
+    } finally {
+      setAbrindoChatId(null)
+    }
+  }
 
   if (!aberto) return null
 
@@ -132,6 +198,11 @@ export default function DrawerHistoricoAtendimentosEspaco({ aberto, onFechar }: 
               const user = a.turista_username
                 ? `@${String(a.turista_username).replace(/^@+/, '')}`
                 : null
+              const conv = conversas[a.solicitacao_id]
+              const statusAtivo = String(a.status ?? '').toLowerCase()
+              const corridaAtiva = ['aceita', 'a_caminho', 'no_local', 'em_viagem'].includes(
+                statusAtivo,
+              )
               return (
                 <li key={a.solicitacao_id}>
                   <button
@@ -162,7 +233,7 @@ export default function DrawerHistoricoAtendimentosEspaco({ aberto, onFechar }: 
                     )}
                   </button>
                   {open ? (
-                    <div className="mt-1 space-y-1 rounded-xl bg-[#f5f5f5] px-3 py-3 text-sm text-gray-800">
+                    <div className="mt-1 space-y-3 rounded-xl bg-[#f5f5f5] px-3 py-3 text-sm text-gray-800">
                       <p>
                         <span className="font-semibold text-gray-500">{t('origemLabel')}: </span>
                         {a.origem_nome || '—'}
@@ -176,6 +247,41 @@ export default function DrawerHistoricoAtendimentosEspaco({ aberto, onFechar }: 
                         {a.valor_estimado != null ? formatBrl(a.valor_estimado) : '—'}
                       </p>
                       <p className="text-xs uppercase tracking-wide text-gray-500">{a.status}</p>
+
+                      {!corridaAtiva ? (
+                        <>
+                          {conv ? (
+                            <ChatCorridaMobilidade
+                              conversaId={conv.conversaId}
+                              compact
+                              somenteLeitura={conv.status === 'encerrada'}
+                              titulo="Item esquecido"
+                              hint={
+                                conv.status === 'aberta'
+                                  ? 'Turista pediu contato por item esquecido'
+                                  : undefined
+                              }
+                              permiteEncerrar={conv.status === 'aberta'}
+                              onEncerrada={() => void carregarConversa(a.solicitacao_id)}
+                            />
+                          ) : null}
+                          {(!conv || conv.status === 'encerrada') && !corridaAtiva ? (
+                            <button
+                              type="button"
+                              disabled={abrindoChatId === a.solicitacao_id}
+                              onClick={() => void abrirChatItemEsquecido(a.solicitacao_id)}
+                              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0097b2] py-2.5 text-xs font-bold uppercase tracking-wide text-white hover:bg-[#007d94] disabled:opacity-50"
+                            >
+                              <MessageSquare className="h-4 w-4" aria-hidden />
+                              {abrindoChatId === a.solicitacao_id
+                                ? 'Abrindo…'
+                                : conv
+                                  ? 'Reabrir chat item esquecido'
+                                  : 'Chat item esquecido'}
+                            </button>
+                          ) : null}
+                        </>
+                      ) : null}
                     </div>
                   ) : null}
                 </li>

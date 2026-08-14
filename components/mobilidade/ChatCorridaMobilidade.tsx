@@ -19,6 +19,14 @@ type Props = {
   visivel?: boolean
   /** Notifica mensagens (para contador de não lidas com chevron fechado). */
   onMensagensChange?: (msgs: Msg[], meuId: string | null) => void
+  /** Só leitura (chat arquivado). */
+  somenteLeitura?: boolean
+  /** Título/hint customizados (ex.: item esquecido). */
+  titulo?: string
+  hint?: string
+  /** Mostra botão para encerrar e arquivar. */
+  permiteEncerrar?: boolean
+  onEncerrada?: () => void
 }
 
 /** Chat 1:1 temporário da corrida (fora do canal do ecossistema). */
@@ -27,16 +35,25 @@ export default function ChatCorridaMobilidade({
   compact = false,
   visivel = true,
   onMensagensChange,
+  somenteLeitura = false,
+  titulo,
+  hint,
+  permiteEncerrar = false,
+  onEncerrada,
 }: Props) {
   const t = useTranslations('Mobilidade')
   const [msgs, setMsgs] = useState<Msg[]>([])
   const [texto, setTexto] = useState('')
   const [busy, setBusy] = useState(false)
+  const [encerrando, setEncerrando] = useState(false)
+  const [status, setStatus] = useState<'aberta' | 'encerrada' | null>(null)
   const [meuId, setMeuId] = useState<string | null>(null)
   const [erro, setErro] = useState('')
   const fimRef = useRef<HTMLDivElement | null>(null)
   const onMsgsRef = useRef(onMensagensChange)
   onMsgsRef.current = onMensagensChange
+
+  const leitura = somenteLeitura || status === 'encerrada'
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data: { session } }) => {
@@ -47,13 +64,20 @@ export default function ChatCorridaMobilidade({
   const carregar = useCallback(async () => {
     try {
       const res = await fetch(`/api/mobilidade/chat/${conversaId}/mensagens`)
-      const json = (await res.json()) as { mensagens?: Msg[]; error?: string }
+      const json = (await res.json()) as {
+        mensagens?: Msg[]
+        status?: string
+        error?: string
+      }
       if (!res.ok) {
         setErro(String(json.error ?? t('chatErro')))
         return
       }
       const lista = Array.isArray(json.mensagens) ? json.mensagens : []
       setMsgs(lista)
+      if (json.status === 'encerrada' || json.status === 'aberta') {
+        setStatus(json.status)
+      }
       setErro('')
     } catch {
       setErro(t('chatErro'))
@@ -62,9 +86,10 @@ export default function ChatCorridaMobilidade({
 
   useEffect(() => {
     void carregar()
+    if (leitura) return
     const id = setInterval(() => void carregar(), 2500)
     return () => clearInterval(id)
-  }, [carregar])
+  }, [carregar, leitura])
 
   useEffect(() => {
     onMsgsRef.current?.(msgs, meuId)
@@ -77,7 +102,7 @@ export default function ChatCorridaMobilidade({
 
   const enviar = async () => {
     const body = texto.trim()
-    if (!body || busy) return
+    if (!body || busy || leitura) return
     setBusy(true)
     try {
       const res = await fetch(`/api/mobilidade/chat/${conversaId}/mensagens`, {
@@ -98,6 +123,25 @@ export default function ChatCorridaMobilidade({
     }
   }
 
+  const encerrar = async () => {
+    if (encerrando || leitura) return
+    setEncerrando(true)
+    try {
+      const res = await fetch(`/api/mobilidade/chat/${conversaId}/encerrar`, {
+        method: 'POST',
+      })
+      const json = (await res.json()) as { error?: string }
+      if (!res.ok) {
+        setErro(String(json.error ?? t('chatErro')))
+        return
+      }
+      setStatus('encerrada')
+      onEncerrada?.()
+    } finally {
+      setEncerrando(false)
+    }
+  }
+
   if (!visivel) return null
 
   return (
@@ -107,8 +151,12 @@ export default function ChatCorridaMobilidade({
       }`}
     >
       <div className="border-b border-gray-100 px-3 py-2">
-        <p className="text-xs font-bold uppercase tracking-wide text-[#0097b2]">{t('chatTitulo')}</p>
-        <p className="text-[11px] text-gray-400">{t('chatHint')}</p>
+        <p className="text-xs font-bold uppercase tracking-wide text-[#0097b2]">
+          {titulo ?? t('chatTitulo')}
+        </p>
+        <p className="text-[11px] text-gray-400">
+          {leitura ? 'Arquivado — somente leitura' : hint ?? t('chatHint')}
+        </p>
       </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-2">
         {msgs.length === 0 ? (
@@ -132,31 +180,45 @@ export default function ChatCorridaMobilidade({
         <div ref={fimRef} />
       </div>
       {erro ? <p className="px-3 text-xs text-rose-600">{erro}</p> : null}
-      <div className="flex gap-2 border-t border-gray-100 p-2">
-        <input
-          type="text"
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              void enviar()
-            }
-          }}
-          placeholder={t('chatPlaceholder')}
-          className="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm"
-          maxLength={2000}
-        />
-        <button
-          type="button"
-          disabled={busy || !texto.trim()}
-          onClick={() => void enviar()}
-          className="rounded-lg bg-[#00D443] px-3 text-white disabled:opacity-50"
-          aria-label={t('chatEnviar')}
-        >
-          <Send className="h-4 w-4" />
-        </button>
-      </div>
+      {!leitura ? (
+        <div className="flex gap-2 border-t border-gray-100 p-2">
+          <input
+            type="text"
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                void enviar()
+              }
+            }}
+            placeholder={t('chatPlaceholder')}
+            className="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm"
+            maxLength={2000}
+          />
+          <button
+            type="button"
+            disabled={busy || !texto.trim()}
+            onClick={() => void enviar()}
+            className="rounded-lg bg-[#00D443] px-3 text-white disabled:opacity-50"
+            aria-label={t('chatEnviar')}
+          >
+            <Send className="h-4 w-4" />
+          </button>
+        </div>
+      ) : null}
+      {permiteEncerrar && !leitura ? (
+        <div className="border-t border-gray-100 p-2">
+          <button
+            type="button"
+            disabled={encerrando}
+            onClick={() => void encerrar()}
+            className="w-full rounded-lg border border-gray-200 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {encerrando ? 'Encerrando…' : 'Finalizar chat'}
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }
