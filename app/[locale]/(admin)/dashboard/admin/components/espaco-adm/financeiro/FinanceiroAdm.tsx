@@ -32,7 +32,7 @@ const SECOES: Record<SecaoId, SecaoMeta> = {
   comissoes: {
     titulo: 'Gestão de Comissões',
     Icon: Percent,
-    descricao: 'Regras de divisão de comissões por tipo de serviço e modelo de indicação.',
+    descricao: '',
   },
 }
 
