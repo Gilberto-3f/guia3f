@@ -196,7 +196,7 @@ export default function AbaComprasCde() {
           >
             <div className="space-y-3">
               <ChevronPasta
-                titulo="Pelo filtro"
+                titulo="Mais procurados pelo Filtro"
                 aberto={catsFiltroAberto}
                 onToggle={() => setCatsFiltroAberto((v) => !v)}
                 icone={Search}
@@ -218,7 +218,7 @@ export default function AbaComprasCde() {
               </ChevronPasta>
 
               <ChevronPasta
-                titulo="Pelo motor de busca"
+                titulo="Mais procurados pelo Motor de Busca"
                 aberto={catsMotorAberto}
                 onToggle={() => setCatsMotorAberto((v) => !v)}
                 icone={Search}
