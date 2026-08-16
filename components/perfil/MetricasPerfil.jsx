@@ -57,14 +57,10 @@ export default function MetricasPerfil({
             {modoDiscreto ? (
               <>
                 <span className="flex items-center justify-center gap-1.5">
-                  <Icon className="h-5 w-5 text-[#0097b2]" strokeWidth={2} aria-hidden />
-                  <span className="text-xl font-bold leading-none text-[#001f3f]">
-                    {item.count}
-                  </span>
+                  <Icon className="h-5 w-5 text-black" strokeWidth={2} aria-hidden />
+                  <span className="text-xl font-bold leading-none text-black">{item.count}</span>
                 </span>
-                <span className="mt-1.5 text-sm font-normal leading-none text-[#666666]">
-                  {item.label}
-                </span>
+                <span className="mt-1.5 text-sm font-normal leading-none text-black">{item.label}</span>
               </>
             ) : (
               <>

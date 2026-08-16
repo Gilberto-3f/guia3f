@@ -1011,7 +1011,12 @@ export default function PerfilSocialPage() {
       )}
 
       <div className="mt-4">
-        <AbasPerfil ativa={aba} onChange={setAba} counts={counts} />
+        <AbasPerfil
+          ativa={aba}
+          onChange={setAba}
+          counts={counts}
+          modoCompacto={layoutTurista}
+        />
         <div className={`${layoutTurista ? 'bg-white' : 'bg-gray-50'} pt-2 pb-0`}>
           {aba === 'fotos' ? <AbaFotos posts={postsFotos} onOpen={(i) => setModalFoto({ aberto: true, i })} /> : null}
           {aba === 'posts' ? (
