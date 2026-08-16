@@ -679,7 +679,10 @@ export default function PerfilSocialPage() {
   }, [])
 
   useEffect(() => {
-    if (!profileId || perfilRole !== 'turista') {
+    if (
+      !profileId ||
+      (perfilRole !== 'turista' && perfilRole !== 'profissional')
+    ) {
       setStoryAtivoPerfil(null)
       return
     }
@@ -860,13 +863,14 @@ export default function PerfilSocialPage() {
   const souDono = Boolean(meuId && profileId && meuId === profileId)
   const mostrarBotaoSeguir = Boolean(meuId && !souDono)
   const mostrarMenu = Boolean(souDono && menuVariant)
-  const layoutTurista = perfilRole === 'turista'
+  const layoutCompacto =
+    perfilRole === 'turista' || perfilRole === 'profissional'
 
   return (
-    <div className={layoutTurista ? 'bg-white' : 'bg-gray-50'}>
+    <div className={layoutCompacto ? 'bg-white' : 'bg-gray-50'}>
       <header
         className={`border-b pt-safe ${
-          layoutTurista
+          layoutCompacto
             ? 'border-[#0097b2] bg-[#0097b2]'
             : 'border-gray-100 bg-white'
         }`}
@@ -877,11 +881,11 @@ export default function PerfilSocialPage() {
               type="button"
               onClick={() => router.back()}
               className={`-ml-2 rounded-full p-2 transition-colors ${
-                layoutTurista ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+                layoutCompacto ? 'hover:bg-white/10' : 'hover:bg-gray-100'
               }`}
               aria-label="Voltar"
             >
-              <ArrowLeft size={20} className={layoutTurista ? 'text-white' : 'text-gray-600'} />
+              <ArrowLeft size={20} className={layoutCompacto ? 'text-white' : 'text-gray-600'} />
             </button>
             {contaVerificadaProfissional && perfilRole === 'profissional' ? (
               <UsuarioHandleVerificado
@@ -889,14 +893,16 @@ export default function PerfilSocialPage() {
                 verificado
                 verificadoTipo="profissional"
                 asButton={false}
-                className={`block min-w-0 max-w-[min(50vw,320px)] truncate font-normal text-gray-600 ${
+                className={`block min-w-0 max-w-[min(50vw,320px)] truncate font-normal ${
+                  layoutCompacto ? 'text-white' : 'text-gray-600'
+                } ${
                   displayUsernameRaw.length > 10 ? 'text-[16px]' : 'text-[17px]'
                 }`}
               />
             ) : (
               <span
                 className={`block min-w-0 max-w-[min(50vw,320px)] truncate font-normal ${
-                  layoutTurista ? 'text-white' : 'text-gray-600'
+                  layoutCompacto ? 'text-white' : 'text-gray-600'
                 } ${
                   displayUsernameRaw.length > 10 ? 'text-[16px]' : 'text-[17px]'
                 }`}
@@ -919,25 +925,25 @@ export default function PerfilSocialPage() {
                   void atualizarMetricasPerfil()
                 }}
                 layout="inline"
-                temaCabecalhoAzul={layoutTurista}
+                temaCabecalhoAzul={layoutCompacto}
               />
             ) : null}
             {mostrarMenu ? (
               <BotaoAbrirMenuLateral
                 onClick={() => setMenuAberto(true)}
                 className={
-                  layoutTurista
+                  layoutCompacto
                     ? 'flex shrink-0 items-center rounded-full p-1 text-white hover:bg-white/10'
                     : undefined
                 }
-                iconClassName={layoutTurista ? 'h-6 w-6 text-white' : undefined}
+                iconClassName={layoutCompacto ? 'h-6 w-6 text-white' : undefined}
               />
             ) : null}
           </div>
         </div>
       </header>
 
-      {layoutTurista ? (
+      {layoutCompacto ? (
         <>
           <FotoCapa
             src={fotoPerfil}
@@ -951,9 +957,12 @@ export default function PerfilSocialPage() {
           <div className="mt-2 px-4">
             <NomeSocial
               nome={nome}
+              mostrarCartao={perfilRole === 'profissional'}
+              profissionalVerificado={profMeta.statusProfissional === 'aprovado'}
               contaVerificada={contaVerificadaProfissional}
-              seloVerificacaoNoNome
-              verificadoTipo="profissional"
+              seloVerificacaoNoNome={perfilRole !== 'profissional'}
+              verificadoTipo={perfilRole === 'empresa' ? 'empresa' : 'profissional'}
+              onAbrirCartao={() => setPopCartao(true)}
               compactoCentralizado
             />
           </div>
@@ -1015,9 +1024,9 @@ export default function PerfilSocialPage() {
           ativa={aba}
           onChange={setAba}
           counts={counts}
-          modoCompacto={layoutTurista}
+          modoCompacto={layoutCompacto}
         />
-        <div className={`${layoutTurista ? 'bg-white' : 'bg-gray-50'} pt-2 pb-0`}>
+        <div className={`${layoutCompacto ? 'bg-white' : 'bg-gray-50'} pt-2 pb-0`}>
           {aba === 'fotos' ? <AbaFotos posts={postsFotos} onOpen={(i) => setModalFoto({ aberto: true, i })} /> : null}
           {aba === 'posts' ? (
             <AbaPosts
