@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Star, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
@@ -36,47 +36,61 @@ function formatarDataAvaliacao(data) {
  *   onFechar: () => void
  *   profileId: string
  *   perfilTipo: 'turista' | 'profissional'
+ *   profissionalId?: string | null
  *   abaInicial?: 'empresa' | 'profissional' | 'feedback'
  * }} props
  */
-export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTipo, abaInicial = 'empresa' }) {
+export default function PopupAvaliacoes({
+  aberto,
+  onFechar,
+  profileId,
+  perfilTipo,
+  profissionalId = null,
+  abaInicial = 'empresa',
+}) {
   useModalScrollLock(aberto)
   const [aba, setAba] = useState(/** @type {'empresa' | 'profissional' | 'feedback'} */ (abaInicial))
   const [listaEmpresas, setListaEmpresas] = useState(/** @type {LinhaAvaliacao[]} */ ([]))
   const [listaProfissionais, setListaProfissionais] = useState(/** @type {LinhaAvaliacao[]} */ ([]))
+  const [carregando, setCarregando] = useState(false)
+  const carregamentoIdRef = useRef(0)
 
   const carregar = useCallback(async () => {
-    const { data: avEmp, error: errEmp } = await supabase
-      .from('avaliacoes')
-      .select('id, nota, feedback, created_at, alvo_id, alvo_tipo')
-      .eq('usuario_id', profileId)
-      .eq('alvo_tipo', 'empresa')
-      .order('created_at', { ascending: false })
+    const carregamentoId = ++carregamentoIdRef.current
+    setCarregando(true)
 
-    if (errEmp) console.error('[PopupAvaliacoes] avaliacoes empresa:', errEmp.message)
+    const carregarEmpresas = async () => {
+      const { data: avEmp, error: errEmp } = await supabase
+        .from('avaliacoes')
+        .select('id, nota, feedback, created_at, alvo_id, alvo_tipo')
+        .eq('usuario_id', profileId)
+        .eq('alvo_tipo', 'empresa')
+        .order('created_at', { ascending: false })
 
-    const rowsEmp = avEmp ?? []
-    const empresaIds = [...new Set(rowsEmp.map((r) => String(r.alvo_id)).filter(Boolean))]
-    /** @type {Map<string, { nome_fantasia: string; nome_usuario: string; foto_url: string | null; categoria: string | null }>} */
-    const porEmpresaId = new Map()
-    if (empresaIds.length) {
-      const { data: emps, error: eErr } = await supabase
-        .from('empresas')
-        .select('id, nome_fantasia, nome_usuario, foto_url, categoria')
-        .in('id', empresaIds)
-      if (eErr) console.error('[PopupAvaliacoes] empresas:', eErr.message)
-      for (const e of emps ?? []) {
-        porEmpresaId.set(String(e.id), {
-          nome_fantasia: String(e.nome_fantasia ?? 'Empresa'),
-          nome_usuario: String(e.nome_usuario ?? ''),
-          foto_url: e.foto_url != null ? String(e.foto_url) : null,
-          categoria: e.categoria != null ? String(e.categoria) : null,
-        })
+      if (errEmp) console.error('[PopupAvaliacoes] avaliacoes empresa:', errEmp.message)
+
+      const rowsEmp = avEmp ?? []
+      const empresaIds = [...new Set(rowsEmp.map((r) => String(r.alvo_id)).filter(Boolean))]
+      /** @type {Map<string, { nome_fantasia: string; nome_usuario: string; foto_url: string | null; categoria: string | null }>} */
+      const porEmpresaId = new Map()
+
+      if (empresaIds.length) {
+        const { data: emps, error: eErr } = await supabase
+          .from('empresas')
+          .select('id, nome_fantasia, nome_usuario, foto_url, categoria')
+          .in('id', empresaIds)
+        if (eErr) console.error('[PopupAvaliacoes] empresas:', eErr.message)
+        for (const e of emps ?? []) {
+          porEmpresaId.set(String(e.id), {
+            nome_fantasia: String(e.nome_fantasia ?? 'Empresa'),
+            nome_usuario: String(e.nome_usuario ?? ''),
+            foto_url: e.foto_url != null ? String(e.foto_url) : null,
+            categoria: e.categoria != null ? String(e.categoria) : null,
+          })
+        }
       }
-    }
 
-    setListaEmpresas(
-      rowsEmp.map((r) => {
+      return rowsEmp.map((r) => {
         const emp = porEmpresaId.get(String(r.alvo_id))
         return {
           id: String(r.id),
@@ -90,38 +104,54 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
           resposta: null,
         }
       })
-    )
-
-    const perfilProfissional = perfilTipo === 'profissional'
-    let profTargetIds = [profileId]
-    if (perfilProfissional) {
-      const { data: profProprio, error: profProprioErr } = await supabase
-        .from('profissionais')
-        .select('id, usuario_id')
-        .eq('usuario_id', profileId)
-        .maybeSingle()
-      if (profProprioErr) console.error('[PopupAvaliacoes] profissional próprio:', profProprioErr.message)
-      if (profProprio?.id) profTargetIds = [...new Set([profileId, String(profProprio.id)].filter(Boolean))]
     }
 
-    const queryProf = supabase
-      .from('avaliacoes')
-      .select('id, nota, feedback, created_at, usuario_id, alvo_id, alvo_tipo, avaliador_tipo')
-      .eq('alvo_tipo', 'profissional')
-      .order('created_at', { ascending: false })
+    const carregarProfissionais = async () => {
+      const perfilProfissional = perfilTipo === 'profissional'
+      let profTargetIds = [profileId]
 
-    const { data: avProf, error: errProf } = perfilProfissional
-      ? await queryProf.in('alvo_id', profTargetIds).eq('avaliador_tipo', 'turista')
-      : await queryProf.eq('usuario_id', profileId)
+      if (perfilProfissional && profissionalId) {
+        profTargetIds = [...new Set([profileId, String(profissionalId)].filter(Boolean))]
+      } else if (perfilProfissional) {
+        const { data: profProprio, error: profProprioErr } = await supabase
+          .from('profissionais')
+          .select('id')
+          .eq('usuario_id', profileId)
+          .maybeSingle()
+        if (profProprioErr) {
+          console.error('[PopupAvaliacoes] profissional próprio:', profProprioErr.message)
+        }
+        if (profProprio?.id) {
+          profTargetIds = [...new Set([profileId, String(profProprio.id)].filter(Boolean))]
+        }
+      }
 
-    if (errProf) console.error('[PopupAvaliacoes] avaliacoes/feedback profissional:', errProf.message)
+      const queryProf = supabase
+        .from('avaliacoes')
+        .select('id, nota, feedback, created_at, usuario_id, alvo_id, alvo_tipo, avaliador_tipo')
+        .eq('alvo_tipo', 'profissional')
+        .order('created_at', { ascending: false })
 
-    const rowsProf = avProf ?? []
-    const profIds = [...new Set(rowsProf.map((r) => String(perfilProfissional ? r.usuario_id : r.alvo_id)).filter(Boolean))]
-    /** @type {Map<string, { nome: string; username: string; fotoUrl: string | null }>} */
-    const porProfId = new Map()
-    if (profIds.length) {
-      if (perfilProfissional) {
+      const { data: avProf, error: errProf } = perfilProfissional
+        ? await queryProf.in('alvo_id', profTargetIds).eq('avaliador_tipo', 'turista')
+        : await queryProf.eq('usuario_id', profileId)
+
+      if (errProf) {
+        console.error('[PopupAvaliacoes] avaliacoes/feedback profissional:', errProf.message)
+      }
+
+      const rowsProf = avProf ?? []
+      const profIds = [
+        ...new Set(
+          rowsProf
+            .map((r) => String(perfilProfissional ? r.usuario_id : r.alvo_id))
+            .filter(Boolean),
+        ),
+      ]
+      /** @type {Map<string, { nome: string; username: string; fotoUrl: string | null }>} */
+      const porProfId = new Map()
+
+      if (profIds.length && perfilProfissional) {
         const { data: perfis, error: perfErr } = await supabase
           .from('perfis_para_busca')
           .select('usuario_id, username, nome, foto_url')
@@ -136,49 +166,31 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
             fotoUrl: fotoPerfil(p.foto_url),
           })
         }
-      } else {
-        const { data: profs, error: pErr } = await supabase
-          .from('profissionais')
-          .select('id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url')
-          .in('id', profIds)
-        if (pErr) console.error('[PopupAvaliacoes] profissionais by id:', pErr.message)
+      } else if (profIds.length) {
+        const selectProf =
+          'id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url'
+        const [{ data: porId, error: porIdErr }, { data: porUsuario, error: porUsuarioErr }] =
+          await Promise.all([
+            supabase.from('profissionais').select(selectProf).in('id', profIds),
+            supabase.from('profissionais').select(selectProf).in('usuario_id', profIds),
+          ])
+        if (porIdErr) console.error('[PopupAvaliacoes] profissionais by id:', porIdErr.message)
+        if (porUsuarioErr) {
+          console.error('[PopupAvaliacoes] profissionais by usuario_id:', porUsuarioErr.message)
+        }
 
-        const encontrados = new Set((profs ?? []).map((p) => String(p.id)))
-        const faltam = profIds.filter((id) => !encontrados.has(id))
-
-        for (const p of profs ?? []) {
+        for (const p of [...(porId ?? []), ...(porUsuario ?? [])]) {
           const row = {
             nome: String(p.nome_completo ?? 'Profissional'),
             username: String(p.nome_usuario ?? ''),
             fotoUrl: fotoPerfil(p.foto_perfil_url) ?? fotoPerfil(p.foto_url),
           }
-          porProfId.set(String(p.id), row)
+          if (p.id) porProfId.set(String(p.id), row)
           if (p.usuario_id) porProfId.set(String(p.usuario_id), row)
         }
-
-        if (faltam.length) {
-          const { data: profsU, error: pUErr } = await supabase
-            .from('profissionais')
-            .select('id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url')
-            .in('usuario_id', faltam)
-          if (pUErr) console.error('[PopupAvaliacoes] profissionais by usuario_id:', pUErr.message)
-          for (const p of profsU ?? []) {
-            const uid = String(p.usuario_id ?? '')
-            if (!uid) continue
-            const row = {
-              nome: String(p.nome_completo ?? 'Profissional'),
-              username: String(p.nome_usuario ?? ''),
-              fotoUrl: fotoPerfil(p.foto_perfil_url) ?? fotoPerfil(p.foto_url),
-            }
-            porProfId.set(uid, row)
-            if (p.id) porProfId.set(String(p.id), row)
-          }
-        }
       }
-    }
 
-    setListaProfissionais(
-      rowsProf.map((r) => {
+      return rowsProf.map((r) => {
         const alvo = String(perfilProfissional ? r.usuario_id : r.alvo_id)
         const prof = porProfId.get(alvo)
         return {
@@ -193,24 +205,40 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
           resposta: null,
         }
       })
-    )
-  }, [perfilTipo, profileId])
+    }
+
+    try {
+      const [empresas, profissionais] = await Promise.all([
+        carregarEmpresas(),
+        carregarProfissionais(),
+      ])
+      if (carregamentoId !== carregamentoIdRef.current) return
+      setListaEmpresas(empresas)
+      setListaProfissionais(profissionais)
+    } finally {
+      if (carregamentoId === carregamentoIdRef.current) setCarregando(false)
+    }
+  }, [perfilTipo, profileId, profissionalId])
 
   useEffect(() => {
-    if (aberto) {
-      const abaPadrao =
-        abaInicial === 'feedback' && perfilTipo === 'profissional'
-          ? 'feedback'
-          : abaInicial === 'profissional' && perfilTipo !== 'profissional'
-            ? 'profissional'
-            : abaInicial === 'empresa'
-              ? 'empresa'
-              : perfilTipo === 'profissional'
-                ? 'feedback'
-                : 'empresa'
-      setAba(abaPadrao)
-      void carregar()
+    if (!aberto) {
+      carregamentoIdRef.current += 1
+      setCarregando(false)
+      return
     }
+
+    const abaPadrao =
+      abaInicial === 'feedback' && perfilTipo === 'profissional'
+        ? 'feedback'
+        : abaInicial === 'profissional' && perfilTipo !== 'profissional'
+          ? 'profissional'
+          : abaInicial === 'empresa'
+            ? 'empresa'
+            : perfilTipo === 'profissional'
+              ? 'feedback'
+              : 'empresa'
+    setAba(abaPadrao)
+    void carregar()
   }, [aberto, abaInicial, carregar, perfilTipo])
 
   useEffect(() => {
@@ -266,8 +294,12 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
         </div>
 
         <div className="scrollbar-perfil min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3">
-          {filtradas.length === 0 ? <p className="py-8 text-center text-sm text-gray-500">Nenhum item encontrado</p> : null}
-          {filtradas.map((r) => (
+          {carregando ? (
+            <p className="py-8 text-center text-sm text-gray-500">Carregando avaliações…</p>
+          ) : filtradas.length === 0 ? (
+            <p className="py-8 text-center text-sm text-gray-500">Nenhum item encontrado</p>
+          ) : null}
+          {!carregando ? filtradas.map((r) => (
             <div key={r.id} className="rounded-lg bg-white p-4 shadow-sm">
               <div className="flex justify-center">
                 <div className="flex min-w-0 max-w-full items-center gap-3 text-left">
@@ -315,7 +347,7 @@ export default function PopupAvaliacoes({ aberto, onFechar, profileId, perfilTip
                 </p>
               ) : null}
             </div>
-          ))}
+          )) : null}
         </div>
       </div>
     </div>

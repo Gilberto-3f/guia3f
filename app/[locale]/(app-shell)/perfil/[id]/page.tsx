@@ -960,6 +960,7 @@ export default function PerfilSocialPage() {
         }}
         profileId={profileId}
         perfilTipo={perfilTipo}
+        profissionalId={profMeta.profissionalId}
         abaInicial={popAvalAba}
       />
       <PopupCartaoVisitaProfissional

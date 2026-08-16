@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useRouter } from '@/i18n/navigation'
-import { ArrowLeft, Check, ChevronDown, MapPin, Star } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, MapPin, Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import CardAtrativo from '@/components/CardAtrativo'
 import BuscadorGuiaSegmento from '@/components/guia/BuscadorGuiaSegmento'
@@ -426,7 +426,7 @@ export default function ListagemCategoriaPage() {
               className="-mr-1 shrink-0 p-1"
               aria-label="Voltar"
             >
-              <ArrowLeft size={22} className="text-white" />
+              <ArrowRight size={22} className="text-white" />
             </button>
           </div>
 
