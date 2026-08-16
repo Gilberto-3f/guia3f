@@ -44,14 +44,37 @@ export function ValidacaoDecisoesAdm() {
 
       const nomes = new Map<string, string>()
       if (userIds.length > 0) {
-        const { data: users } = await supabase
-          .from('usuarios')
-          .select('id, username, email, nome_completo')
-          .in('id', userIds)
-        for (const u of users ?? []) {
+        const [{ data: users }, { data: profs }, { data: turistas }] = await Promise.all([
+          supabase.from('usuarios').select('id, username, email').in('id', userIds),
+          supabase
+            .from('profissionais')
+            .select('usuario_id, nome_completo, nome_usuario')
+            .in('usuario_id', userIds),
+          supabase
+            .from('turistas')
+            .select('usuario_id, nome_completo, nome_usuario')
+            .in('usuario_id', userIds),
+        ])
+        for (const p of profs ?? []) {
           nomes.set(
-            String(u.id),
-            String(u.nome_completo ?? u.username ?? u.email ?? u.id).trim(),
+            String(p.usuario_id),
+            String(p.nome_completo ?? p.nome_usuario ?? '').trim(),
+          )
+        }
+        for (const t of turistas ?? []) {
+          const uid = String(t.usuario_id)
+          if (!nomes.has(uid)) {
+            nomes.set(uid, String(t.nome_completo ?? t.nome_usuario ?? '').trim())
+          }
+        }
+        for (const u of users ?? []) {
+          const uid = String(u.id)
+          if (nomes.get(uid)) continue
+          nomes.set(
+            uid,
+            String(u.username ?? u.email ?? u.id)
+              .replace(/^@+/, '')
+              .trim(),
           )
         }
       }

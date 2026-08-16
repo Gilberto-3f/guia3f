@@ -47,9 +47,12 @@ export function useDenunciasEmpresa(empresaId: string | null) {
     setLoading(true)
     setError(null)
     try {
+      // `usuarios` não tem nome_completo — usar username/email.
       const { data, error: e } = await supabase
         .from('denuncias')
-        .select('id, motivo, descricao, evidencias, status, created_at, denunciante:denunciante_id(email, nome_completo)')
+        .select(
+          'id, motivo, descricao, evidencias, status, created_at, denunciante:denunciante_id(email, username)',
+        )
         .eq('denunciado_id', empresaId)
         .eq('denunciado_tipo', 'empresa')
         .order('created_at', { ascending: false })
@@ -59,6 +62,9 @@ export function useDenunciasEmpresa(empresaId: string | null) {
       const fmt: DenunciaEmpresa[] = (data ?? []).map((row) => {
         const r = asRecord(row) ?? {}
         const den = asRecord(r.denunciante)
+        const username =
+          den?.username != null ? String(den.username).replace(/^@+/, '').trim() : ''
+        const email = den?.email != null ? String(den.email) : null
         return {
           id: String(r.id ?? ''),
           motivo: String(r.motivo ?? ''),
@@ -66,8 +72,8 @@ export function useDenunciasEmpresa(empresaId: string | null) {
           evidencias: asStringArray(r.evidencias),
           status: String(r.status ?? 'pendente'),
           created_at: String(r.created_at ?? ''),
-          denunciante_email: den?.email != null ? String(den.email) : null,
-          denunciante_nome: den?.nome_completo != null ? String(den.nome_completo) : null,
+          denunciante_email: email,
+          denunciante_nome: username || email,
         }
       })
       setDenuncias(fmt)

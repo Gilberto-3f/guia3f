@@ -31,14 +31,26 @@ export async function GET() {
 
     let convidadoPorNome = 'ADM GERAL'
     if (convite.convidado_por) {
-      const { data: conv } = await adminDb
-        .from('usuarios')
-        .select('username, email, nome_completo')
-        .eq('id', convite.convidado_por)
-        .maybeSingle()
+      const convidadoPor = String(convite.convidado_por)
+      const [{ data: conv }, { data: prof }, { data: tur }] = await Promise.all([
+        adminDb.from('usuarios').select('username, email').eq('id', convidadoPor).maybeSingle(),
+        adminDb
+          .from('profissionais')
+          .select('nome_completo, nome_usuario')
+          .eq('usuario_id', convidadoPor)
+          .maybeSingle(),
+        adminDb
+          .from('turistas')
+          .select('nome_completo, nome_usuario')
+          .eq('usuario_id', convidadoPor)
+          .maybeSingle(),
+      ])
       convidadoPorNome =
-        String(conv?.nome_completo ?? '').trim() ||
-        String(conv?.username ?? '').trim() ||
+        String(prof?.nome_completo ?? '').trim() ||
+        String(tur?.nome_completo ?? '').trim() ||
+        String(prof?.nome_usuario ?? tur?.nome_usuario ?? conv?.username ?? '')
+          .replace(/^@+/, '')
+          .trim() ||
         String(conv?.email ?? '').split('@')[0] ||
         'ADM GERAL'
     }

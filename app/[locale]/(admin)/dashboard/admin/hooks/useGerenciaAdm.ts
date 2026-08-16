@@ -96,9 +96,10 @@ export function useGerenciaAdm() {
     setLoading(true)
     setError(null)
     try {
+      // `usuarios` não tem nome_completo — nome social vem de profissionais/turistas.
       const { data, error: e } = await supabase
         .from('usuarios')
-        .select('id, email, nome_completo, username, role, admin_level, admin_permissoes, created_at')
+        .select('id, email, username, role, admin_level, admin_permissoes, created_at')
         .eq('role', 'admin')
       if (e) throw e
 
@@ -139,7 +140,6 @@ export function useGerenciaAdm() {
           const r = row as {
             id: string
             email?: string | null
-            nome_completo?: string | null
             username?: string | null
             role?: string | null
             admin_level?: number | null
@@ -154,12 +154,14 @@ export function useGerenciaAdm() {
           const perf = perfilMap.get(String(r.id))
           const perms = r.admin_permissoes ?? {}
           const pct = perms.participacao_percentual
+          const usernameFallback =
+            String(r.username ?? '').replace(/^@+/, '') || r.email?.split('@')[0] || ''
           return {
             id: r.id,
             email: r.email ?? '',
-            nome: r.nome_completo ?? r.email ?? r.id,
-            nome_social: perf?.nome || r.nome_completo || r.email || '',
-            username: perf?.username || String(r.username ?? '').replace(/^@+/, '') || r.email?.split('@')[0] || '',
+            nome: perf?.nome || usernameFallback || r.email || r.id,
+            nome_social: perf?.nome || usernameFallback || r.email || '',
+            username: perf?.username || usernameFallback,
             foto_url: perf?.foto ?? null,
             role: r.role ?? 'admin',
             admin_level: r.admin_level ?? 0,
@@ -361,11 +363,43 @@ export function useGerenciaAdm() {
       const mesRef = mes ?? now.getMonth() + 1
       const { data, error: e } = await supabase
         .from('pagamentos_colaboradores')
-        .select('id, colaborador_id, mes_ref, ano_ref, valor, participacao_percentual, base_calculo, status, pago_em, colaborador:colaborador_id(email, nome_completo)')
+        .select(
+          'id, colaborador_id, mes_ref, ano_ref, valor, participacao_percentual, base_calculo, status, pago_em, colaborador:colaborador_id(email, username)',
+        )
         .eq('ano_ref', anoRef)
         .eq('mes_ref', mesRef)
         .order('valor', { ascending: false })
       if (e) throw e
+
+      const colaboradorIds = [
+        ...new Set((data ?? []).map((row) => String((row as { colaborador_id: string }).colaborador_id))),
+      ]
+      const nomePorUsuario = new Map<string, string>()
+      if (colaboradorIds.length > 0) {
+        const [{ data: profs }, { data: turistas }] = await Promise.all([
+          supabase
+            .from('profissionais')
+            .select('usuario_id, nome_completo, nome_usuario')
+            .in('usuario_id', colaboradorIds),
+          supabase
+            .from('turistas')
+            .select('usuario_id, nome_completo, nome_usuario')
+            .in('usuario_id', colaboradorIds),
+        ])
+        for (const p of profs ?? []) {
+          nomePorUsuario.set(
+            String(p.usuario_id),
+            String(p.nome_completo ?? p.nome_usuario ?? '').trim(),
+          )
+        }
+        for (const t of turistas ?? []) {
+          const uid = String(t.usuario_id)
+          if (!nomePorUsuario.has(uid)) {
+            nomePorUsuario.set(uid, String(t.nome_completo ?? t.nome_usuario ?? '').trim())
+          }
+        }
+      }
+
       setPagamentos(
         (data ?? []).map((row) => {
           const r = row as {
@@ -378,12 +412,14 @@ export function useGerenciaAdm() {
             base_calculo: number
             status: string
             pago_em?: string | null
-            colaborador?: { email?: string | null; nome_completo?: string | null }
+            colaborador?: { email?: string | null; username?: string | null }
           }
+          const username = String(r.colaborador?.username ?? '').replace(/^@+/, '')
           return {
             id: r.id,
             colaborador_id: r.colaborador_id,
-            colaborador_nome: r.colaborador?.nome_completo ?? r.colaborador?.email ?? '',
+            colaborador_nome:
+              nomePorUsuario.get(r.colaborador_id) || username || r.colaborador?.email || '',
             colaborador_email: r.colaborador?.email ?? '',
             mes_ref: r.mes_ref,
             ano_ref: r.ano_ref,
