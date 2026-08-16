@@ -35,6 +35,12 @@ import { registrarVisitaPerfil } from '@/lib/perfilVisitas'
 import PerfilRecomendacaoContratarGate from '@/components/perfil/PerfilRecomendacaoContratarGate'
 import { normalizarCategoriasProfissional } from '@/lib/cartaoVisitaProfissional'
 import { resolverHrefContratarCartaoVisita } from '@/lib/recomendacaoContratacaoDestino'
+import { isPostOcultoDoFeed } from '@/lib/feedFiltroSeguidos'
+import {
+  escolherIdStoryInicialPorEmail,
+  ordenarStoriesPorCreatedAsc,
+  visualizadoPorConsolidadoParaAnel,
+} from '@/lib/story-open-order'
 import {
   canalParceiroPorCidade,
   CONFIG_APIS_MOBILIDADE_SELECT,
@@ -99,6 +105,10 @@ export default function PerfilSocialPage() {
   const [postsTexto, setPostsTexto] = useState<PostRepostFeed[]>([])
   const [repostadosPosts, setRepostadosPosts] = useState<PostRepostFeed[]>([])
   const [meuEmail, setMeuEmail] = useState<string | null>(null)
+  const [storyAtivoPerfil, setStoryAtivoPerfil] = useState<{
+    id: string
+    visualizado_por: unknown
+  } | null>(null)
 
   const [menuAberto, setMenuAberto] = useState(false)
   const [popFav, setPopFav] = useState(false)
@@ -669,6 +679,49 @@ export default function PerfilSocialPage() {
   }, [])
 
   useEffect(() => {
+    if (!profileId || perfilRole !== 'turista') {
+      setStoryAtivoPerfil(null)
+      return
+    }
+
+    let ativo = true
+    void (async () => {
+      const { data, error } = await supabase
+        .from('stories')
+        .select('id, visualizado_por, created_at, tipo, conteudo_url')
+        .eq('autor_id', profileId)
+        .gt('expira_em', new Date().toISOString())
+        .order('created_at', { ascending: true })
+
+      if (!ativo) return
+      if (error) {
+        console.error('[perfil] story ativo:', error.message)
+        setStoryAtivoPerfil(null)
+        return
+      }
+
+      const validos = (data ?? []).filter((row) => {
+        if (isPostOcultoDoFeed(row.tipo)) return false
+        return Boolean(String(row.id ?? '').trim() && String(row.conteudo_url ?? '').trim())
+      })
+      const ordenados = ordenarStoriesPorCreatedAsc(validos)
+      const storyId = escolherIdStoryInicialPorEmail(ordenados, meuEmail)
+      setStoryAtivoPerfil(
+        storyId
+          ? {
+              id: storyId,
+              visualizado_por: visualizadoPorConsolidadoParaAnel(ordenados, meuEmail),
+            }
+          : null,
+      )
+    })()
+
+    return () => {
+      ativo = false
+    }
+  }, [meuEmail, perfilRole, profileId])
+
+  useEffect(() => {
     if (!meuId || !profileId || meuId === profileId) {
       setTuristaContratouProf(false)
       return
@@ -810,17 +863,25 @@ export default function PerfilSocialPage() {
   const layoutTurista = perfilRole === 'turista'
 
   return (
-    <div className="bg-gray-50">
-      <header className="border-b border-gray-100 bg-white pt-safe">
+    <div className={layoutTurista ? 'bg-white' : 'bg-gray-50'}>
+      <header
+        className={`border-b pt-safe ${
+          layoutTurista
+            ? 'border-[#0097b2] bg-[#0097b2]'
+            : 'border-gray-100 bg-white'
+        }`}
+      >
         <div className="flex items-center justify-between gap-2 px-4 py-1.5">
           <div className="flex min-w-0 items-center gap-2">
             <button
               type="button"
               onClick={() => router.back()}
-              className="-ml-2 rounded-full p-2 transition-colors hover:bg-gray-100"
+              className={`-ml-2 rounded-full p-2 transition-colors ${
+                layoutTurista ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+              }`}
               aria-label="Voltar"
             >
-              <ArrowLeft size={20} className="text-gray-600" />
+              <ArrowLeft size={20} className={layoutTurista ? 'text-white' : 'text-gray-600'} />
             </button>
             {contaVerificadaProfissional && perfilRole === 'profissional' ? (
               <UsuarioHandleVerificado
@@ -834,7 +895,9 @@ export default function PerfilSocialPage() {
               />
             ) : (
               <span
-                className={`block min-w-0 max-w-[min(50vw,320px)] truncate font-normal text-gray-600 ${
+                className={`block min-w-0 max-w-[min(50vw,320px)] truncate font-normal ${
+                  layoutTurista ? 'text-white' : 'text-gray-600'
+                } ${
                   displayUsernameRaw.length > 10 ? 'text-[16px]' : 'text-[17px]'
                 }`}
               >
@@ -856,9 +919,20 @@ export default function PerfilSocialPage() {
                   void atualizarMetricasPerfil()
                 }}
                 layout="inline"
+                temaCabecalhoAzul={layoutTurista}
               />
             ) : null}
-            {mostrarMenu ? <BotaoAbrirMenuLateral onClick={() => setMenuAberto(true)} /> : null}
+            {mostrarMenu ? (
+              <BotaoAbrirMenuLateral
+                onClick={() => setMenuAberto(true)}
+                className={
+                  layoutTurista
+                    ? 'flex shrink-0 items-center rounded-full p-1 text-white hover:bg-white/10'
+                    : undefined
+                }
+                iconClassName={layoutTurista ? 'h-6 w-6 text-white' : undefined}
+              />
+            ) : null}
           </div>
         </div>
       </header>
@@ -870,6 +944,8 @@ export default function PerfilSocialPage() {
             nomeFallback={nome}
             mostrarMenu={false}
             variante="avatar"
+            storyAtivo={storyAtivoPerfil}
+            userEmail={meuEmail}
           />
 
           <div className="mt-2 px-4">
@@ -882,7 +958,7 @@ export default function PerfilSocialPage() {
             />
           </div>
 
-          <div className="mt-4">
+          <div className="mt-2">
             <MetricasPerfil
               favoritosCount={favoritosTotal}
               seguidoresCount={nSeguidores}
@@ -936,7 +1012,7 @@ export default function PerfilSocialPage() {
 
       <div className="mt-4">
         <AbasPerfil ativa={aba} onChange={setAba} counts={counts} />
-        <div className="bg-gray-50 pt-2 pb-0">
+        <div className={`${layoutTurista ? 'bg-white' : 'bg-gray-50'} pt-2 pb-0`}>
           {aba === 'fotos' ? <AbaFotos posts={postsFotos} onOpen={(i) => setModalFoto({ aberto: true, i })} /> : null}
           {aba === 'posts' ? (
             <AbaPosts

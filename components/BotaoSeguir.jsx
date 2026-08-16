@@ -29,6 +29,7 @@ function debugSeguir(/** @type {unknown[]} */ ...args) {
  *   leadingIcon?: 'heart' | 'none'
  *   showInlineError?: boolean
  *   size?: 'default' | 'compact'
+ *   temaCabecalhoAzul?: boolean
  * }} props
  */
 export default function BotaoSeguir({
@@ -43,6 +44,7 @@ export default function BotaoSeguir({
   leadingIcon = 'heart',
   showInlineError = true,
   size = 'default',
+  temaCabecalhoAzul = false,
 }) {
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
   const { userRole } = useProfissionalGate()
@@ -229,8 +231,14 @@ export default function BotaoSeguir({
         : 'flex shrink-0 flex-col items-end gap-1'
       : 'flex flex-col items-end gap-1'
 
-  const defaultBtn =
-    size === 'compact'
+  const defaultBtn = temaCabecalhoAzul
+    ? [
+        'flex min-w-[84px] items-center justify-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-medium transition-colors',
+        bloqueadoEmpresaPerfilSocial
+          ? 'cursor-not-allowed border-white/50 bg-transparent text-white/60 opacity-70'
+          : 'border-white bg-transparent text-white hover:bg-white/10',
+      ].join(' ')
+    : size === 'compact'
       ? [
           'flex min-w-[72px] max-w-[100px] items-center justify-center gap-0.5 rounded-lg border px-1.5 py-1 text-[11px] font-semibold transition-colors',
           bloqueadoEmpresaPerfilSocial
