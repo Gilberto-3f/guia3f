@@ -12,6 +12,7 @@ import EscudoVerificacaoPendente from '@/components/EscudoVerificacaoPendente'
  *   seloVerificacaoNoNome?: boolean
  *   verificadoTipo?: 'profissional' | 'empresa'
  *   onAbrirCartao?: () => void
+ *   compactoCentralizado?: boolean
  * }} props
  * profissionalVerificado: true quando status aprovado (escudo verde); senão escudo vermelho com ?.
  * contaVerificada: selo verde à frente do nome (empresa/turista; profissional usa o selo no @username).
@@ -25,9 +26,14 @@ export default function NomeSocial({
   seloVerificacaoNoNome = true,
   verificadoTipo = 'profissional',
   onAbrirCartao,
+  compactoCentralizado = false,
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <div
+      className={`flex min-w-0 items-center gap-2 ${
+        compactoCentralizado ? 'justify-center text-center' : ''
+      }`}
+    >
       {mostrarCartao ? (
         <button
           type="button"
@@ -43,7 +49,11 @@ export default function NomeSocial({
           <EscudoVerificacaoPendente verificado={profissionalVerificado} />
         </button>
       ) : null}
-      <h1 className="min-w-0 text-left text-2xl font-bold text-[#001f3f]">
+      <h1
+        className={`min-w-0 font-bold text-[#001f3f] ${
+          compactoCentralizado ? 'text-center text-lg' : 'text-left text-2xl'
+        }`}
+      >
         <NomeComVerificacao
           nome={nome}
           verificado={seloVerificacaoNoNome && contaVerificada}

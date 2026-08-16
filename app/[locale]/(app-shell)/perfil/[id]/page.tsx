@@ -807,6 +807,7 @@ export default function PerfilSocialPage() {
   const souDono = Boolean(meuId && profileId && meuId === profileId)
   const mostrarBotaoSeguir = Boolean(meuId && !souDono)
   const mostrarMenu = Boolean(souDono && menuVariant)
+  const layoutTurista = perfilRole === 'turista'
 
   return (
     <div className="bg-gray-50">
@@ -862,37 +863,76 @@ export default function PerfilSocialPage() {
         </div>
       </header>
 
-      <FotoCapa
-        src={fotoPerfil}
-        nomeFallback={nome}
-        mostrarMenu={false}
-      />
+      {layoutTurista ? (
+        <>
+          <FotoCapa
+            src={fotoPerfil}
+            nomeFallback={nome}
+            mostrarMenu={false}
+            variante="avatar"
+          />
 
-      <div className="mt-3 px-4 text-left">
-        <NomeSocial
-          nome={nome}
-          mostrarCartao={perfilRole === 'profissional'}
-          profissionalVerificado={profMeta.statusProfissional === 'aprovado'}
-          contaVerificada={contaVerificadaProfissional}
-          seloVerificacaoNoNome={perfilRole !== 'profissional'}
-          verificadoTipo={perfilRole === 'empresa' ? 'empresa' : 'profissional'}
-          onAbrirCartao={() => setPopCartao(true)}
-        />
-        <div className="mt-1">
-          <DescricaoCurta texto={bio} />
-        </div>
-      </div>
+          <div className="mt-2 px-4">
+            <NomeSocial
+              nome={nome}
+              contaVerificada={contaVerificadaProfissional}
+              seloVerificacaoNoNome
+              verificadoTipo="profissional"
+              compactoCentralizado
+            />
+          </div>
 
-      <div className="mt-6">
-        <MetricasPerfil
-          favoritosCount={favoritosTotal}
-          seguidoresCount={nSeguidores}
-          avaliacoesCount={nAval}
-          onFavoritos={abrirFavoritos}
-          onSeguidores={abrirSeguidores}
-          onAvaliacoes={abrirAvaliacoes}
-        />
-      </div>
+          <div className="mt-4">
+            <MetricasPerfil
+              favoritosCount={favoritosTotal}
+              seguidoresCount={nSeguidores}
+              avaliacoesCount={nAval}
+              onFavoritos={abrirFavoritos}
+              onSeguidores={abrirSeguidores}
+              onAvaliacoes={abrirAvaliacoes}
+              modoDiscreto
+            />
+          </div>
+
+          <div className="mt-3 px-6">
+            <DescricaoCurta texto={bio} centralizado />
+          </div>
+        </>
+      ) : (
+        <>
+          <FotoCapa
+            src={fotoPerfil}
+            nomeFallback={nome}
+            mostrarMenu={false}
+          />
+
+          <div className="mt-3 px-4 text-left">
+            <NomeSocial
+              nome={nome}
+              mostrarCartao={perfilRole === 'profissional'}
+              profissionalVerificado={profMeta.statusProfissional === 'aprovado'}
+              contaVerificada={contaVerificadaProfissional}
+              seloVerificacaoNoNome={perfilRole !== 'profissional'}
+              verificadoTipo={perfilRole === 'empresa' ? 'empresa' : 'profissional'}
+              onAbrirCartao={() => setPopCartao(true)}
+            />
+            <div className="mt-1">
+              <DescricaoCurta texto={bio} />
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <MetricasPerfil
+              favoritosCount={favoritosTotal}
+              seguidoresCount={nSeguidores}
+              avaliacoesCount={nAval}
+              onFavoritos={abrirFavoritos}
+              onSeguidores={abrirSeguidores}
+              onAvaliacoes={abrirAvaliacoes}
+            />
+          </div>
+        </>
+      )}
 
       <div className="mt-4">
         <AbasPerfil ativa={aba} onChange={setAba} counts={counts} />

@@ -10,10 +10,33 @@ import { normalizarUrlMidiaSupabase, urlMidiaValida } from '@/lib/imagemPublica'
  *   nomeFallback?: string
  *   onOpenMenu?: () => void
  *   mostrarMenu?: boolean
+ *   variante?: 'capa' | 'avatar'
  * }} props
  */
-export default function FotoCapa({ src, nomeFallback = '', onOpenMenu, mostrarMenu = true }) {
+export default function FotoCapa({
+  src,
+  nomeFallback = '',
+  onOpenMenu,
+  mostrarMenu = true,
+  variante = 'capa',
+}) {
   const capaSrc = src && urlMidiaValida(src) ? normalizarUrlMidiaSupabase(src) : ''
+
+  if (variante === 'avatar') {
+    return (
+      <div className="flex justify-center px-4 pt-5">
+        <div className="relative h-28 w-28 overflow-hidden rounded-2xl border-[3px] border-[#0097b2] bg-gradient-to-br from-[#0097b2]/40 to-[#001f3f]/60 shadow-sm">
+          {capaSrc ? (
+            <MediaFillImage src={capaSrc} alt="" sizes="112px" priority />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-3xl font-bold text-white/60">
+              {nomeFallback.charAt(0) || '?'}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-[#0097b2]/40 to-[#001f3f]/60">
