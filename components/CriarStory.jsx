@@ -6,6 +6,13 @@ import { supabase } from '@/lib/supabase'
 import { salvarDraftAgendamento, urlRetornoAgendamento } from '@/lib/agendamentoConteudoDraft'
 import { uploadMidiaAgendada } from '@/lib/agendamentoUpload'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
+import { useGuiaModo } from '@/context/GuiaModoContext'
+import { useVanModo } from '@/context/VanModoContext'
+import {
+  profissionalOperaComoEmpresaEmAlgumDualMode,
+  resolverStoryAutorTipoPublicacao,
+} from '@/lib/storyAutorTipoPublicacao'
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
 import { obterUrlPosPublicacaoEmpresa } from '@/lib/redirecionamentoPosPublicacaoEmpresa'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
@@ -18,6 +25,19 @@ import EditorStory from '@/components/EditorStory'
 export default function CriarStory({ autorTipo, agendarCardKey = null }) {
   const router = useRouter()
   const { podeInteragir, notificarSomenteLeitura } = useModoApresentacao()
+  const { ehAnfitriao, modo, empresaHospedagemId, empresaHospedagemLiberada } = useAnfitriaoModo()
+  const {
+    ehGuia,
+    modoEfetivo: modoGuiaEfetivo,
+    empresaAgenciaId,
+    empresaAgenciaLiberada,
+  } = useGuiaModo()
+  const {
+    ehVan,
+    modoEfetivo: modoVanEfetivo,
+    empresaAgenciaVanId,
+    empresaAgenciaVanLiberada,
+  } = useVanModo()
   const {
     podeInteragirFeedSocial,
     avisarBloqueioFeed,
@@ -251,9 +271,33 @@ export default function CriarStory({ autorTipo, agendarCardKey = null }) {
 
       const expira = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
 
+      // Revalida persona no momento do insert (igual posts): não confiar só na prop inicial.
+      const { data: userRow } = await supabase
+        .from('usuarios')
+        .select('role')
+        .eq('id', session.user.id)
+        .maybeSingle()
+      const roleUsuario = userRow?.role != null ? String(userRow.role) : String(autorTipo || 'turista')
+      const operaComoEmpresa = profissionalOperaComoEmpresaEmAlgumDualMode({
+        role: roleUsuario,
+        ehAnfitriao,
+        modoAnfitriao: modo,
+        empresaHospedagemId,
+        empresaHospedagemLiberada,
+        ehGuia,
+        modoGuia: modoGuiaEfetivo,
+        empresaAgenciaId,
+        empresaAgenciaLiberada,
+        ehVan,
+        modoVan: modoVanEfetivo,
+        empresaAgenciaVanId,
+        empresaAgenciaVanLiberada,
+      })
+      const autorTipoPublicacao = resolverStoryAutorTipoPublicacao(roleUsuario, operaComoEmpresa)
+
       const { error: insErr } = await supabase.from('stories').insert({
         autor_id: session.user.id,
-        autor_tipo: autorTipo,
+        autor_tipo: autorTipoPublicacao,
         tipo: 'foto',
         conteudo_url: url,
         texto_sobreposto: {

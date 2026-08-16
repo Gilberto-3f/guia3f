@@ -14,6 +14,13 @@ import { getPerfilHref } from '@/lib/perfil-utils'
 import AvatarImage from '@/components/AvatarImage'
 import StoryCanvas from '@/components/StoryCanvas'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
+import { useGuiaModo } from '@/context/GuiaModoContext'
+import { useVanModo } from '@/context/VanModoContext'
+import {
+  profissionalOperaComoEmpresaEmAlgumDualMode,
+  resolverStoryAutorTipoPublicacao,
+} from '@/lib/storyAutorTipoPublicacao'
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
 import { GUIA_ATIVIDADES_RELOAD_EVENT } from '@/lib/atividades-events'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
@@ -232,6 +239,19 @@ export default function StoryViewer({
   timerPlaybackKey = 0,
 }) {
   const { modoAtivo, perfilSimulado, contextoEmpresaId } = useModoApresentacao()
+  const { ehAnfitriao, modo, empresaHospedagemId, empresaHospedagemLiberada } = useAnfitriaoModo()
+  const {
+    ehGuia,
+    modoEfetivo: modoGuiaEfetivo,
+    empresaAgenciaId,
+    empresaAgenciaLiberada,
+  } = useGuiaModo()
+  const {
+    ehVan,
+    modoEfetivo: modoVanEfetivo,
+    empresaAgenciaVanId,
+    empresaAgenciaVanLiberada,
+  } = useVanModo()
   const {
     fecharAvisoBloqueioFeed,
     avisoFeedAberto,
@@ -824,11 +844,30 @@ export default function StoryViewer({
     let cancel = false
     setChecandoRepost(true)
     void (async () => {
+      const { data: userRow } = await supabase.from('usuarios').select('role').eq('id', uid).maybeSingle()
+      const roleUsuario = typeof userRow?.role === 'string' && userRow.role ? userRow.role : 'turista'
+      const operaComoEmpresa = profissionalOperaComoEmpresaEmAlgumDualMode({
+        role: roleUsuario,
+        ehAnfitriao,
+        modoAnfitriao: modo,
+        empresaHospedagemId,
+        empresaHospedagemLiberada,
+        ehGuia,
+        modoGuia: modoGuiaEfetivo,
+        empresaAgenciaId,
+        empresaAgenciaLiberada,
+        ehVan,
+        modoVan: modoVanEfetivo,
+        empresaAgenciaVanId,
+        empresaAgenciaVanLiberada,
+      })
+      const autorTipoAtual = resolverStoryAutorTipoPublicacao(roleUsuario, operaComoEmpresa)
       const { data, error } = await supabase
         .from('stories')
         .select('id')
         .eq('autor_id', uid)
         .eq('repost_story_id', storyOriginalParaRepostId)
+        .eq('autor_tipo', autorTipoAtual)
         .gt('expira_em', new Date().toISOString())
         .order('created_at', { ascending: false })
         .limit(1)
@@ -845,7 +884,23 @@ export default function StoryViewer({
     return () => {
       cancel = true
     }
-  }, [uid, storyOriginalParaRepostId, podeRepostarStory])
+  }, [
+    uid,
+    storyOriginalParaRepostId,
+    podeRepostarStory,
+    ehAnfitriao,
+    modo,
+    empresaHospedagemId,
+    empresaHospedagemLiberada,
+    ehGuia,
+    modoGuiaEfetivo,
+    empresaAgenciaId,
+    empresaAgenciaLiberada,
+    ehVan,
+    modoVanEfetivo,
+    empresaAgenciaVanId,
+    empresaAgenciaVanLiberada,
+  ])
 
   useEffect(() => {
     const repostId = story?.repost_story_id ? String(story.repost_story_id) : ''
@@ -1057,6 +1112,7 @@ export default function StoryViewer({
         const { error: delErr } = await supabase
           .from('stories')
           .delete()
+          .eq('id', repostExistenteId)
           .eq('autor_id', session.user.id)
           .eq('repost_story_id', storyOriginalParaRepostId)
         if (delErr) throw delErr
@@ -1066,11 +1122,30 @@ export default function StoryViewer({
         window.dispatchEvent(new Event(GUIA_ATIVIDADES_RELOAD_EVENT))
         return
       }
+      const { data: userRow } = await supabase.from('usuarios').select('role').eq('id', session.user.id).maybeSingle()
+      const roleUsuario = typeof userRow?.role === 'string' && userRow.role ? userRow.role : 'turista'
+      const operaComoEmpresa = profissionalOperaComoEmpresaEmAlgumDualMode({
+        role: roleUsuario,
+        ehAnfitriao,
+        modoAnfitriao: modo,
+        empresaHospedagemId,
+        empresaHospedagemLiberada,
+        ehGuia,
+        modoGuia: modoGuiaEfetivo,
+        empresaAgenciaId,
+        empresaAgenciaLiberada,
+        ehVan,
+        modoVan: modoVanEfetivo,
+        empresaAgenciaVanId,
+        empresaAgenciaVanLiberada,
+      })
+      const autorTipoRepost = resolverStoryAutorTipoPublicacao(roleUsuario, operaComoEmpresa)
       const { data: jaExiste, error: existeErr } = await supabase
         .from('stories')
         .select('id')
         .eq('autor_id', session.user.id)
         .eq('repost_story_id', storyOriginalParaRepostId)
+        .eq('autor_tipo', autorTipoRepost)
         .gt('expira_em', new Date().toISOString())
         .order('created_at', { ascending: false })
         .limit(1)
@@ -1086,11 +1161,10 @@ export default function StoryViewer({
         setToastMsg('Story sem mídia para repostar.')
         return
       }
-      const { data: userRow } = await supabase.from('usuarios').select('role').eq('id', session.user.id).maybeSingle()
       const expira = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
       const { error } = await supabase.from('stories').insert({
         autor_id: session.user.id,
-        autor_tipo: typeof userRow?.role === 'string' && userRow.role ? userRow.role : 'turista',
+        autor_tipo: autorTipoRepost,
         tipo: story.tipo || 'foto',
         conteudo_url: conteudoUrl,
         texto_sobreposto: story.texto_sobreposto ?? null,

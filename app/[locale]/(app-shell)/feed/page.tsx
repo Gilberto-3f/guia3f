@@ -33,6 +33,7 @@ import {
   autorIdFromStorySlot,
   storyRowCombinaSlot,
   storySlotEhEmpresa,
+  storySlotKeyFromAutorPersona,
   storySlotKeyFromRow,
 } from '@/lib/storyAnfitriaoSlots'
 
@@ -272,7 +273,7 @@ function FeedPageInner() {
       }
       const { data, error } = await supabase
         .from('stories')
-        .select('id, autor_id, visualizado_por, created_at, tipo, conteudo_url')
+        .select('id, autor_id, autor_tipo, visualizado_por, created_at, tipo, conteudo_url')
         .in('autor_id', ids)
         .gt('expira_em', new Date().toISOString())
         .order('created_at', { ascending: true })
@@ -283,32 +284,35 @@ function FeedPageInner() {
       type StoryAggRow = {
         id: unknown
         autor_id?: unknown
+        autor_tipo?: unknown
         visualizado_por?: unknown
         created_at?: unknown
         tipo?: unknown
         conteudo_url?: unknown
       }
-      const porAutor = new Map<string, StoryAggRow[]>()
+      /** Chave = slot `${autor_id}|prof` ou `|emp` — não misturar personas. */
+      const porSlot = new Map<string, StoryAggRow[]>()
       for (const row of data ?? []) {
         if (isPostOcultoDoFeed((row as { tipo?: string }).tipo)) continue
         const id = String((row as { id?: unknown }).id ?? '').trim()
         const aid = String((row as { autor_id?: unknown }).autor_id ?? '').trim()
         const url = String((row as { conteudo_url?: unknown }).conteudo_url ?? '').trim()
-        if (!id || !aid || !url) {
+        const slot = storySlotKeyFromRow(row as { autor_id?: unknown; autor_tipo?: unknown })
+        if (!id || !aid || !url || !slot) {
           console.warn('[feed] Story de autor inválido ignorado:', row)
           continue
         }
-        if (!porAutor.has(aid)) porAutor.set(aid, [])
-        porAutor.get(aid)!.push(row as StoryAggRow)
+        if (!porSlot.has(slot)) porSlot.set(slot, [])
+        porSlot.get(slot)!.push(row as StoryAggRow)
       }
       const map: Record<string, { id: string; visualizado_por: unknown; conteudo_url?: string | null }> = {}
-      for (const [aid, arrRaw] of porAutor) {
+      for (const [slot, arrRaw] of porSlot) {
         const asc = ordenarStoriesPorCreatedAsc(arrRaw)
         const abrirId = escolherIdStoryInicialPorEmail(asc, viewerEmail)
         if (!abrirId) continue
         const latest = asc[asc.length - 1]
         const r = latest as { conteudo_url?: unknown }
-        map[aid] = {
+        map[slot] = {
           id: abrirId,
           visualizado_por: visualizadoPorConsolidadoParaAnel(asc, viewerEmail),
           conteudo_url: r.conteudo_url != null ? String(r.conteudo_url) : null,
@@ -1023,7 +1027,14 @@ function FeedPageInner() {
                   post={post}
                   meuUsuarioId={meuId}
                   userEmail={email}
-                  storyAtivo={storiesPorAutor[post.autor?.usuario_id ?? ''] ?? null}
+                  storyAtivo={
+                    storiesPorAutor[
+                      storySlotKeyFromAutorPersona(
+                        post.autor?.usuario_id,
+                        String(post.autor?.role ?? '').toLowerCase() === 'empresa',
+                      )
+                    ] ?? null
+                  }
                   onAbrirStory={(id) => void abrirStory(id)}
                   onRemove={removerPost}
                   abrirComentariosInicial={postParam === post.id && Boolean(comentarioParam)}

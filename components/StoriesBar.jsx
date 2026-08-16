@@ -20,6 +20,7 @@ import { listarSeguidosIdsCached } from '@/lib/redeContatosCache'
 import {
   autorIdFromStorySlot,
   storySlotEhEmpresa,
+  storySlotKeyFromAutorPersona,
   storySlotKeyFromRow,
 } from '@/lib/storyAnfitriaoSlots'
 import {
@@ -29,6 +30,12 @@ import {
 } from '@/lib/story-open-order'
 import StoryCircle from '@/components/StoryCircle'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
+import { useGuiaModo } from '@/context/GuiaModoContext'
+import { useVanModo } from '@/context/VanModoContext'
+import {
+  profissionalOperaComoEmpresaEmAlgumDualMode,
+} from '@/lib/storyAutorTipoPublicacao'
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 
@@ -94,6 +101,19 @@ function labelStoryEmpresa(e) {
 export default function StoriesBar({ hidden = false, userEmail, onOpenStory, reloadSignal = 0 }) {
   const [barMounted, setBarMounted] = useState(false)
   const { podeInteragir, notificarSomenteLeitura, modoAtivo, perfilSimulado } = useModoApresentacao()
+  const { ehAnfitriao, modo, empresaHospedagemId, empresaHospedagemLiberada } = useAnfitriaoModo()
+  const {
+    ehGuia,
+    modoEfetivo: modoGuiaEfetivo,
+    empresaAgenciaId,
+    empresaAgenciaLiberada,
+  } = useGuiaModo()
+  const {
+    ehVan,
+    modoEfetivo: modoVanEfetivo,
+    empresaAgenciaVanId,
+    empresaAgenciaVanLiberada,
+  } = useVanModo()
   const {
     podeInteragirFeedSocial,
     avisarBloqueioFeed,
@@ -109,11 +129,12 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
   }, [])
 
   const simulandoEmpresa = Boolean(modoAtivo && perfilSimulado?.tipo === 'empresa')
-  /** @type {{ avatarUrl: string | null, storyId: string | null, visualizado_por: unknown }} */
+  /** @type {{ avatarUrl: string | null, storyId: string | null, visualizado_por: unknown, slotKey: string | null }} */
   const [meuSlot, setMeuSlot] = useState({
     avatarUrl: null,
     storyId: null,
     visualizado_por: null,
+    slotKey: null,
   })
 
   /** @type {{ id: string, autorId: string, label: string, avatarUrl: string | null, visualizado_por: unknown }[]} */
@@ -129,16 +150,38 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     if (!session?.user) {
       setRings([])
       setMeuUserId(null)
-      setMeuSlot({ avatarUrl: null, storyId: null, visualizado_por: null })
+      setMeuSlot({ avatarUrl: null, storyId: null, visualizado_por: null, slotKey: null })
       setStoriesBarLoading(false)
       return
     }
 
-    const uid = session.user.id
+    const uid = String(session.user.id)
     setMeuUserId(uid)
 
     try {
     void tentarProcessarPublicacoesAgendadas()
+
+    const { data: userRow } = await supabase.from('usuarios').select('role').eq('id', uid).maybeSingle()
+    const role = userRow?.role != null ? String(userRow.role) : null
+    const operaComoEmpresa =
+      simulandoEmpresa ||
+      String(role ?? '').toLowerCase() === 'empresa' ||
+      profissionalOperaComoEmpresaEmAlgumDualMode({
+        role,
+        ehAnfitriao,
+        modoAnfitriao: modo,
+        empresaHospedagemId,
+        empresaHospedagemLiberada,
+        ehGuia,
+        modoGuia: modoGuiaEfetivo,
+        empresaAgenciaId,
+        empresaAgenciaLiberada,
+        ehVan,
+        modoVan: modoVanEfetivo,
+        empresaAgenciaVanId,
+        empresaAgenciaVanLiberada,
+      })
+    const meuSlotKeyAtivo = storySlotKeyFromAutorPersona(uid, operaComoEmpresa)
 
     /** @param {string} userId */
     const carregarMeuAvatar = async (userId) => fetchFotoPerfilUsuario(supabase, userId)
@@ -157,7 +200,12 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     if (storiesErr) {
       console.error(storiesErr)
       setRings([])
-      setMeuSlot({ avatarUrl: meuAvatarUrl, storyId: null, visualizado_por: null })
+      setMeuSlot({
+        avatarUrl: meuAvatarUrl,
+        storyId: null,
+        visualizado_por: null,
+        slotKey: meuSlotKeyAtivo,
+      })
       return
     }
 
@@ -202,14 +250,13 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       ordenarStoriesPorCreatedAsc(arr)
     }
 
-    const meuProfArr = storiesPorSlot.get(`${uid}|prof`) ?? []
-    const meuEmpArr = storiesPorSlot.get(`${uid}|emp`) ?? []
-    const meuArr = [...meuProfArr, ...meuEmpArr]
+    const meuArr = storiesPorSlot.get(meuSlotKeyAtivo) ?? []
     const meuAbrirId = escolherIdStoryInicialPorEmail(meuArr, userEmail)
     setMeuSlot({
       avatarUrl: meuAvatarUrl,
       storyId: meuAbrirId,
       visualizado_por: visualizadoPorConsolidadoParaAnel(meuArr, userEmail),
+      slotKey: meuSlotKeyAtivo,
     })
 
     /** @type {string[]} */
@@ -224,6 +271,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
       return true
     }
 
+    // Esconde o outro persona do próprio usuário na fila de anéis (só o modo ativo no slot "eu").
     for (const sk of [`${uid}|prof`, `${uid}|emp`]) {
       seen.add(sk)
     }
@@ -338,7 +386,22 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     } finally {
       setStoriesBarLoading(false)
     }
-  }, [userEmail, simulandoEmpresa])
+  }, [
+    userEmail,
+    simulandoEmpresa,
+    ehAnfitriao,
+    modo,
+    empresaHospedagemId,
+    empresaHospedagemLiberada,
+    ehGuia,
+    modoGuiaEfetivo,
+    empresaAgenciaId,
+    empresaAgenciaLiberada,
+    ehVan,
+    modoVanEfetivo,
+    empresaAgenciaVanId,
+    empresaAgenciaVanLiberada,
+  ])
 
   useEffect(() => {
     startTransition(() => {
@@ -393,7 +456,8 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
   const meuTemStory = Boolean(meuSlot.storyId)
 
   const filaAutoresParaNavegacao = () => {
-    const meuSlots = [`${meuUserId}|prof`, `${meuUserId}|emp`].filter((sk) => meuTemStory && meuUserId)
+    const meuSlots =
+      meuTemStory && meuSlot.slotKey ? [meuSlot.slotKey] : []
     const outros = rings.map((r) => r.slotKey).filter(Boolean)
     if (meuSlots.length) return [...meuSlots, ...outros.filter((sk) => !meuSlots.includes(sk))]
     return outros

@@ -7,9 +7,10 @@ import { supabase } from '@/lib/supabase'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { useGuiaModo } from '@/context/GuiaModoContext'
 import { useVanModo } from '@/context/VanModoContext'
-import { profissionalOperaComoEmpresaHospedagem } from '@/lib/anfitriaoDualMode'
-import { profissionalOperaComoEmpresaAgencia } from '@/lib/guiaDualMode'
-import { profissionalOperaComoEmpresaAgenciaVan } from '@/lib/vanDualMode'
+import {
+  profissionalOperaComoEmpresaEmAlgumDualMode,
+  resolverStoryAutorTipoPublicacao,
+} from '@/lib/storyAutorTipoPublicacao'
 
 function CriarStoryPageInner() {
   const searchParams = useSearchParams()
@@ -37,29 +38,22 @@ function CriarStoryPageInner() {
       if (!session?.user?.id) return
       const { data } = await supabase.from('usuarios').select('role').eq('id', session.user.id).maybeSingle()
       const r = data?.role != null ? String(data.role) : 'turista'
-      const comoEmpresa =
-        profissionalOperaComoEmpresaHospedagem(
-          r,
-          ehAnfitriao,
-          modo,
-          empresaHospedagemId,
-          empresaHospedagemLiberada,
-        ) ||
-        profissionalOperaComoEmpresaAgencia(
-          r,
-          ehGuia,
-          modoGuiaEfetivo,
-          empresaAgenciaId,
-          empresaAgenciaLiberada,
-        ) ||
-        profissionalOperaComoEmpresaAgenciaVan(
-          r,
-          ehVan,
-          modoVanEfetivo,
-          empresaAgenciaVanId,
-          empresaAgenciaVanLiberada,
-        )
-      setAutorTipo(comoEmpresa ? 'empresa' : r)
+      const comoEmpresa = profissionalOperaComoEmpresaEmAlgumDualMode({
+        role: r,
+        ehAnfitriao,
+        modoAnfitriao: modo,
+        empresaHospedagemId,
+        empresaHospedagemLiberada,
+        ehGuia,
+        modoGuia: modoGuiaEfetivo,
+        empresaAgenciaId,
+        empresaAgenciaLiberada,
+        ehVan,
+        modoVan: modoVanEfetivo,
+        empresaAgenciaVanId,
+        empresaAgenciaVanLiberada,
+      })
+      setAutorTipo(resolverStoryAutorTipoPublicacao(r, comoEmpresa))
     }
     void run()
   }, [

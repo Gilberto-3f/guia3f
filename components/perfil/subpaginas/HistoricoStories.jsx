@@ -118,9 +118,10 @@ export default function HistoricoStories({ usuarioId }) {
       supabase
         .from('stories')
         .select(
-          'id, tipo, conteudo_url, texto_sobreposto, link, duracao_segundos, autor_id, curtidas, visualizado_por, marcacoes, repost_story_id, created_at, expira_em'
+          'id, tipo, conteudo_url, texto_sobreposto, link, duracao_segundos, autor_id, autor_tipo, curtidas, visualizado_por, marcacoes, repost_story_id, created_at, expira_em'
         )
         .eq('autor_id', usuarioId)
+        .or('autor_tipo.is.null,autor_tipo.neq.empresa')
         .order('created_at', { ascending: false }),
     ])
 
@@ -133,7 +134,9 @@ export default function HistoricoStories({ usuarioId }) {
     }
 
     setStories(
-      (data ?? []).map((row) => ({
+      (data ?? [])
+        .filter((row) => String(row.autor_tipo ?? '').toLowerCase() !== 'empresa')
+        .map((row) => ({
         id: String(row.id),
         tipo: row.tipo != null ? String(row.tipo) : 'foto',
         conteudo_url: String(row.conteudo_url ?? ''),

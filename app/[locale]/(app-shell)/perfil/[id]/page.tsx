@@ -691,8 +691,9 @@ export default function PerfilSocialPage() {
     void (async () => {
       const { data, error } = await supabase
         .from('stories')
-        .select('id, visualizado_por, created_at, tipo, conteudo_url')
+        .select('id, visualizado_por, created_at, tipo, conteudo_url, autor_tipo')
         .eq('autor_id', profileId)
+        .or('autor_tipo.is.null,autor_tipo.neq.empresa')
         .gt('expira_em', new Date().toISOString())
         .order('created_at', { ascending: true })
 
@@ -705,6 +706,7 @@ export default function PerfilSocialPage() {
 
       const validos = (data ?? []).filter((row) => {
         if (isPostOcultoDoFeed(row.tipo)) return false
+        if (String(row.autor_tipo ?? '').toLowerCase() === 'empresa') return false
         return Boolean(String(row.id ?? '').trim() && String(row.conteudo_url ?? '').trim())
       })
       const ordenados = ordenarStoriesPorCreatedAsc(validos)

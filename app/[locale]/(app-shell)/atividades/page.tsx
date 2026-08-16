@@ -551,7 +551,9 @@ export default function AtividadesPage() {
           if (uid && eid && !byUid.has(uid)) byUid.set(uid, eid)
         }
         for (const sid of Object.keys(chunk)) {
-          const uid = chunk[sid]?.autor_id != null ? String(chunk[sid].autor_id).trim() : ''
+          const meta = chunk[sid]
+          if (String(meta?.autor_tipo ?? '').toLowerCase() !== 'empresa') continue
+          const uid = meta?.autor_id != null ? String(meta.autor_id).trim() : ''
           const eid = uid ? byUid.get(uid) : undefined
           if (eid) chunk[sid] = { ...chunk[sid], empresa_id: eid }
         }
