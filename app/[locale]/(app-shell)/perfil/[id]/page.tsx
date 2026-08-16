@@ -963,7 +963,7 @@ export default function PerfilSocialPage() {
               profissionalVerificado={profMeta.statusProfissional === 'aprovado'}
               contaVerificada={contaVerificadaProfissional}
               seloVerificacaoNoNome={perfilRole !== 'profissional'}
-              verificadoTipo={perfilRole === 'empresa' ? 'empresa' : 'profissional'}
+              verificadoTipo="profissional"
               onAbrirCartao={() => setPopCartao(true)}
               compactoCentralizado
             />
