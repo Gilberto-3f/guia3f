@@ -379,12 +379,10 @@ export default function ListagemCategoriaPage() {
   const titulo = TITULO_CATEGORIA_EXTRA[slug] ?? TITULO_SLUG_GUIA[slug] ?? slug
   const filtrosApoioCompactos = ehPaginaHospedagem
   const btnFiltroApoioBase = filtrosApoioCompactos
-    ? 'inline-flex items-center justify-center rounded-none border bg-transparent p-1.5 transition'
-    : 'inline-flex items-center justify-center rounded-none border bg-transparent p-2 transition'
+    ? 'inline-flex items-center justify-center rounded-full border-0 bg-transparent p-1.5 transition hover:bg-white/15'
+    : 'inline-flex items-center justify-center rounded-full border-0 bg-transparent p-2 transition hover:bg-white/15'
   const btnFiltroApoioCls = (ativo: boolean) =>
-    `${btnFiltroApoioBase} ${
-      ativo ? 'border-2 border-white' : 'border border-white/70 hover:border-white'
-    }`
+    `${btnFiltroApoioBase} ${ativo ? 'bg-white/15' : ''}`
   const iconFiltroApoioCls = filtrosApoioCompactos ? 'h-5 w-5 shrink-0 text-white' : 'h-6 w-6 shrink-0 text-white'
   const iconPinWrapCls = filtrosApoioCompactos
     ? 'relative inline-flex h-5 w-5 shrink-0 items-center justify-center'

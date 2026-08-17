@@ -8,7 +8,7 @@ export default function DescricaoCurta({ texto, centralizado = false }) {
   const t = texto.length > 170 ? `${texto.slice(0, 170)}…` : texto
   return (
     <p
-      className={`max-w-md text-sm text-[#666666] ${
+      className={`max-w-md text-sm italic text-[#666666] ${
         centralizado ? 'mx-auto text-center' : 'text-left'
       }`}
     >

@@ -731,15 +731,15 @@ export default function EmpresaPage() {
             <div className="h-24 animate-pulse rounded-lg bg-gray-100" aria-busy="true" aria-label="A carregar conteúdo" />
           </div>
         ) : mostrarConteudoRede ? (
-        <div className="bg-white pb-0">
-          <div className="flex bg-white px-2">
+        <div className="bg-[#0097b2] pb-0">
+          <div className="flex bg-[#0097b2] px-2">
             <button
               type="button"
               onClick={() => setSubAbaAtiva('fotos')}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-bold transition-colors ${
+              className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2.5 text-xs font-bold transition-colors ${
                 subAbaAtiva === 'fotos'
-                  ? 'text-[#0097b2]'
-                  : 'text-gray-500'
+                  ? 'border-white text-white'
+                  : 'border-transparent text-white/75 hover:text-white'
               }`}
             >
               <Camera size={18} aria-hidden className="text-current" />
@@ -748,10 +748,10 @@ export default function EmpresaPage() {
             <button
               type="button"
               onClick={() => setSubAbaAtiva('posts')}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-bold transition-colors ${
+              className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2.5 text-xs font-bold transition-colors ${
                 subAbaAtiva === 'posts'
-                  ? 'text-[#0097b2]'
-                  : 'text-gray-500'
+                  ? 'border-white text-white'
+                  : 'border-transparent text-white/75 hover:text-white'
               }`}
             >
               <FileText size={18} aria-hidden className="text-current" />
@@ -760,10 +760,10 @@ export default function EmpresaPage() {
             <button
               type="button"
               onClick={() => setSubAbaAtiva('tour360')}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-bold transition-colors ${
+              className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2.5 text-xs font-bold transition-colors ${
                 subAbaAtiva === 'tour360'
-                  ? 'text-[#0097b2]'
-                  : 'text-gray-500'
+                  ? 'border-white text-white'
+                  : 'border-transparent text-white/75 hover:text-white'
               }`}
             >
               <Globe2 size={18} aria-hidden className="text-current" />
