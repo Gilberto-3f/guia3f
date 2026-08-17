@@ -341,9 +341,11 @@ export default function EmpresaPreviewModoApresentacaoPage() {
           </button>
         </div>
 
-        <div className="mt-3">
-          <DescricaoLonga descricao={descLonga} />
-        </div>
+        {abaExpandida !== 'avaliacoes' && abaExpandida !== 'endereco' ? (
+          <div className="mt-3">
+            <DescricaoLonga descricao={descLonga} />
+          </div>
+        ) : null}
       </div>
 
       {abaExpandida ? (

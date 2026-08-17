@@ -33,11 +33,11 @@ function TituloSecao({ Icon, titulo }) {
 /**
  * @param {{ titulo: string, Icon: import('lucide-react').LucideIcon, children: React.ReactNode, defaultAberto?: boolean }} props
  */
-function SecaoColapsavel({ titulo, Icon, children, defaultAberto = true }) {
+function SecaoColapsavel({ titulo, Icon, children, defaultAberto = false }) {
   const [aberto, setAberto] = useState(defaultAberto)
 
   return (
-    <section className="border-t border-gray-100 pt-5">
+    <section className="mx-auto w-[94%] max-w-lg border-t border-gray-100 pt-5">
       <button
         type="button"
         onClick={() => setAberto((v) => !v)}
@@ -232,7 +232,7 @@ export default function AbaEndereco({
   ].filter(Boolean)
 
   return (
-    <div className="space-y-6 pb-0 text-gray-900 [&>section:last-child]:mb-0">
+    <div className="space-y-6 pb-24 text-gray-900 [&>section:last-child]:mb-0">
       {locacaoBloqueada ? (
         <section className="rounded-xl border border-[#45B7D1]/30 bg-[#45B7D1]/5 px-4 py-4 text-sm text-gray-800">
           <p className="font-semibold text-[#0097b2]">Endereço disponível após confirmação</p>
@@ -257,7 +257,7 @@ export default function AbaEndereco({
       ) : null}
 
       {!locacaoBloqueada ? (
-        <SecaoColapsavel titulo="Endereço" Icon={MapPin}>
+        <SecaoColapsavel titulo="Localização" Icon={MapPin}>
           <div className="min-w-0">
             <p className="text-base font-medium text-gray-900">{empresa.endereco}</p>
             {empresa.bairro != null && String(empresa.bairro).trim() !== '' ? (
@@ -266,7 +266,7 @@ export default function AbaEndereco({
             {empresa.cidade ? <p className="mt-0.5 text-base text-gray-600">{empresa.cidade}</p> : null}
           </div>
           {temMapa ? (
-            <div className="mt-3 overflow-hidden rounded-xl border border-gray-200 bg-gray-100 leading-none shadow-sm">
+            <div className="mt-3 overflow-hidden rounded-xl border border-[#0097b2] bg-gray-100 leading-none shadow-sm">
               {mapaCoordOk ? (
                 <MapaEmpresaPagina
                   latitude={lat}
