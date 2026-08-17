@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Camera, ChevronDown, ChevronUp, FileText, Globe2, MapPin, Star } from 'lucide-react'
+import { Camera, FileText, Globe2, MapPin, Star } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
@@ -216,7 +216,6 @@ export default function EmpresaPreviewModoApresentacaoPage() {
   const fotoUrl = empresaMerged.foto_url ? String(empresaMerged.foto_url) : null
   const descLonga = empresaMerged.descricao_longa != null ? String(empresaMerged.descricao_longa) : null
   const notaMedia = Number(empresaMerged.nota_media) || 0
-  const totalAval = Number(empresaMerged.total_avaliacoes) || 0
   const categoria = String(empresaMerged.categoria ?? '')
   const rotuloServico = getRotuloAbaServico(categoria)
   const IconeAbaServico = getIconeAbaServico(categoria)
@@ -258,13 +257,20 @@ export default function EmpresaPreviewModoApresentacaoPage() {
       <header className="border-b border-[#0087a0] bg-[#0097b2] pt-safe">
         <div className="flex items-center justify-between gap-3 px-4 py-1.5">
           <div className="flex min-w-0 items-center gap-2">
-            <UsuarioHandleVerificado
-              username={nomeUsuarioRaw || 'usuario'}
-              verificado={empresaVerificada}
-              verificadoTipo="empresa"
-              asButton={false}
-              className={usernameHeaderClass}
-            />
+            <span className="flex min-w-0 items-center gap-1.5">
+              {bandeiraPais ? (
+                <span className="shrink-0 text-lg leading-none" aria-label="País da empresa">
+                  {bandeiraPais}
+                </span>
+              ) : null}
+              <UsuarioHandleVerificado
+                username={nomeUsuarioRaw || 'usuario'}
+                verificado={false}
+                verificadoTipo="empresa"
+                asButton={false}
+                className={usernameHeaderClass}
+              />
+            </span>
           </div>
           <BotaoAbrirMenuLateral
             onClick={() => setMenuAberto(true)}
@@ -282,12 +288,7 @@ export default function EmpresaPreviewModoApresentacaoPage() {
       />
 
       <div className="border-b border-gray-100 bg-white px-4 pb-4 pt-2">
-        <div className="flex items-center justify-center gap-1.5">
-          {bandeiraPais ? (
-            <span className="shrink-0 text-xl leading-none" aria-hidden>
-              {bandeiraPais}
-            </span>
-          ) : null}
+        <div className="flex items-center justify-center">
           <NomeSocial
             nome={nomeFantasia}
             contaVerificada={empresaVerificada}
@@ -296,13 +297,9 @@ export default function EmpresaPreviewModoApresentacaoPage() {
           />
         </div>
 
-        <div className="mt-2 flex flex-col items-center justify-center gap-2 text-center">
-          <div className="flex justify-center">
-            <NotaMedia nota={notaMedia} total={totalAval} />
-          </div>
-          <div className="flex justify-center">
-            <StatusAtendimento horarios={empresaEndereco.horarios} />
-          </div>
+        <div className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center">
+          <StatusAtendimento horarios={empresaEndereco.horarios} />
+          <NotaMedia nota={notaMedia} />
         </div>
 
         <div className="mt-3">
@@ -311,48 +308,48 @@ export default function EmpresaPreviewModoApresentacaoPage() {
       </div>
 
       <div className="border-b border-gray-100 bg-white">
-        <div className="flex gap-1 p-1.5">
+        <div className="flex border-b border-[#E0E0E0] px-2">
           <button
             type="button"
             onClick={() => toggleAba('avaliacoes')}
             aria-label="Avaliações"
             aria-expanded={abaExpandida === 'avaliacoes'}
-            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-sm font-medium transition-colors ${
+            className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 border-b-2 px-1 py-2 text-xs font-medium transition-colors ${
               abaExpandida === 'avaliacoes'
-                ? 'bg-[#007f96] text-white shadow-sm ring-2 ring-[#0097b2]/25'
-                : 'bg-[#0097b2] text-white hover:bg-[#0087a0]'
+                ? 'border-[#0097b2] text-[#0097b2]'
+                : 'border-transparent text-gray-500 hover:text-[#0097b2]'
             }`}
           >
-            <Star className="h-4 w-4 shrink-0" aria-hidden />
-            {abaExpandida === 'avaliacoes' ? <ChevronUp className="h-4 w-4 shrink-0" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />}
+            <Star className="h-[18px] w-[18px] shrink-0 text-current" aria-hidden />
+            <span>Avaliação</span>
           </button>
           <button
             type="button"
             onClick={() => toggleAba('endereco')}
             aria-label="Endereço"
             aria-expanded={abaExpandida === 'endereco'}
-            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-sm font-medium transition-colors ${
+            className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 border-b-2 px-1 py-2 text-xs font-medium transition-colors ${
               abaExpandida === 'endereco'
-                ? 'bg-[#007f96] text-white shadow-sm ring-2 ring-[#0097b2]/25'
-                : 'bg-[#0097b2] text-white hover:bg-[#0087a0]'
+                ? 'border-[#0097b2] text-[#0097b2]'
+                : 'border-transparent text-gray-500 hover:text-[#0097b2]'
             }`}
           >
-            <MapPin className="h-4 w-4 shrink-0" aria-hidden />
-            {abaExpandida === 'endereco' ? <ChevronUp className="h-4 w-4 shrink-0" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />}
+            <MapPin className="h-[18px] w-[18px] shrink-0 text-current" aria-hidden />
+            <span>Endereço</span>
           </button>
           <button
             type="button"
             onClick={() => toggleAba('dinamico')}
             aria-label={rotuloServico}
             aria-expanded={abaExpandida === 'dinamico'}
-            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-sm font-medium transition-colors ${
+            className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 border-b-2 px-1 py-2 text-xs font-medium transition-colors ${
               abaExpandida === 'dinamico'
-                ? 'bg-[#007f96] text-white shadow-sm ring-2 ring-[#0097b2]/25'
-                : 'bg-[#0097b2] text-white hover:bg-[#0087a0]'
+                ? 'border-[#0097b2] text-[#0097b2]'
+                : 'border-transparent text-gray-500 hover:text-[#0097b2]'
             }`}
           >
-            <IconeAbaServico className="h-4 w-4 shrink-0" aria-hidden />
-            {abaExpandida === 'dinamico' ? <ChevronUp className="h-4 w-4 shrink-0" aria-hidden /> : <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />}
+            <IconeAbaServico className="h-[18px] w-[18px] shrink-0 text-current" aria-hidden />
+            <span className="max-w-full truncate">{rotuloServico}</span>
           </button>
         </div>
       </div>

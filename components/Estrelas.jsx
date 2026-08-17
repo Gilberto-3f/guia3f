@@ -3,9 +3,13 @@
 import { Star } from 'lucide-react'
 
 /**
- * @param {{ nota: number, tamanho?: number }} props
+ * @param {{ nota: number, tamanho?: number, notaClassName?: string }} props
  */
-export default function Estrelas({ nota, tamanho = 16 }) {
+export default function Estrelas({
+  nota,
+  tamanho = 16,
+  notaClassName = 'text-xs text-gray-500',
+}) {
   const n = Number(nota)
   const seguro = Number.isFinite(n) ? Math.min(5, Math.max(0, n)) : 0
   const notaArredondada = Math.round(seguro * 2) / 2
@@ -33,7 +37,7 @@ export default function Estrelas({ nota, tamanho = 16 }) {
         }
         return <Star key={i} size={tamanho} className="text-gray-300" aria-hidden />
       })}
-      <span className="ml-1 text-xs text-gray-500">{seguro.toFixed(1)}</span>
+      <span className={`ml-1 ${notaClassName}`}>{seguro.toFixed(1)}</span>
     </div>
   )
 }
