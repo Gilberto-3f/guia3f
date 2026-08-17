@@ -384,15 +384,15 @@ export default function EmpresaPreviewModoApresentacaoPage() {
       ) : null}
 
       {abaExpandida == null ? (
-        <div className="bg-[#0097b2] pb-0">
-          <div className="flex bg-[#0097b2] px-2">
+        <div className="bg-white pb-0">
+          <div className="flex bg-white px-2">
             <button
               type="button"
               onClick={() => setSubAbaAtiva('fotos')}
               className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2.5 text-xs font-bold transition-colors ${
                 subAbaAtiva === 'fotos'
-                  ? 'border-white text-white'
-                  : 'border-transparent text-white/75 hover:text-white'
+                  ? 'border-[#0097b2] text-[#0097b2]'
+                  : 'border-transparent text-gray-500 hover:text-[#0097b2]'
               }`}
             >
               <Camera size={18} aria-hidden />
@@ -403,8 +403,8 @@ export default function EmpresaPreviewModoApresentacaoPage() {
               onClick={() => setSubAbaAtiva('posts')}
               className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2.5 text-xs font-bold transition-colors ${
                 subAbaAtiva === 'posts'
-                  ? 'border-white text-white'
-                  : 'border-transparent text-white/75 hover:text-white'
+                  ? 'border-[#0097b2] text-[#0097b2]'
+                  : 'border-transparent text-gray-500 hover:text-[#0097b2]'
               }`}
             >
               <FileText size={18} aria-hidden />
@@ -415,8 +415,8 @@ export default function EmpresaPreviewModoApresentacaoPage() {
               onClick={() => setSubAbaAtiva('tour360')}
               className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2.5 text-xs font-bold transition-colors ${
                 subAbaAtiva === 'tour360'
-                  ? 'border-white text-white'
-                  : 'border-transparent text-white/75 hover:text-white'
+                  ? 'border-[#0097b2] text-[#0097b2]'
+                  : 'border-transparent text-gray-500 hover:text-[#0097b2]'
               }`}
             >
               <Globe2 size={18} aria-hidden />

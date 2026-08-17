@@ -37,11 +37,11 @@ function SecaoColapsavel({ titulo, Icon, children, defaultAberto = false }) {
   const [aberto, setAberto] = useState(defaultAberto)
 
   return (
-    <section className="mx-auto w-[94%] max-w-lg border-t border-gray-100 pt-5">
+    <section className="border-t border-gray-100 pt-2">
       <button
         type="button"
         onClick={() => setAberto((v) => !v)}
-        className="flex w-full items-center justify-between gap-2 text-left"
+        className="flex w-full items-center justify-between gap-2 py-1 text-left"
         aria-expanded={aberto}
       >
         <TituloSecao Icon={Icon} titulo={titulo} />
@@ -232,7 +232,7 @@ export default function AbaEndereco({
   ].filter(Boolean)
 
   return (
-    <div className="space-y-6 pb-24 text-gray-900 [&>section:last-child]:mb-0">
+    <div className="space-y-3 pb-4 text-gray-900 [&>section:last-child]:mb-0">
       {locacaoBloqueada ? (
         <section className="rounded-xl border border-[#45B7D1]/30 bg-[#45B7D1]/5 px-4 py-4 text-sm text-gray-800">
           <p className="font-semibold text-[#0097b2]">Endereço disponível após confirmação</p>
