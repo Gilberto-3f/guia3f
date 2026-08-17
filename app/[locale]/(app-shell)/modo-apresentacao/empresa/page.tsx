@@ -302,55 +302,47 @@ export default function EmpresaPreviewModoApresentacaoPage() {
           <NotaMedia nota={notaMedia} />
         </div>
 
-        <div className="mt-3">
-          <DescricaoLonga descricao={descLonga} />
-        </div>
-      </div>
-
-      <div className="border-b border-gray-100 bg-white">
-        <div className="flex border-b border-[#E0E0E0] px-2">
+        <div className="mx-auto mt-3 grid max-w-md grid-cols-3 gap-5 px-2">
           <button
             type="button"
             onClick={() => toggleAba('avaliacoes')}
             aria-label="Avaliações"
             aria-expanded={abaExpandida === 'avaliacoes'}
-            className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 border-b-2 px-1 py-2 text-xs font-medium transition-colors ${
-              abaExpandida === 'avaliacoes'
-                ? 'border-[#0097b2] text-[#0097b2]'
-                : 'border-transparent text-gray-500 hover:text-[#0097b2]'
+            className={`flex min-w-0 flex-col items-center justify-center rounded-lg px-1 py-1.5 text-center transition-colors hover:bg-gray-100 active:bg-gray-200 ${
+              abaExpandida === 'avaliacoes' ? 'text-[#0097b2]' : 'text-black'
             }`}
           >
-            <Star className="h-[18px] w-[18px] shrink-0 text-current" aria-hidden />
-            <span>Avaliação</span>
+            <Star className="h-5 w-5 shrink-0 text-current" strokeWidth={2} aria-hidden />
+            <span className="mt-1.5 text-sm font-normal leading-none">Avaliação</span>
           </button>
           <button
             type="button"
             onClick={() => toggleAba('endereco')}
             aria-label="Endereço"
             aria-expanded={abaExpandida === 'endereco'}
-            className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 border-b-2 px-1 py-2 text-xs font-medium transition-colors ${
-              abaExpandida === 'endereco'
-                ? 'border-[#0097b2] text-[#0097b2]'
-                : 'border-transparent text-gray-500 hover:text-[#0097b2]'
+            className={`flex min-w-0 flex-col items-center justify-center rounded-lg px-1 py-1.5 text-center transition-colors hover:bg-gray-100 active:bg-gray-200 ${
+              abaExpandida === 'endereco' ? 'text-[#0097b2]' : 'text-black'
             }`}
           >
-            <MapPin className="h-[18px] w-[18px] shrink-0 text-current" aria-hidden />
-            <span>Endereço</span>
+            <MapPin className="h-5 w-5 shrink-0 text-current" strokeWidth={2} aria-hidden />
+            <span className="mt-1.5 text-sm font-normal leading-none">Endereço</span>
           </button>
           <button
             type="button"
             onClick={() => toggleAba('dinamico')}
             aria-label={rotuloServico}
             aria-expanded={abaExpandida === 'dinamico'}
-            className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 border-b-2 px-1 py-2 text-xs font-medium transition-colors ${
-              abaExpandida === 'dinamico'
-                ? 'border-[#0097b2] text-[#0097b2]'
-                : 'border-transparent text-gray-500 hover:text-[#0097b2]'
+            className={`flex min-w-0 flex-col items-center justify-center rounded-lg px-1 py-1.5 text-center transition-colors hover:bg-gray-100 active:bg-gray-200 ${
+              abaExpandida === 'dinamico' ? 'text-[#0097b2]' : 'text-black'
             }`}
           >
-            <IconeAbaServico className="h-[18px] w-[18px] shrink-0 text-current" aria-hidden />
-            <span className="max-w-full truncate">{rotuloServico}</span>
+            <IconeAbaServico className="h-5 w-5 shrink-0 text-current" strokeWidth={2} aria-hidden />
+            <span className="mt-1.5 max-w-full truncate text-sm font-normal leading-none">{rotuloServico}</span>
           </button>
+        </div>
+
+        <div className="mt-3">
+          <DescricaoLonga descricao={descLonga} />
         </div>
       </div>
 
@@ -364,8 +356,6 @@ export default function EmpresaPreviewModoApresentacaoPage() {
               empresaVerificada={
                 Boolean(empresaMerged.docs_verificado) || String(empresaMerged.status ?? '') === 'ativo'
               }
-              abrirAoMontar
-              onFecharDrawer={() => setAbaExpandida(null)}
             />
           ) : null}
           {abaExpandida === 'endereco' ? <AbaEndereco empresa={empresaEndereco} /> : null}
@@ -384,43 +374,45 @@ export default function EmpresaPreviewModoApresentacaoPage() {
               empresaVerificada={
                 Boolean(empresaMerged.docs_verificado) || String(empresaMerged.status ?? '') === 'ativo'
               }
+              abrirAoMontar
+              onFecharDrawer={() => setAbaExpandida(null)}
             />
           ) : null}
         </div>
       ) : null}
 
       {abaExpandida == null ? (
-        <div className="border-b border-gray-100 bg-white p-4">
-          <div className="flex border-b border-[#E0E0E0] bg-white px-2">
+        <div className="bg-white px-4 pb-4">
+          <div className="flex bg-white px-2">
             <button
               type="button"
               onClick={() => setSubAbaAtiva('fotos')}
-              className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2 text-xs font-medium transition-colors ${
-                subAbaAtiva === 'fotos' ? 'border-[#0097b2] text-[#0097b2]' : 'border-transparent text-gray-500'
+              className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-bold transition-colors ${
+                subAbaAtiva === 'fotos' ? 'text-[#0097b2]' : 'text-gray-500'
               }`}
             >
               <Camera size={18} aria-hidden />
-              <span>FOTOS</span>
+              <span>Fotos</span>
             </button>
             <button
               type="button"
               onClick={() => setSubAbaAtiva('posts')}
-              className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2 text-xs font-medium transition-colors ${
-                subAbaAtiva === 'posts' ? 'border-[#0097b2] text-[#0097b2]' : 'border-transparent text-gray-500'
+              className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-bold transition-colors ${
+                subAbaAtiva === 'posts' ? 'text-[#0097b2]' : 'text-gray-500'
               }`}
             >
               <FileText size={18} aria-hidden />
-              <span>POSTAGENS</span>
+              <span>Postagens</span>
             </button>
             <button
               type="button"
               onClick={() => setSubAbaAtiva('tour360')}
-              className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2 text-xs font-medium transition-colors ${
-                subAbaAtiva === 'tour360' ? 'border-[#0097b2] text-[#0097b2]' : 'border-transparent text-gray-500'
+              className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-bold transition-colors ${
+                subAbaAtiva === 'tour360' ? 'text-[#0097b2]' : 'text-gray-500'
               }`}
             >
               <Globe2 size={18} aria-hidden />
-              <span>TOUR 360°</span>
+              <span>Tour 360</span>
             </button>
           </div>
 
