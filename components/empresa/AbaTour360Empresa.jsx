@@ -16,6 +16,7 @@ import { parseTourConfig, sincronizarTourComFotos } from '@/lib/pannellumTour'
  *   modoAdministracao?: boolean
  *   empresaId?: string
  *   onAtualizado?: () => void
+ *   onFechar?: () => void
  * }} props
  */
 export default function AbaTour360Empresa({
@@ -24,6 +25,7 @@ export default function AbaTour360Empresa({
   modoAdministracao = false,
   empresaId = '',
   onAtualizado,
+  onFechar,
 }) {
   const urls = Array.isArray(fotos360Url) ? fotos360Url.filter((u) => typeof u === 'string' && u.trim()) : []
   const tourMerged = useMemo(
@@ -73,6 +75,7 @@ export default function AbaTour360Empresa({
       tourConfig={tourMerged}
       autoOpen={!modoAdministracao}
       painelAntesIniciar={painelEdicaoAdm}
+      onFechar={onFechar}
     />
   )
 }

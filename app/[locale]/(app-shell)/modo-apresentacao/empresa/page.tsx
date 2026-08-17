@@ -11,12 +11,11 @@ import { useEmpresaPreviewDraft } from '@/hooks/useEmpresaPreviewDraft'
 import EmpresaPreviewEditorDrawer from '@/components/empresa/EmpresaPreviewEditorDrawer'
 
 import BotaoAbrirMenuLateral from '@/components/perfil/BotaoAbrirMenuLateral'
-import Username from '@/components/Username'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import { bandeiraProfissionalRegistro } from '@/lib/bandeiraProfissional'
 import { contaVerificadaDocumentacao } from '@/lib/contaVerificada'
-import FotoHero from '@/components/FotoHero'
-import NomeEmpresa from '@/components/NomeEmpresa'
+import FotoCapa from '@/components/perfil/FotoCapa'
+import NomeSocial from '@/components/perfil/NomeSocial'
 import NotaMedia from '@/components/NotaMedia'
 import StatusAtendimento from '@/components/StatusAtendimento'
 import DescricaoLonga from '@/components/DescricaoLonga'
@@ -207,7 +206,7 @@ export default function EmpresaPreviewModoApresentacaoPage() {
   const nomeFantasia = String(empresaMerged.nome_fantasia ?? '')
   const nomeUsuario = String(empresaMerged.nome_usuario ?? '')
   const nomeUsuarioRaw = nomeUsuario.trim().replace(/^@+/, '')
-  const usernameHeaderClass = `block min-w-0 max-w-[min(50vw,320px)] truncate font-normal text-gray-600 ${
+  const usernameHeaderClass = `block min-w-0 max-w-[min(50vw,320px)] truncate font-normal text-white ${
     nomeUsuarioRaw.length > 10 ? 'text-[16px]' : 'text-[17px]'
   }`
   const empresaVerificada = contaVerificadaDocumentacao('empresa', empresaMerged)
@@ -255,53 +254,73 @@ export default function EmpresaPreviewModoApresentacaoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="border-b border-gray-100 bg-white pt-safe">
-        <div className="flex items-center justify-between gap-3 px-4 py-3">
+    <div className="min-h-screen bg-white pb-20">
+      <header className="border-b border-[#0087a0] bg-[#0097b2] pt-safe">
+        <div className="flex items-center justify-between gap-3 px-4 py-1.5">
           <div className="flex min-w-0 items-center gap-2">
-            {empresaVerificada ? (
-              <UsuarioHandleVerificado
-                username={nomeUsuarioRaw || 'usuario'}
-                verificado
-                verificadoTipo="empresa"
-                asButton={false}
-                className={usernameHeaderClass}
-              />
-            ) : (
-              <Username username={nomeUsuario} />
-            )}
+            <UsuarioHandleVerificado
+              username={nomeUsuarioRaw || 'usuario'}
+              verificado={empresaVerificada}
+              verificadoTipo="empresa"
+              asButton={false}
+              className={usernameHeaderClass}
+            />
           </div>
           <BotaoAbrirMenuLateral
             onClick={() => setMenuAberto(true)}
-            className="shrink-0 rounded-full bg-black/5 px-2.5 py-2 text-gray-900 hover:bg-black/10"
+            className="flex shrink-0 items-center rounded-full p-1 text-white hover:bg-white/10"
+            iconClassName="h-6 w-6 text-white"
           />
         </div>
-      </div>
+      </header>
 
-      <FotoHero fotoUrl={fotoUrl} nome={nomeFantasia} />
+      <FotoCapa
+        src={fotoUrl}
+        nomeFallback={nomeFantasia}
+        mostrarMenu={false}
+        variante="avatar"
+      />
 
-      <div className="border-b border-gray-100 bg-white p-4">
-        <div className="mb-2 flex items-start justify-between gap-2">
-          <NomeEmpresa nome={nomeFantasia} bandeira={bandeiraPais} />
+      <div className="border-b border-gray-100 bg-white px-4 pb-4 pt-2">
+        <div className="flex items-center justify-center gap-1.5">
+          {bandeiraPais ? (
+            <span className="shrink-0 text-xl leading-none" aria-hidden>
+              {bandeiraPais}
+            </span>
+          ) : null}
+          <NomeSocial
+            nome={nomeFantasia}
+            contaVerificada={empresaVerificada}
+            verificadoTipo="empresa"
+            compactoCentralizado
+          />
         </div>
 
-        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
-          <NotaMedia nota={notaMedia} total={totalAval} />
-          <StatusAtendimento horarios={empresaEndereco.horarios} />
+        <div className="mt-2 flex flex-col items-center justify-center gap-2 text-center">
+          <div className="flex justify-center">
+            <NotaMedia nota={notaMedia} total={totalAval} />
+          </div>
+          <div className="flex justify-center">
+            <StatusAtendimento horarios={empresaEndereco.horarios} />
+          </div>
         </div>
 
-        <DescricaoLonga descricao={descLonga} />
+        <div className="mt-3">
+          <DescricaoLonga descricao={descLonga} />
+        </div>
       </div>
 
       <div className="border-b border-gray-100 bg-white">
-        <div className="flex">
+        <div className="flex gap-1 p-1.5">
           <button
             type="button"
             onClick={() => toggleAba('avaliacoes')}
             aria-label="Avaliações"
             aria-expanded={abaExpandida === 'avaliacoes'}
-            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 px-2 py-3 text-sm font-medium transition-colors ${
-              abaExpandida === 'avaliacoes' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500'
+            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-sm font-medium transition-colors ${
+              abaExpandida === 'avaliacoes'
+                ? 'bg-[#007f96] text-white shadow-sm ring-2 ring-[#0097b2]/25'
+                : 'bg-[#0097b2] text-white hover:bg-[#0087a0]'
             }`}
           >
             <Star className="h-4 w-4 shrink-0" aria-hidden />
@@ -312,8 +331,10 @@ export default function EmpresaPreviewModoApresentacaoPage() {
             onClick={() => toggleAba('endereco')}
             aria-label="Endereço"
             aria-expanded={abaExpandida === 'endereco'}
-            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 px-2 py-3 text-sm font-medium transition-colors ${
-              abaExpandida === 'endereco' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500'
+            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-sm font-medium transition-colors ${
+              abaExpandida === 'endereco'
+                ? 'bg-[#007f96] text-white shadow-sm ring-2 ring-[#0097b2]/25'
+                : 'bg-[#0097b2] text-white hover:bg-[#0087a0]'
             }`}
           >
             <MapPin className="h-4 w-4 shrink-0" aria-hidden />
@@ -324,8 +345,10 @@ export default function EmpresaPreviewModoApresentacaoPage() {
             onClick={() => toggleAba('dinamico')}
             aria-label={rotuloServico}
             aria-expanded={abaExpandida === 'dinamico'}
-            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 px-2 py-3 text-sm font-medium transition-colors ${
-              abaExpandida === 'dinamico' ? 'border-b-2 border-[#0097b2] text-[#0097b2]' : 'text-gray-500'
+            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-sm font-medium transition-colors ${
+              abaExpandida === 'dinamico'
+                ? 'bg-[#007f96] text-white shadow-sm ring-2 ring-[#0097b2]/25'
+                : 'bg-[#0097b2] text-white hover:bg-[#0087a0]'
             }`}
           >
             <IconeAbaServico className="h-4 w-4 shrink-0" aria-hidden />
@@ -388,7 +411,7 @@ export default function EmpresaPreviewModoApresentacaoPage() {
               }`}
             >
               <FileText size={18} aria-hidden />
-              <span>POSTS</span>
+              <span>POSTAGENS</span>
             </button>
             <button
               type="button"
@@ -413,7 +436,11 @@ export default function EmpresaPreviewModoApresentacaoPage() {
             ) : null}
             {subAbaAtiva === 'posts' ? <AbaPostsEmpresa empresaUsuarioId={empresaUsuarioIdPostsPreview} /> : null}
             {subAbaAtiva === 'tour360' ? (
-              <AbaTour360Empresa fotos360Url={fotos360ListaPreview} tourConfig={tourConfigPreview} />
+              <AbaTour360Empresa
+                fotos360Url={fotos360ListaPreview}
+                tourConfig={tourConfigPreview}
+                onFechar={() => setSubAbaAtiva('fotos')}
+              />
             ) : null}
           </div>
         </div>

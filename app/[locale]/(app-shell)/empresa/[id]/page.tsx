@@ -1,19 +1,18 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { Camera, ChevronDown, ChevronUp, FileText, Globe2, MapPin, Star } from 'lucide-react'
+import { useParams, useSearchParams } from 'next/navigation'
+import { ArrowLeft, Camera, ChevronDown, ChevronUp, FileText, Globe2, MapPin, Star } from 'lucide-react'
+import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
-import BotaoVoltar from '@/components/BotaoVoltar'
 import BotaoEstrelaFavorito from '@/components/favoritos/BotaoEstrelaFavorito'
 import BotaoAlfineteItinerario from '@/components/manifesto/BotaoAlfineteItinerario'
-import Username from '@/components/Username'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import { bandeiraProfissionalRegistro } from '@/lib/bandeiraProfissional'
-import FotoHero from '@/components/FotoHero'
+import FotoCapa from '@/components/perfil/FotoCapa'
 import MenuLateral from '@/components/perfil/MenuLateral'
 import BotaoAbrirMenuLateral from '@/components/perfil/BotaoAbrirMenuLateral'
-import NomeEmpresa from '@/components/NomeEmpresa'
+import NomeSocial from '@/components/perfil/NomeSocial'
 import NotaMedia from '@/components/NotaMedia'
 import StatusAtendimento from '@/components/StatusAtendimento'
 import DescricaoLonga from '@/components/DescricaoLonga'
@@ -475,7 +474,7 @@ export default function EmpresaPage() {
   const nomeFantasia = String(empresa.nome_fantasia ?? '')
   const nomeUsuario = String(empresa.nome_usuario ?? '')
   const nomeUsuarioRaw = nomeUsuario.trim().replace(/^@+/, '')
-  const usernameHeaderClass = `block min-w-0 max-w-[min(50vw,320px)] truncate font-normal text-gray-600 ${
+  const usernameHeaderClass = `block min-w-0 max-w-[min(50vw,320px)] truncate font-normal text-white ${
     nomeUsuarioRaw.length > 10 ? 'text-[16px]' : 'text-[17px]'
   }`
   const bandeiraPais = bandeiraProfissionalRegistro({
@@ -551,29 +550,38 @@ export default function EmpresaPage() {
   const ocultarChamarCorridaEndereco = false
 
   return (
-    <div className="bg-gray-50">
-      <div className="border-b border-gray-100 bg-white pt-safe">
+    <div className="bg-white">
+      <header className="border-b border-[#0087a0] bg-[#0097b2] pt-safe">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5 sm:px-4">
           <div className="flex min-w-0 items-center gap-1.5">
-            {authCarregado && !modoEmpresaLayout ? <BotaoVoltar /> : null}
+            {authCarregado && !modoEmpresaLayout ? (
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="-ml-1 rounded-full p-2 transition-colors hover:bg-white/10"
+                aria-label="Voltar"
+              >
+                <ArrowLeft size={20} className="text-white" />
+              </button>
+            ) : null}
             <div className="min-w-0 flex-1 overflow-hidden">
-              {empresaVerificada ? (
-                <UsuarioHandleVerificado
-                  username={nomeUsuarioRaw || 'usuario'}
-                  verificado
-                  verificadoTipo="empresa"
-                  asButton={false}
-                  className={usernameHeaderClass}
-                />
-              ) : (
-                <Username username={nomeUsuario} />
-              )}
+              <UsuarioHandleVerificado
+                username={nomeUsuarioRaw || 'usuario'}
+                verificado={empresaVerificada}
+                verificadoTipo="empresa"
+                asButton={false}
+                className={usernameHeaderClass}
+              />
             </div>
           </div>
           <div className="flex shrink-0 items-center justify-end gap-1">
             {authCarregado && meuRole === 'turista' ? (
               <>
-                <BotaoAlfineteItinerario empresaId={empresaId} size={22} />
+                <BotaoAlfineteItinerario
+                  empresaId={empresaId}
+                  size={22}
+                  className="bg-white/95 hover:bg-white"
+                />
                 <BotaoEstrelaFavorito
                   usuarioId={usuarioId}
                   alvoId={empresaId}
@@ -581,27 +589,55 @@ export default function EmpresaPage() {
                   inicial={favEmpresa}
                   size={22}
                   onChange={setFavEmpresa}
+                  className="bg-white/95 p-1.5 hover:bg-white"
                 />
               </>
             ) : null}
-            {podeAbrirMenu ? <BotaoAbrirMenuLateral onClick={() => setMenuAberto(true)} /> : null}
+            {podeAbrirMenu ? (
+              <BotaoAbrirMenuLateral
+                onClick={() => setMenuAberto(true)}
+                className="flex shrink-0 items-center rounded-full p-1 text-white hover:bg-white/10"
+                iconClassName="h-6 w-6 text-white"
+              />
+            ) : null}
           </div>
         </div>
-      </div>
+      </header>
 
-      <FotoHero fotoUrl={fotoUrl} nome={nomeFantasia} />
+      <FotoCapa
+        src={fotoUrl}
+        nomeFallback={nomeFantasia}
+        mostrarMenu={false}
+        variante="avatar"
+      />
 
-      <div className="border-b border-gray-100 bg-white p-4">
-        <div className="mb-2">
-          <NomeEmpresa nome={nomeFantasia} bandeira={bandeiraPais} />
+      <div className="border-b border-gray-100 bg-white px-4 pb-4 pt-2">
+        <div className="flex items-center justify-center gap-1.5">
+          {bandeiraPais ? (
+            <span className="shrink-0 text-xl leading-none" aria-hidden>
+              {bandeiraPais}
+            </span>
+          ) : null}
+          <NomeSocial
+            nome={nomeFantasia}
+            contaVerificada={empresaVerificada}
+            verificadoTipo="empresa"
+            compactoCentralizado
+          />
         </div>
 
-        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
-          <NotaMedia nota={notaMedia} total={totalAval} />
-          <StatusAtendimento horarios={empresaEndereco.horarios} />
+        <div className="mt-2 flex flex-col items-center justify-center gap-2 text-center">
+          <div className="flex justify-center">
+            <NotaMedia nota={notaMedia} total={totalAval} />
+          </div>
+          <div className="flex justify-center">
+            <StatusAtendimento horarios={empresaEndereco.horarios} />
+          </div>
         </div>
 
-        <DescricaoLonga descricao={descLonga} />
+        <div className="mt-3">
+          <DescricaoLonga descricao={descLonga} />
+        </div>
       </div>
 
       <div className="border-b border-gray-100 bg-white">
@@ -613,8 +649,8 @@ export default function EmpresaPage() {
             aria-expanded={abaExpandida === 'avaliacoes'}
             className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-sm font-medium transition-colors ${
               abaExpandida === 'avaliacoes'
-                ? 'bg-[#0097b2] text-white shadow-sm'
-                : 'bg-transparent text-[#0097b2] hover:bg-[#0097b2]/10'
+                ? 'bg-[#007f96] text-white shadow-sm ring-2 ring-[#0097b2]/25'
+                : 'bg-[#0097b2] text-white hover:bg-[#0087a0]'
             }`}
           >
             <Star className="h-4 w-4 shrink-0 text-current" aria-hidden />
@@ -627,8 +663,8 @@ export default function EmpresaPage() {
             aria-expanded={abaExpandida === 'endereco'}
             className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-sm font-medium transition-colors ${
               abaExpandida === 'endereco'
-                ? 'bg-[#0097b2] text-white shadow-sm'
-                : 'bg-transparent text-[#0097b2] hover:bg-[#0097b2]/10'
+                ? 'bg-[#007f96] text-white shadow-sm ring-2 ring-[#0097b2]/25'
+                : 'bg-[#0097b2] text-white hover:bg-[#0087a0]'
             }`}
           >
             <MapPin className="h-4 w-4 shrink-0 text-current" aria-hidden />
@@ -642,8 +678,8 @@ export default function EmpresaPage() {
             aria-expanded={abaExpandida === 'dinamico'}
             className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-sm font-medium transition-colors ${
               abaExpandida === 'dinamico'
-                ? 'bg-[#0097b2] text-white shadow-sm'
-                : 'bg-transparent text-[#0097b2] hover:bg-[#0097b2]/10'
+                ? 'bg-[#007f96] text-white shadow-sm ring-2 ring-[#0097b2]/25'
+                : 'bg-[#0097b2] text-white hover:bg-[#0087a0]'
             }`}
           >
             <IconeAbaServico className="h-4 w-4 shrink-0 text-current" aria-hidden />
@@ -701,14 +737,14 @@ export default function EmpresaPage() {
           </div>
         ) : mostrarConteudoRede ? (
         <div className="border-b border-gray-100 bg-white pb-0">
-          <div className="flex w-full gap-0 bg-gray-100">
+          <div className="flex border-b border-[#E0E0E0] bg-white px-2">
             <button
               type="button"
               onClick={() => setSubAbaAtiva('fotos')}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors ${
+              className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2 text-xs font-medium transition-colors ${
                 subAbaAtiva === 'fotos'
-                  ? 'bg-[#0097b2] text-white shadow-sm'
-                  : 'text-[#0097b2] hover:bg-white/60'
+                  ? 'border-[#0097b2] text-[#0097b2]'
+                  : 'border-transparent text-gray-500'
               }`}
             >
               <Camera size={18} aria-hidden className="text-current" />
@@ -717,22 +753,22 @@ export default function EmpresaPage() {
             <button
               type="button"
               onClick={() => setSubAbaAtiva('posts')}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors ${
+              className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2 text-xs font-medium transition-colors ${
                 subAbaAtiva === 'posts'
-                  ? 'bg-[#0097b2] text-white shadow-sm'
-                  : 'text-[#0097b2] hover:bg-white/60'
+                  ? 'border-[#0097b2] text-[#0097b2]'
+                  : 'border-transparent text-gray-500'
               }`}
             >
               <FileText size={18} aria-hidden className="text-current" />
-              <span>POSTS</span>
+              <span>POSTAGENS</span>
             </button>
             <button
               type="button"
               onClick={() => setSubAbaAtiva('tour360')}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors ${
+              className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2 text-xs font-medium transition-colors ${
                 subAbaAtiva === 'tour360'
-                  ? 'bg-[#0097b2] text-white shadow-sm'
-                  : 'text-[#0097b2] hover:bg-white/60'
+                  ? 'border-[#0097b2] text-[#0097b2]'
+                  : 'border-transparent text-gray-500'
               }`}
             >
               <Globe2 size={18} aria-hidden className="text-current" />
@@ -758,6 +794,7 @@ export default function EmpresaPage() {
                 modoAdministracao={podeEditarFotos360}
                 empresaId={empresaId}
                 onAtualizado={() => void carregarEmpresa({ silent: true })}
+                onFechar={() => setSubAbaAtiva('fotos')}
               />
             ) : null}
           </div>
