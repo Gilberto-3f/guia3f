@@ -46,6 +46,7 @@ import {
   CONFIG_APIS_MOBILIDADE_SELECT,
   resolverUrlApiMobilidadeParceiro,
 } from '@/lib/mobilidadeParceiroApi'
+import { buscarUsuarioCached } from '@/lib/usuarioSessionCache'
 
 type PostRepostFeed = ReturnType<typeof mapPostComAutoresRow>
 
@@ -278,11 +279,11 @@ export default function PerfilSocialPage() {
     setLoading(true)
     setErro('')
     try {
-      const { data: u, error: eu } = await supabase
-        .from('usuarios')
-        .select('id, email, role')
-        .eq('id', profileId)
-        .maybeSingle()
+      const { data: u, error: eu } = await buscarUsuarioCached(
+        supabase,
+        profileId,
+        'id, email, role',
+      )
 
       if (eu || !u) {
         setErro('Perfil não encontrado')
@@ -300,18 +301,6 @@ export default function PerfilSocialPage() {
       if (role !== 'turista' && role !== 'profissional' && role !== 'admin') {
         setErro('Perfil social disponível apenas para turistas, profissionais e administradores.')
         return
-      }
-
-      if (meuId && profileId && meuId !== profileId) {
-        const { data: seg } = await supabase
-          .from('redecontatos')
-          .select('id')
-          .eq('seguidor_id', meuId)
-          .eq('seguido_id', profileId)
-          .maybeSingle()
-        setSeguindoPerfil(Boolean(seg))
-      } else {
-        setSeguindoPerfil(false)
       }
 
       /** Sem embed em `usuarios`. Admin: profissional e turista em paralelo (prioridade profissional). */
@@ -614,11 +603,41 @@ export default function PerfilSocialPage() {
     } finally {
       setLoading(false)
     }
-  }, [profileId, meuId, atualizarMetricasPerfil, atualizarNotasCartaoProfissional])
+  }, [profileId, atualizarMetricasPerfil, atualizarNotasCartaoProfissional])
 
   useEffect(() => {
     void carregar()
   }, [carregar])
+
+  useEffect(() => {
+    let cancelado = false
+    if (!meuId || !profileId || meuId === profileId) {
+      setSeguindoPerfil(false)
+      return () => {
+        cancelado = true
+      }
+    }
+
+    void (async () => {
+      const { data: seg, error } = await supabase
+        .from('redecontatos')
+        .select('id')
+        .eq('seguidor_id', meuId)
+        .eq('seguido_id', profileId)
+        .maybeSingle()
+      if (cancelado) return
+      if (error) {
+        console.warn('Perfil seguindo:', error.message)
+        setSeguindoPerfil(false)
+        return
+      }
+      setSeguindoPerfil(Boolean(seg))
+    })()
+
+    return () => {
+      cancelado = true
+    }
+  }, [meuId, profileId])
 
   useEffect(() => {
     if (!profileId || !meuId || loading || erro) return
@@ -653,11 +672,7 @@ export default function PerfilSocialPage() {
         setAdminLevel(0)
         return
       }
-      const { data } = await supabase
-        .from('usuarios')
-        .select('role, admin_level')
-        .eq('id', id)
-        .maybeSingle()
+      const { data } = await buscarUsuarioCached(supabase, id, 'role, admin_level')
       const row = data as { role?: string; admin_level?: number } | null
       setMeuRole(row?.role != null ? String(row.role) : null)
       setAdminLevel(typeof row?.admin_level === 'number' ? row.admin_level : 0)
