@@ -419,7 +419,7 @@ export default function DrawerProdutosCde({
         {carregando ? (
           <p className="py-12 text-center text-sm text-gray-400">Carregando produtos…</p>
         ) : passo === 1 && !abrirDiretoNoDetalhe ? (
-          <div className="space-y-5 pb-8 pt-3">
+          <div className="space-y-5 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] pt-3">
             {totalProdutos === 0 ? (
               <p className="px-4 text-center text-sm text-gray-500">Nenhum produto disponível no momento.</p>
             ) : (
@@ -480,7 +480,7 @@ export default function DrawerProdutosCde({
             )}
           </div>
         ) : selecionado ? (
-          <div className="space-y-4 pb-6 pt-3">
+          <div className="space-y-4 pb-[calc(3rem+env(safe-area-inset-bottom,0px))] pt-3">
             <p className="px-4 text-left text-base font-bold text-[#001f3f]">{selecionado.nome}</p>
 
             <div className="relative px-6">
