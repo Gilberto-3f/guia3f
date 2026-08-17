@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Ticket, Calendar, Car, Package, Utensils, Hotel, ShoppingBag, Wrench } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import DrawerTicketsAtrativos from '@/components/DrawerTicketsAtrativos'
@@ -64,6 +64,8 @@ function isGastronomia(cat) {
  *   palavrasChave?: unknown
  *   abrirReservaAuto?: boolean
  *   recomendacaoId?: string | null
+ *   abrirAoMontar?: boolean
+ *   onFecharDrawer?: () => void
  * }} props
  */
 export default function AbaBotaoDinamico({
@@ -82,6 +84,8 @@ export default function AbaBotaoDinamico({
   palavrasChave = [],
   abrirReservaAuto = false,
   recomendacaoId = null,
+  abrirAoMontar = false,
+  onFecharDrawer,
 }) {
   const router = useRouter()
   const {
@@ -98,6 +102,7 @@ export default function AbaBotaoDinamico({
   const [showProdutosPopup, setShowProdutosPopup] = useState(false)
   const [showCardapioPopup, setShowCardapioPopup] = useState(false)
   const [showServicosPopup, setShowServicosPopup] = useState(false)
+  const abriuAutomaticamenteRef = useRef(false)
 
   const popupDinamicoAberto =
     showCardapioPopup || showTicketPopup || showReservaPopup || showProdutosPopup || showServicosPopup
@@ -136,7 +141,7 @@ export default function AbaBotaoDinamico({
 
   const bloqueadoNaAba = !gateLoading && !podeComprarReservar && Boolean(mensagemBloqueio)
 
-  const irMobilidadeEmpresa = () => {
+  const irMobilidadeEmpresa = useCallback(() => {
     const aviso = avaliarAvisoChamarCorrida(horarios)
     if (!aviso.irDireto) {
       if (!window.confirm(aviso.mensagem)) return
@@ -152,9 +157,9 @@ export default function AbaBotaoDinamico({
         nomeDestino: empresaNome,
       }),
     )
-  }
+  }, [empresaId, empresaNome, horarios, router])
 
-  const handleClick = () => {
+  const handleClick = useCallback(() => {
     if (!podeComprarReservar) {
       avisarBloqueio()
       return
@@ -182,10 +187,22 @@ export default function AbaBotaoDinamico({
       default:
         router.push(`/empresa/${empresaId}`)
     }
+  }, [avisarBloqueio, config.acao, empresaId, irMobilidadeEmpresa, podeComprarReservar, router])
+
+  useEffect(() => {
+    if (!abrirAoMontar || gateLoading || abriuAutomaticamenteRef.current) return
+    abriuAutomaticamenteRef.current = true
+    handleClick()
+  }, [abrirAoMontar, gateLoading, handleClick])
+
+  const fecharDrawer = (setAberto) => {
+    setAberto(false)
+    onFecharDrawer?.()
   }
 
   return (
     <>
+      {!abrirAoMontar ? (
       <div className="rounded-xl bg-white p-6 text-center shadow-sm">
         <div
           className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full"
@@ -214,17 +231,21 @@ export default function AbaBotaoDinamico({
           </>
         )}
       </div>
+      ) : null}
 
       <PopupAvisoBloqueioConta
         aberto={avisoAberto}
-        onFechar={fecharAvisoBloqueio}
+        onFechar={() => {
+          fecharAvisoBloqueio()
+          if (abrirAoMontar) onFecharDrawer?.()
+        }}
         titulo={tituloBloqueio}
         mensagem={mensagemBloqueio}
       />
 
       <DrawerTicketsAtrativos
         isOpen={showTicketPopup}
-        onClose={() => setShowTicketPopup(false)}
+        onClose={() => fecharDrawer(setShowTicketPopup)}
         empresaId={empresaId}
         empresaNome={empresaNome}
         empresaUsername={empresaUsername}
@@ -236,7 +257,7 @@ export default function AbaBotaoDinamico({
 
       <DrawerReservaHospedagem
         isOpen={showReservaPopup}
-        onClose={() => setShowReservaPopup(false)}
+        onClose={() => fecharDrawer(setShowReservaPopup)}
         empresaId={empresaId}
         empresaNome={empresaNome}
         empresaUsername={empresaUsername}
@@ -248,7 +269,7 @@ export default function AbaBotaoDinamico({
 
       <DrawerProdutosCde
         isOpen={showProdutosPopup}
-        onClose={() => setShowProdutosPopup(false)}
+        onClose={() => fecharDrawer(setShowProdutosPopup)}
         empresaId={empresaId}
         empresaNome={empresaNome}
         empresaUsername={empresaUsername}
@@ -259,7 +280,7 @@ export default function AbaBotaoDinamico({
 
       <DrawerCardapio
         isOpen={showCardapioPopup}
-        onClose={() => setShowCardapioPopup(false)}
+        onClose={() => fecharDrawer(setShowCardapioPopup)}
         empresaId={empresaId}
         empresaNome={empresaNome}
         empresaUsername={empresaUsername}
@@ -270,7 +291,7 @@ export default function AbaBotaoDinamico({
 
       <DrawerServicosLocais
         isOpen={showServicosPopup}
-        onClose={() => setShowServicosPopup(false)}
+        onClose={() => fecharDrawer(setShowServicosPopup)}
         empresaId={empresaId}
         empresaNome={empresaNome}
         empresaUsername={empresaUsername}

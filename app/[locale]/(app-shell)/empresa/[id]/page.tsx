@@ -722,6 +722,8 @@ export default function EmpresaPage() {
               palavrasChave={empresa.palavras_chave}
               abrirReservaAuto={searchParams.get('abrir') === 'reserva'}
               recomendacaoId={searchParams.get('rec')}
+              abrirAoMontar
+              onFecharDrawer={() => setAbaExpandida(null)}
             />
           ) : null}
         </div>

@@ -364,6 +364,8 @@ export default function EmpresaPreviewModoApresentacaoPage() {
               empresaVerificada={
                 Boolean(empresaMerged.docs_verificado) || String(empresaMerged.status ?? '') === 'ativo'
               }
+              abrirAoMontar
+              onFecharDrawer={() => setAbaExpandida(null)}
             />
           ) : null}
           {abaExpandida === 'endereco' ? <AbaEndereco empresa={empresaEndereco} /> : null}

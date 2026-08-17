@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import dynamic from 'next/dynamic'
-import { MapPin, Phone, User, Globe, Clock, Facebook, Instagram, Music2, ChevronDown, ChevronUp } from 'lucide-react'
+import { MapPin, Phone, User, Globe, Clock, Facebook, Instagram, Music2, ChevronDown, ChevronUp, Hotel } from 'lucide-react'
 import BotaoChamarCorrida from '@/components/BotaoChamarCorrida'
 import { whatsappWebSendUrl, digitsWhatsapp } from '@/lib/whatsapp-empresa'
 import { formatarTelefoneExibicao } from '@/lib/formatarTelefoneExibicao'
@@ -257,8 +257,7 @@ export default function AbaEndereco({
       ) : null}
 
       {!locacaoBloqueada ? (
-        <section className="space-y-2 border-t border-gray-100 pt-5">
-          <TituloSecao Icon={MapPin} titulo="Endereço" />
+        <SecaoColapsavel titulo="Endereço" Icon={MapPin}>
           <div className="min-w-0">
             <p className="text-base font-medium text-gray-900">{empresa.endereco}</p>
             {empresa.bairro != null && String(empresa.bairro).trim() !== '' ? (
@@ -266,22 +265,37 @@ export default function AbaEndereco({
             ) : null}
             {empresa.cidade ? <p className="mt-0.5 text-base text-gray-600">{empresa.cidade}</p> : null}
           </div>
-        </section>
+          {temMapa ? (
+            <div className="mt-3 overflow-hidden rounded-xl border border-gray-200 bg-gray-100 leading-none shadow-sm">
+              {mapaCoordOk ? (
+                <MapaEmpresaPagina
+                  latitude={lat}
+                  longitude={lng}
+                  nome={nomeDestino}
+                  fotoUrl={empresa.foto_url != null ? String(empresa.foto_url) : null}
+                />
+              ) : (
+                <p className="bg-[#e8f4f6] px-4 py-8 text-center text-sm text-gray-600">
+                  Localização ainda sem coordenadas. Endereço: {queryEndereco}
+                </p>
+              )}
+            </div>
+          ) : null}
+        </SecaoColapsavel>
       ) : null}
 
       {exibirDisponibilidadeHospedagem ? (
-        <section className="border-t border-gray-100 pt-5">
+        <SecaoColapsavel titulo="Disponibilidade" Icon={Hotel}>
           <StatusDisponibilidadeHospedagem disponibilidade={hospedagemDisponibilidade ?? 'livre'} />
-        </section>
+        </SecaoColapsavel>
       ) : null}
 
-      <SecaoColapsavel titulo="Horário de Funcionamento" Icon={Clock}>
+      <SecaoColapsavel titulo="Funcionamento" Icon={Clock}>
         <HorariosFuncionamento horarios={empresa.horarios || {}} />
       </SecaoColapsavel>
 
       {(empresa.whatsapp || empresa.telefone) && (
-        <section className="space-y-4 border-t border-gray-100 pt-5">
-          <TituloSecao Icon={Phone} titulo="Contato" />
+        <SecaoColapsavel titulo="Contato" Icon={Phone}>
           <div className="flex flex-col gap-3">
             {empresa.whatsapp ? (
               <BotaoContatoTelefone
@@ -301,7 +315,7 @@ export default function AbaEndereco({
               />
             ) : null}
           </div>
-        </section>
+        </SecaoColapsavel>
       )}
 
       {linksRedes.length > 0 ? (
@@ -327,38 +341,16 @@ export default function AbaEndereco({
       ) : null}
 
       {siteHref ? (
-        <section className="border-t border-gray-100 pt-5">
-          <TituloSecao Icon={Globe} titulo="Website" />
+        <SecaoColapsavel titulo="Website" Icon={Globe}>
           <a
             href={siteHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-3 text-lg font-semibold text-gray-900 hover:text-[#0097b2]"
+            className="inline-flex items-center text-lg font-semibold text-gray-900 hover:text-[#0097b2]"
           >
-            <Globe size={28} className="shrink-0 text-[#0097b2]" aria-hidden />
             <span className="break-all">{labelWebsite(siteHref)}</span>
           </a>
-        </section>
-      ) : null}
-
-      {!locacaoBloqueada && temMapa ? (
-        <section className="mb-0 border-t border-gray-100 pt-5 pb-0">
-          <TituloSecao Icon={MapPin} titulo="Mapa" />
-          <div className="mb-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-100 leading-none shadow-sm">
-            {mapaCoordOk ? (
-              <MapaEmpresaPagina
-                latitude={lat}
-                longitude={lng}
-                nome={nomeDestino}
-                fotoUrl={empresa.foto_url != null ? String(empresa.foto_url) : null}
-              />
-            ) : (
-              <p className="bg-[#e8f4f6] px-4 py-8 text-center text-sm text-gray-600">
-                Localização ainda sem coordenadas. Endereço: {queryEndereco}
-              </p>
-            )}
-          </div>
-        </section>
+        </SecaoColapsavel>
       ) : null}
     </div>
   )
