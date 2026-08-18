@@ -9,6 +9,8 @@ type Props = {
   children: React.ReactNode
   icone?: LucideIcon
   corTitulo?: string
+  /** `cinza` = padrão hospedagem; `branco` = cartão de visita sobre fundo azul. */
+  fundo?: 'cinza' | 'branco'
   /** Ícone de informação ao lado do título (não abre/fecha a pasta). */
   onInfo?: () => void
   infoAriaLabel?: string
@@ -21,11 +23,17 @@ export default function ChevronPasta({
   children,
   icone: Icone,
   corTitulo = '#001f3f',
+  fundo = 'cinza',
   onInfo,
   infoAriaLabel = 'Informações',
 }: Props) {
+  const shellCls =
+    fundo === 'branco'
+      ? 'overflow-hidden rounded-xl border border-white/25 bg-white'
+      : 'overflow-hidden rounded-xl border border-gray-200 bg-[#f5f5f5]'
+
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-[#f5f5f5]">
+    <div className={shellCls}>
       <button
         type="button"
         onClick={onToggle}

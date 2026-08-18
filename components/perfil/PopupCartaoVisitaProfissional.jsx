@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Building2, Car, ChevronLeft, ShieldCheck, Star, User, X } from 'lucide-react'
+import { Building2, Car, ChevronLeft, Languages, ShieldCheck, Star, User, X } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import EscudoVerificacaoPendente from '@/components/EscudoVerificacaoPendente'
 import IconWhatsApp from '@/components/IconWhatsApp'
@@ -105,6 +105,7 @@ export default function PopupCartaoVisitaProfissional({
   const [popupMobilidadeAberto, setPopupMobilidadeAberto] = useState(false)
   const [idiomasGuia, setIdiomasGuia] = useState(/** @type {string[]} */ ([]))
   const [pastaVeiculoAberta, setPastaVeiculoAberta] = useState(false)
+  const [pastaIdiomasAberta, setPastaIdiomasAberta] = useState(false)
   /** @type {[{ fotos: string[], modelo: string, ano: number | null } | null, Function]} */
   const [veiculo, setVeiculo] = useState(null)
   /** @type {[{ id: string, nomeFantasia: string, username: string | null, fotoUrl: string | null, notaMedia: number | null } | null, Function]} */
@@ -305,7 +306,11 @@ export default function PopupCartaoVisitaProfissional({
   }, [])
 
   useEffect(() => {
-    if (!aberto) resetAvaliacao()
+    if (!aberto) {
+      resetAvaliacao()
+      setPastaVeiculoAberta(false)
+      setPastaIdiomasAberta(false)
+    }
   }, [aberto, resetAvaliacao])
 
   useEffect(() => {
@@ -386,86 +391,97 @@ export default function PopupCartaoVisitaProfissional({
 
   if (!aberto) return null
 
+  const headerBtnTop = 'top-[max(0.75rem,env(safe-area-inset-top,0px))]'
+
+  const avatarCartao = (
+    <div className="flex justify-center">
+      <div className="rounded-2xl bg-white p-[3px]">
+        <div className="relative h-28 w-28 overflow-hidden rounded-2xl bg-gray-100">
+          {avatarUrl ? (
+            <AvatarImage src={avatarUrl} alt="" fill className="object-cover" sizes="112px" />
+          ) : null}
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <>
       <div
-        className="fixed inset-0 z-[240] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
-        onClick={fecharPopup}
-        role="presentation"
+        className="fixed inset-0 z-[240] flex flex-col bg-[#0097b2]"
+        style={{ height: 'var(--app-height, 100dvh)' }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Cartão de visita"
       >
-        <div
-          className="flex min-h-0 max-h-[min(92dvh,42rem)] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white text-black shadow-xl sm:max-h-[85vh] sm:rounded-2xl"
-          role="dialog"
-          aria-modal="true"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="relative shrink-0 border-b border-gray-100 bg-white pt-4 pb-3">
-            {modo === 'avaliar' ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setModo('cartao')}
-                  className="absolute left-3 top-3 rounded-full p-1 text-gray-500 transition hover:bg-gray-100"
-                  aria-label="Voltar ao cartão de visita"
-                >
-                  <ChevronLeft size={22} strokeWidth={2} aria-hidden />
-                </button>
-                <h2 className="px-10 text-center text-xl font-bold text-[#0097b2]">Avaliar Profissional</h2>
-              </>
-            ) : verificado ? (
-              <>
-                <div className="flex items-center justify-center gap-2">
-                  <ShieldCheck className="h-5 w-5 text-[#00D443]" fill="currentColor" stroke="white" strokeWidth={2} aria-hidden />
-                  <h2 className="text-xl font-bold tracking-wide text-[#00D443]">VERIFICADO</h2>
-                </div>
-                <p className="mt-1 px-4 text-center text-sm text-gray-600">
-                  {mesAnoCadastro ? (
-                    <>
-                      desde <span className="font-semibold text-gray-800">{mesAnoCadastro}</span>
-                    </>
-                  ) : (
-                    'Profissional verificado'
-                  )}
-                </p>
-              </>
-            ) : (
-              <div className="flex items-center justify-center gap-2">
-                <EscudoVerificacaoPendente className="h-6 w-6" iconSize={20} />
-                <h2 className="text-xl font-bold tracking-wide text-[#F44336]">EM ANÁLISE</h2>
+        <div className="relative shrink-0 border-b border-gray-100 bg-white pt-safe pb-3">
+          {modo === 'avaliar' ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setModo('cartao')}
+                className={`absolute left-3 ${headerBtnTop} rounded-full p-1 text-gray-500 transition hover:bg-gray-100`}
+                aria-label="Voltar ao cartão de visita"
+              >
+                <ChevronLeft size={22} strokeWidth={2} aria-hidden />
+              </button>
+              <h2 className="px-10 pt-3 text-center text-xl font-bold text-[#0097b2]">Avaliar Profissional</h2>
+            </>
+          ) : verificado ? (
+            <>
+              <div className="flex items-center justify-center gap-2 pt-3">
+                <ShieldCheck className="h-5 w-5 text-[#00D443]" fill="currentColor" stroke="white" strokeWidth={2} aria-hidden />
+                <h2 className="text-xl font-bold tracking-wide text-[#00D443]">VERIFICADO</h2>
               </div>
-            )}
-            <button
-              type="button"
-              onClick={fecharPopup}
-              className="absolute right-3 top-3 rounded-full p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-500"
-              aria-label="Fechar"
-            >
-              <X size={22} strokeWidth={2} aria-hidden />
-            </button>
-          </div>
-
-          <div
-            className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-5 py-5 sm:px-6 sm:py-6"
-            data-modal-scroll-lock-scrollable
+              <p className="mt-1 px-4 text-center text-sm text-gray-600">
+                {mesAnoCadastro ? (
+                  <>
+                    desde <span className="font-semibold text-gray-800">{mesAnoCadastro}</span>
+                  </>
+                ) : (
+                  'Profissional verificado'
+                )}
+              </p>
+            </>
+          ) : (
+            <div className="flex items-center justify-center gap-2 pt-3">
+              <EscudoVerificacaoPendente className="h-6 w-6" iconSize={20} />
+              <h2 className="text-xl font-bold tracking-wide text-[#F44336]">EM ANÁLISE</h2>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={fecharPopup}
+            className={`absolute right-3 ${headerBtnTop} rounded-full p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-500`}
+            aria-label="Fechar"
           >
+            <X size={22} strokeWidth={2} aria-hidden />
+          </button>
+        </div>
+
+        <div
+          className={`min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain bg-[#0097b2] px-5 py-5 text-white sm:px-6 sm:py-6 ${
+            verificado && mostrarRodape && modo === 'cartao' ? 'pb-4' : 'pb-[max(1rem,env(safe-area-inset-bottom,0px))]'
+          }`}
+          data-modal-scroll-lock-scrollable
+        >
             {modo === 'avaliar' ? (
               <div className="flex flex-col items-center">
-                <div className="flex w-full max-w-sm justify-center">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-gray-100 ring-2 ring-[#0097b2]/15">
-                      {avatarUrl ? <AvatarImage src={avatarUrl} alt="" fill className="object-cover" sizes="48px" /> : null}
-                    </div>
-                    <div className="min-w-0 text-left">
-                      <p className="line-clamp-2 text-base font-bold text-gray-900">{nome || 'Profissional'}</p>
-                      <p className="truncate text-sm text-[#0097b2]">@{uShown || 'usuario'}</p>
-                    </div>
-                  </div>
-                </div>
+                <div className="mt-2">{avatarCartao}</div>
+                <p className="mt-3 line-clamp-2 text-center text-lg font-bold text-white">{nome || 'Profissional'}</p>
+                <p className="mt-1 flex items-center justify-center gap-1.5 text-sm text-white/90">
+                  {paisBandeira ? (
+                    <span className="shrink-0 text-base leading-none" aria-hidden>
+                      {paisBandeira}
+                    </span>
+                  ) : null}
+                  <span>@{uShown || 'usuario'}</span>
+                </p>
 
                 {checandoJaAvaliou ? (
-                  <p className="mt-8 text-sm text-gray-500">Carregando…</p>
+                  <p className="mt-8 text-sm text-white/80">Carregando…</p>
                 ) : jaAvaliou ? (
-                  <p className="mt-8 text-center text-sm text-gray-600">Você já avaliou este profissional.</p>
+                  <p className="mt-8 text-center text-sm text-white/90">Você já avaliou este profissional.</p>
                 ) : (
                   <>
                     <div className="mt-8 flex justify-center">
@@ -491,7 +507,7 @@ export default function PopupCartaoVisitaProfissional({
                           rows={3}
                         />
                         {erroAvaliacao ? (
-                          <p className="mt-2 text-center text-sm text-red-600">{erroAvaliacao}</p>
+                          <p className="mt-2 text-center text-sm text-red-200">{erroAvaliacao}</p>
                         ) : null}
                         <button
                           type="button"
@@ -510,49 +526,37 @@ export default function PopupCartaoVisitaProfissional({
               </div>
             ) : verificado ? (
               <>
-                <div className="space-y-4">
-                  <div className="flex w-full justify-center">
-                    <div className="flex max-w-full flex-row items-center gap-3 sm:gap-5">
-                      <div className="relative h-[3.75rem] w-[3.75rem] shrink-0 overflow-hidden rounded-xl bg-gray-100 ring-2 ring-[#0097b2]/15 sm:h-[4.25rem] sm:w-[4.25rem]">
-                        {avatarUrl ? <AvatarImage src={avatarUrl} alt="" fill className="object-cover" sizes="68px" /> : null}
-                      </div>
-                      <div className="flex min-w-0 flex-col items-start justify-center gap-0.5 text-left">
-                        <p className="line-clamp-2 max-w-[min(100%,18rem)] text-lg font-bold text-gray-900 sm:text-xl">
-                          {nome || 'Profissional'}
-                        </p>
-                        <p className="flex max-w-[min(100%,18rem)] items-center gap-1.5 truncate text-sm font-normal text-gray-600 sm:text-base">
-                          {paisBandeira ? (
-                            <span className="shrink-0 text-base leading-none" aria-hidden>
-                              {paisBandeira}
-                            </span>
-                          ) : null}
-                          <span className="truncate">@{uShown || 'usuario'}</span>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <p className="w-full whitespace-normal px-1 text-center text-2xl font-bold leading-snug tracking-wide text-[#0097b2] sm:text-3xl">
+                <div className="space-y-3">
+                  {avatarCartao}
+                  <p className="line-clamp-2 px-1 text-center text-lg font-bold text-white sm:text-xl">
+                    {nome || 'Profissional'}
+                  </p>
+                  <p className="flex items-center justify-center gap-1.5 text-sm text-white/90 sm:text-base">
+                    {paisBandeira ? (
+                      <span className="shrink-0 text-base leading-none" aria-hidden>
+                        {paisBandeira}
+                      </span>
+                    ) : null}
+                    <span className="truncate">@{uShown || 'usuario'}</span>
+                  </p>
+                  <p className="w-full whitespace-normal px-1 text-center text-2xl font-bold leading-snug tracking-wide text-white sm:text-3xl">
                     {rotuloCategoria}
                   </p>
-                  {ehGuia && idiomasGuia.length > 0 ? (
-                    <div className="mt-3 flex flex-wrap justify-center gap-1.5">
-                      {idiomasGuia.map((cod) => (
-                        <span
-                          key={cod}
-                          className="inline-flex items-center gap-1 rounded-full bg-[#0097b2]/10 px-2.5 py-1 text-xs font-semibold text-[#0097b2]"
-                        >
-                          {labelIdiomaGuia(cod)}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
+                  <div className="flex items-center justify-center gap-1.5 pt-1">
+                    <Star className="h-5 w-5 fill-white text-white" aria-hidden />
+                    <span className="text-xl font-bold text-white">
+                      {total ? media.toFixed(1).replace('.', ',') : '—'}
+                    </span>
+                    <span className="text-sm text-white/90">({total} avaliações)</span>
+                  </div>
                 </div>
 
                 {veiculo ? (
                   <div className="mt-5">
                     <ChevronPasta
-                      titulo="Dados do Veículo"
+                      titulo="Veículo"
                       icone={Car}
+                      fundo="branco"
                       corTitulo="#0097b2"
                       aberto={pastaVeiculoAberta}
                       onToggle={() => setPastaVeiculoAberta((v) => !v)}
@@ -586,14 +590,38 @@ export default function PopupCartaoVisitaProfissional({
                   </div>
                 ) : null}
 
+                {ehGuia && idiomasGuia.length > 0 ? (
+                  <div className="mt-5">
+                    <ChevronPasta
+                      titulo="Idiomas"
+                      icone={Languages}
+                      fundo="branco"
+                      corTitulo="#0097b2"
+                      aberto={pastaIdiomasAberta}
+                      onToggle={() => setPastaIdiomasAberta((v) => !v)}
+                    >
+                      <div className="flex flex-wrap gap-1.5">
+                        {idiomasGuia.map((cod) => (
+                          <span
+                            key={cod}
+                            className="inline-flex items-center rounded-full bg-[#0097b2]/10 px-2.5 py-1 text-xs font-semibold text-[#0097b2]"
+                          >
+                            {labelIdiomaGuia(cod)}
+                          </span>
+                        ))}
+                      </div>
+                    </ChevronPasta>
+                  </div>
+                ) : null}
+
                 {empresaHospedagem ? (
                   <div className="mt-5">
-                    <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[#0097b2]">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-bold text-white">
                       <Building2 className="h-4 w-4 shrink-0" aria-hidden />
                       <span>Empresa de hospedagem</span>
                     </div>
-                    <div className="flex items-center gap-2.5 rounded-xl bg-[#0097b2] p-2.5 shadow-sm">
-                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 border-white bg-white/20">
+                    <div className="flex items-center gap-2.5 rounded-xl border border-white/25 bg-white p-2.5 shadow-sm">
+                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 border-[#0097b2]/20 bg-gray-50">
                         {empresaHospedagem.fotoUrl ? (
                           <AvatarImage
                             src={empresaHospedagem.fotoUrl}
@@ -605,16 +633,16 @@ export default function PopupCartaoVisitaProfissional({
                         ) : null}
                       </div>
                       <div className="min-w-0 flex-1 overflow-hidden pr-1">
-                        <p className="truncate text-sm font-bold leading-tight text-white">
+                        <p className="truncate text-sm font-bold leading-tight text-[#001f3f]">
                           {empresaHospedagem.nomeFantasia}
                         </p>
                         {empresaHospedagem.username ? (
-                          <p className="mt-0.5 truncate text-xs leading-tight text-white/90">
+                          <p className="mt-0.5 truncate text-xs leading-tight text-gray-600">
                             @{empresaHospedagem.username}
                           </p>
                         ) : null}
                         {empresaHospedagem.notaMedia != null ? (
-                          <p className="mt-0.5 inline-flex items-center gap-0.5 text-xs font-bold text-amber-300">
+                          <p className="mt-0.5 inline-flex items-center gap-0.5 text-xs font-bold text-amber-500">
                             <span aria-hidden>★</span>
                             {empresaHospedagem.notaMedia.toFixed(1).replace(/\.0$/, '')}
                           </p>
@@ -626,7 +654,7 @@ export default function PopupCartaoVisitaProfissional({
                           fecharPopup()
                           router.push(`/empresa/${empresaHospedagem.id}`)
                         }}
-                        className="flex h-11 w-[4.5rem] shrink-0 flex-col items-center justify-center rounded-lg bg-white px-1 text-center text-[10px] font-bold leading-tight text-[#0097b2]"
+                        className="flex h-11 w-[4.5rem] shrink-0 flex-col items-center justify-center rounded-lg bg-[#0097b2] px-1 text-center text-[10px] font-bold leading-tight text-white"
                       >
                         <span>VISITAR</span>
                         <span>PÁGINA</span>
@@ -634,28 +662,13 @@ export default function PopupCartaoVisitaProfissional({
                     </div>
                   </div>
                 ) : null}
-
-                <div className="mt-6 w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-4">
-                  <p className="text-center text-sm font-semibold text-gray-800">Nota de avaliação</p>
-                  <div className="mt-2 flex items-center justify-center gap-2">
-                    <Star className="h-5 w-5 fill-amber-400 text-amber-400" aria-hidden />
-                    <span className="text-xl font-bold text-gray-900">
-                      {total ? media.toFixed(1).replace('.', ',') : '—'}
-                    </span>
-                    <span className="text-sm text-gray-500">({total} avaliações)</span>
-                  </div>
-                </div>
-                {/* Espaço para o rodapé fixo não cobrir o fim do conteúdo ao rolar */}
-                <div className="h-2 shrink-0" aria-hidden />
               </>
             ) : (
               <div className="flex flex-col items-center gap-4 text-center">
-                <div className="relative h-[4.25rem] w-[4.25rem] shrink-0 overflow-hidden rounded-xl bg-gray-100 ring-2 ring-gray-200 sm:h-[5rem] sm:w-[5rem]">
-                  {avatarUrl ? <AvatarImage src={avatarUrl} alt="" fill className="object-cover" sizes="80px" /> : null}
-                </div>
+                {avatarCartao}
                 <div className="flex min-w-0 flex-col items-center gap-0.5">
-                  <p className="line-clamp-2 max-w-md text-lg font-bold text-gray-900 sm:text-xl">{nome || 'Profissional'}</p>
-                  <p className="flex items-center justify-center gap-1.5 truncate text-sm font-normal text-gray-600 sm:text-base">
+                  <p className="line-clamp-2 max-w-md text-lg font-bold text-white sm:text-xl">{nome || 'Profissional'}</p>
+                  <p className="flex items-center justify-center gap-1.5 truncate text-sm text-white/90 sm:text-base">
                     {paisBandeira ? (
                       <span className="shrink-0 text-base leading-none" aria-hidden>
                         {paisBandeira}
@@ -664,15 +677,15 @@ export default function PopupCartaoVisitaProfissional({
                     <span className="truncate">@{uShown || 'usuario'}</span>
                   </p>
                 </div>
-                <p className="max-w-md px-1 text-sm leading-relaxed text-gray-600">
+                <p className="max-w-md px-1 text-sm leading-relaxed text-white/85">
                   Novo perfil profissional cadastrado. Usuário aguarda verificação da plataforma.
                 </p>
               </div>
             )}
-          </div>
+        </div>
 
-          {verificado && mostrarRodape && modo === 'cartao' ? (
-            <div className="shrink-0 border-t border-gray-100 bg-white px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
+        {verificado && mostrarRodape && modo === 'cartao' ? (
+          <div className="shrink-0 border-t border-gray-100 bg-white px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
               <div className="flex flex-col gap-2">
                 {acoes.mostrarContratar ? (
                   <button
@@ -724,7 +737,6 @@ export default function PopupCartaoVisitaProfissional({
               </div>
             </div>
           ) : null}
-        </div>
       </div>
 
       {profissionalRecomendacao ? (
