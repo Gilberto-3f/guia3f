@@ -239,22 +239,25 @@ export function parseTourConfig(raw: unknown): TourConfig {
 export function sincronizarTourComFotos(fotos: string[], tour: TourConfig): TourConfig {
   const urls = fotos.filter((u) => typeof u === 'string' && u.trim())
   const urlSet = new Set(urls)
-  const cenasExistentes = tour.cenas.filter((c) => urlSet.has(c.url))
-  const urlsComCena = new Set(cenasExistentes.map((c) => c.url))
-  const novas: CenaTour360[] = [...cenasExistentes]
-  urls.forEach((url, index) => {
-    if (urlsComCena.has(url)) return
-    novas.push({
+  const cenaPorUrl = new Map(tour.cenas.filter((c) => urlSet.has(c.url)).map((c) => [c.url, c]))
+
+  /** Ordem do carrossel = ordem de `fotos360Url` / upload. */
+  const cenasOrdenadas: CenaTour360[] = urls.map((url, index) => {
+    const existente = cenaPorUrl.get(url)
+    if (existente) return existente
+    return {
       id: cenaIdFromUrl(url, index),
       url,
       hotspots: [],
-    })
+    }
   })
-  const idsValidos = new Set(novas.map((c) => c.id))
-  const cenasLimpas = novas.map((c) => ({
+
+  const idsValidos = new Set(cenasOrdenadas.map((c) => c.id))
+  const cenasLimpas = cenasOrdenadas.map((c) => ({
     ...c,
     hotspots: c.hotspots.filter((h) => h.sceneId !== c.id && idsValidos.has(h.sceneId)),
   }))
+
   let firstScene = tour.firstScene
   if (!firstScene || !idsValidos.has(firstScene)) {
     firstScene = cenasLimpas[0]?.id ?? null

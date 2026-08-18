@@ -39,14 +39,14 @@ export default function TourPlayer({
     [tourConfigRaw, urls],
   )
 
-  /** Playback simplificado: cada foto 360 é uma cena, sem setas de tour. */
-  const tourPlayback = useMemo(
-    () => ({
-      firstScene: tour.firstScene,
-      cenas: tour.cenas.map((c) => ({ ...c, hotspots: [] })),
-    }),
-    [tour],
-  )
+  /** Visitante: sempre inicia na 1ª foto do carrossel (ignora firstScene do editor). */
+  const tourPlayback = useMemo(() => {
+    const cenas = tour.cenas.map((c) => ({ ...c, hotspots: [] }))
+    return {
+      firstScene: cenas[0]?.id ?? null,
+      cenas,
+    }
+  }, [tour])
 
   const temTour = tourPlayback.cenas.length > 0
   const temVariasCenas = tourPlayback.cenas.length > 1
@@ -67,7 +67,8 @@ export default function TourPlayer({
   const reabrir = useCallback(() => {
     setFechado(false)
     setErro('')
-  }, [])
+    setCenaAtivaId(getPrimeiraCena(tourPlayback)?.id ?? null)
+  }, [tourPlayback])
 
   const irParaCena = useCallback((cenaId) => {
     if (!cenaId) return
