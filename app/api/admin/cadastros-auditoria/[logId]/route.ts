@@ -4,25 +4,25 @@ import { assertAdminSession } from '@/lib/adminApiAuth'
 import {
   isLogCadastroVerificacao,
   listarLeiturasCadastroAuditoria,
+  nomeExibicaoCadastroAuditoria,
   registrarLeituraCadastroAuditoria,
+  selectResumoCadastroAuditoria,
   type TipoLogCadastro,
 } from '@/lib/cadastroAuditoriaLeitura'
 
 type RouteCtx = { params: Promise<{ logId: string }> }
 
 async function carregarPerfilResumo(supabase: SupabaseClient, tipo: TipoLogCadastro, perfilId: string) {
-  const table = tipo
   const { data } = await supabase
-    .from(table)
-    .select('id, nome_usuario, nome_completo, nome_fantasia, status, motivo_reprovacao, usuario_id')
+    .from(tipo)
+    .select(selectResumoCadastroAuditoria(tipo))
     .eq('id', perfilId)
     .maybeSingle()
 
   if (!data) return null
 
   const row = data as Record<string, unknown>
-  const nome =
-    String(row.nome_fantasia ?? row.nome_completo ?? row.nome_usuario ?? '').trim() || '—'
+  const nome = nomeExibicaoCadastroAuditoria(tipo, row)
   const username = String(row.nome_usuario ?? '').trim()
   return {
     id: String(row.id),

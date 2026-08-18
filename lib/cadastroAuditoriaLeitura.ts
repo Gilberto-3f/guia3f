@@ -16,6 +16,23 @@ export function isLogCadastroVerificacao(tipo: string | null | undefined): tipo 
   return TIPOS_LOG_CADASTRO.includes(tipo as TipoLogCadastro)
 }
 
+/** Colunas válidas por tabela — evita pedir `nome_fantasia` em profissionais/turistas (42703). */
+export function selectResumoCadastroAuditoria(tipo: TipoLogCadastro): string {
+  const base = 'id, nome_usuario, status, motivo_reprovacao, usuario_id'
+  if (tipo === 'empresas') return `${base}, nome_fantasia`
+  return `${base}, nome_completo`
+}
+
+export function nomeExibicaoCadastroAuditoria(
+  tipo: TipoLogCadastro,
+  row: Record<string, unknown>,
+): string {
+  if (tipo === 'empresas') {
+    return String(row.nome_fantasia ?? row.nome_usuario ?? '').trim() || '—'
+  }
+  return String(row.nome_completo ?? row.nome_usuario ?? '').trim() || '—'
+}
+
 export async function listarLeiturasCadastroAuditoria(
   supabase: SupabaseClient,
   logId: string,
