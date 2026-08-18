@@ -19,9 +19,9 @@ async function carregarPerfilResumo(supabase: SupabaseClient, tipo: TipoLogCadas
     .eq('id', perfilId)
     .maybeSingle()
 
-  if (!data) return null
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null
 
-  const row = data as Record<string, unknown>
+  const row = data as unknown as Record<string, unknown>
   const nome = nomeExibicaoCadastroAuditoria(tipo, row)
   const username = String(row.nome_usuario ?? '').trim()
   return {
