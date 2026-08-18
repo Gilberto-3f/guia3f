@@ -9,6 +9,7 @@ import type { VisitanteParceriaMapa } from '@/lib/mobilidadeMapaVisitante'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { supabase } from '@/lib/supabase'
 import { normalizarCategoriasProfissional } from '@/lib/cartaoVisitaProfissional'
+import { turistaPodeAvaliarProfissionalCartao } from '@/lib/cartaoVisitaAvaliacaoTurista'
 import {
   canalParceiroPorCidadesAtuacao,
   CONFIG_APIS_MOBILIDADE_SELECT,
@@ -29,6 +30,7 @@ export default function PopupProfissionalMapaMobilidade({
   const router = useRouter()
   const { userRole } = useProfissionalGate()
   const [meuId, setMeuId] = useState<string | null>(null)
+  const [turistaPodeAvaliarProf, setTuristaPodeAvaliarProf] = useState(false)
 
   useEffect(() => {
     let ativo = true
@@ -39,6 +41,37 @@ export default function PopupProfissionalMapaMobilidade({
       ativo = false
     }
   }, [])
+
+  useEffect(() => {
+    let ativo = true
+    if (!meuId || !prof?.usuario_id || meuId === prof.usuario_id) {
+      setTuristaPodeAvaliarProf(false)
+      return () => {
+        ativo = false
+      }
+    }
+    if (userRole !== 'turista' && userRole !== 'admin' && userRole !== 'empresa') {
+      setTuristaPodeAvaliarProf(false)
+      return () => {
+        ativo = false
+      }
+    }
+
+    void (async () => {
+      const ok = await turistaPodeAvaliarProfissionalCartao(
+        supabase,
+        meuId,
+        prof.usuario_id,
+        prof.placa_vermelha,
+        prof.categorias,
+      )
+      if (ativo) setTuristaPodeAvaliarProf(ok)
+    })()
+
+    return () => {
+      ativo = false
+    }
+  }, [meuId, prof?.usuario_id, prof?.placa_vermelha, prof?.categorias, userRole])
 
   if (!prof) return null
 
@@ -93,6 +126,7 @@ export default function PopupProfissionalMapaMobilidade({
       visitanteCategorias={visitanteParceria?.categorias ?? []}
       cidadeAtuacaoVisitado={cidadeVisitado}
       onContratar={handleContratar}
+      turistaPodeAvaliarProfissional={turistaPodeAvaliarProf}
     />
   )
 }

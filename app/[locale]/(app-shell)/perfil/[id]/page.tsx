@@ -30,7 +30,7 @@ import { fetchFotoPerfilUsuario } from '@/lib/feed-autor'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { temParceriaFechadaEntreProfissionais } from '@/lib/parceriaProfissional'
 import { consumirReabrirMenuLateral } from '@/lib/menuLateralHistory'
-import { turistaContratouProfissional } from '@/lib/contratacaoProfissionalTurista'
+import { turistaPodeAvaliarProfissionalCartao } from '@/lib/cartaoVisitaAvaliacaoTurista'
 import { registrarVisitaPerfil } from '@/lib/perfilVisitas'
 import PerfilRecomendacaoContratarGate from '@/components/perfil/PerfilRecomendacaoContratarGate'
 import { normalizarCategoriasProfissional } from '@/lib/cartaoVisitaProfissional'
@@ -83,7 +83,7 @@ export default function PerfilSocialPage() {
   const [meuCategorias, setMeuCategorias] = useState<string[] | null>(null)
   const [placaVermelha, setPlacaVermelha] = useState(false)
   const [temParceriaFechada, setTemParceriaFechada] = useState(false)
-  const [turistaContratouProf, setTuristaContratouProf] = useState(false)
+  const [turistaPodeAvaliarProf, setTuristaPodeAvaliarProf] = useState(false)
   const [adminLevel, setAdminLevel] = useState(0)
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState('')
@@ -743,26 +743,28 @@ export default function PerfilSocialPage() {
 
   useEffect(() => {
     if (!meuId || !profileId || meuId === profileId) {
-      setTuristaContratouProf(false)
+      setTuristaPodeAvaliarProf(false)
       return
     }
     if (
       (meuRole !== 'turista' && meuRole !== 'empresa' && meuRole !== 'admin') ||
       perfilRole !== 'profissional'
     ) {
-      setTuristaContratouProf(false)
-      return
-    }
-    if (!profMeta.placaVermelha) {
-      setTuristaContratouProf(false)
+      setTuristaPodeAvaliarProf(false)
       return
     }
 
     void (async () => {
-      const ok = await turistaContratouProfissional(supabase, meuId, profileId)
-      setTuristaContratouProf(ok)
+      const ok = await turistaPodeAvaliarProfissionalCartao(
+        supabase,
+        meuId,
+        profileId,
+        profMeta.placaVermelha,
+        profMeta.categorias,
+      )
+      setTuristaPodeAvaliarProf(ok)
     })()
-  }, [meuId, profileId, meuRole, perfilRole, profMeta.placaVermelha])
+  }, [meuId, profileId, meuRole, perfilRole, profMeta.placaVermelha, profMeta.categorias])
 
   useEffect(() => {
     if (!meuId || !profileId || meuId === profileId) {
@@ -1131,7 +1133,7 @@ export default function PerfilSocialPage() {
         visitanteCategorias={meuCategorias}
         profissionalIndicadoId={profMeta.profissionalId}
         temParceriaFechada={temParceriaFechada}
-        turistaContratouProfissional={turistaContratouProf}
+        turistaPodeAvaliarProfissional={turistaPodeAvaliarProf}
         cidadeAtuacaoVisitado={profMeta.cidadeAtuacaoLabel}
         onContratar={async () => {
           if (!profileId) return

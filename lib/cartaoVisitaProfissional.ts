@@ -62,18 +62,32 @@ export function perfilVisitadoPermiteContratar(
   return false
 }
 
-/** Turista/empresa: avaliar liberado para indiretos; regular só após contratação. */
+import {
+  tipoProfissionalCartaoPermiteAvaliarTurista,
+  visitadoEhMobilidadeAvaliavel,
+} from '@/lib/cartaoVisitaAvaliacaoTurista'
+
+/**
+ * Turista/empresa: botão Avaliar só quando liberado (sem estado desabilitado).
+ * - Motorista de app: sempre (se ainda não avaliou).
+ * - Anfitrião: após check-out da hospedagem.
+ * - Mobilidade (guia/van/taxista): após atendimento concluído.
+ */
 export function resolverAvaliarVisaoTurista(
   visitadoTipo: TipoProfissionalCartao,
-  turistaContratouProfissional: boolean,
+  visitadoPlacaVermelha: boolean,
+  visitadoCategorias: string[] | null | undefined,
+  turistaPodeAvaliarProfissional: boolean,
 ): { mostrar: boolean; habilitado: boolean } {
-  if (profissionalIndireto(visitadoTipo)) {
-    return { mostrar: true, habilitado: true }
+  const elegivel = tipoProfissionalCartaoPermiteAvaliarTurista(
+    visitadoTipo,
+    visitadoPlacaVermelha,
+    visitadoCategorias,
+  )
+  if (!elegivel || !turistaPodeAvaliarProfissional) {
+    return { mostrar: false, habilitado: false }
   }
-  if (visitadoTipo === 'regular') {
-    return { mostrar: true, habilitado: turistaContratouProfissional }
-  }
-  return { mostrar: true, habilitado: false }
+  return { mostrar: true, habilitado: true }
 }
 
 /**
@@ -87,7 +101,7 @@ export function resolverAcoesCartaoVisitaProfissional(params: {
   visitadoPlacaVermelha: boolean
   visitadoCategorias: string[] | null | undefined
   temParceriaFechada: boolean
-  turistaContratouProfissional?: boolean
+  turistaPodeAvaliarProfissional?: boolean
 }): AcoesCartaoVisitaProfissional {
   const base: AcoesCartaoVisitaProfissional = {
     mostrarContratar: false,
@@ -109,7 +123,9 @@ export function resolverAcoesCartaoVisitaProfissional(params: {
   if (params.visao === 'turista' || params.visao === 'empresa') {
     const avaliar = resolverAvaliarVisaoTurista(
       visitadoTipo,
-      Boolean(params.turistaContratouProfissional),
+      params.visitadoPlacaVermelha,
+      params.visitadoCategorias,
+      Boolean(params.turistaPodeAvaliarProfissional),
     )
     return {
       mostrarContratar: perfilVisitadoPermiteContratar(
@@ -153,7 +169,7 @@ export function resolverAcoesCartaoVisitaProfissional(params: {
     mostrarContratar: false,
     mostrarRecomendar,
     mostrarRecomendarMobilidade,
-    mostrarAvaliar: true,
+    mostrarAvaliar: params.temParceriaFechada,
     avaliarHabilitado: params.temParceriaFechada,
   }
 }
@@ -187,8 +203,11 @@ export function tituloAvaliarDesabilitadoCartao(params: {
     params.visitadoPlacaVermelha,
     params.visitadoCategorias,
   )
-  if (visitadoTipo === 'regular') {
-    return 'Disponível após contratar este profissional'
+  if (visitadoTipo === 'regular' || visitadoEhMobilidadeAvaliavel(params.visitadoPlacaVermelha, params.visitadoCategorias)) {
+    return 'Disponível após conclusão do atendimento'
+  }
+  if (visitadoTipo === 'anfitriao') {
+    return 'Disponível após o check-out da hospedagem'
   }
   return 'Disponível após conclusão de serviço'
 }

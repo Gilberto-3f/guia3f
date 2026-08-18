@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Building2, Car, ChevronLeft, Languages, ShieldCheck, Star, User, X } from 'lucide-react'
+import { Briefcase, Building2, Car, ChevronLeft, Languages, ShieldCheck, Star, User, X } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import EscudoVerificacaoPendente from '@/components/EscudoVerificacaoPendente'
 import IconWhatsApp from '@/components/IconWhatsApp'
@@ -15,7 +15,6 @@ import {
   normalizarCategoriasProfissional,
   resolverAcoesCartaoVisitaProfissional,
   resolverVisaoCartaoVisita,
-  tituloAvaliarDesabilitadoCartao,
 } from '@/lib/cartaoVisitaProfissional'
 import {
   normalizarVeiculoAno,
@@ -58,7 +57,7 @@ function formatMesAno(iso) {
  *  visitanteCategorias?: string[] | null
  *  profissionalIndicadoId?: string | null
  *  temParceriaFechada?: boolean
- *  turistaContratouProfissional?: boolean
+ *  turistaPodeAvaliarProfissional?: boolean
  *  cidadeAtuacaoVisitado?: string | null
  *  idiomas?: string[] | null
  *  onContratar?: () => void
@@ -86,7 +85,7 @@ export default function PopupCartaoVisitaProfissional({
   visitanteCategorias = null,
   profissionalIndicadoId = null,
   temParceriaFechada = false,
-  turistaContratouProfissional = false,
+  turistaPodeAvaliarProfissional = false,
   cidadeAtuacaoVisitado = null,
   idiomas: idiomasProp = null,
   onContratar,
@@ -254,7 +253,7 @@ export default function PopupCartaoVisitaProfissional({
         visitadoPlacaVermelha: placaVermelha,
         visitadoCategorias: categorias,
         temParceriaFechada,
-        turistaContratouProfissional,
+        turistaPodeAvaliarProfissional,
       }),
     [
       visao,
@@ -264,7 +263,7 @@ export default function PopupCartaoVisitaProfissional({
       placaVermelha,
       categorias,
       temParceriaFechada,
-      turistaContratouProfissional,
+      turistaPodeAvaliarProfissional,
     ],
   )
 
@@ -285,11 +284,60 @@ export default function PopupCartaoVisitaProfissional({
         }
       : null
 
-  const tituloAvaliarDesabilitado = tituloAvaliarDesabilitadoCartao({
-    visao,
-    visitadoPlacaVermelha: placaVermelha,
-    visitadoCategorias: categorias,
-  })
+  const mostrarAcoes =
+    acoes.mostrarContratar ||
+    acoes.mostrarRecomendar ||
+    acoes.mostrarRecomendarMobilidade ||
+    acoes.mostrarAvaliar
+
+  const botoesAcaoCartao = mostrarAcoes ? (
+    <div className="mt-8 flex w-full max-w-md flex-col gap-2">
+      {acoes.mostrarContratar ? (
+        <button
+          type="button"
+          onClick={() => onContratar?.()}
+          className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-base font-bold text-white"
+          style={{ backgroundColor: '#00D443' }}
+        >
+          <Briefcase size={20} className="shrink-0" strokeWidth={2.25} aria-hidden />
+          CONTRATAR PROFISSIONAL
+        </button>
+      ) : null}
+      {acoes.mostrarRecomendar ? (
+        <button
+          type="button"
+          onClick={() => setPopupRecomendarAberto(true)}
+          className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-base font-bold text-white"
+          style={{ backgroundColor: '#00D443' }}
+        >
+          <IconWhatsApp size={20} className="shrink-0 text-white" />
+          RECOMENDAR
+        </button>
+      ) : null}
+      {acoes.mostrarRecomendarMobilidade ? (
+        <button
+          type="button"
+          onClick={() => setPopupMobilidadeAberto(true)}
+          className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-base font-bold text-white"
+          style={{ backgroundColor: '#00D443' }}
+        >
+          <IconWhatsApp size={20} className="shrink-0 text-white" />
+          RECOMENDAR MOBILIDADE
+        </button>
+      ) : null}
+      {acoes.mostrarAvaliar ? (
+        <button
+          type="button"
+          onClick={() => setModo('avaliar')}
+          className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-base font-bold text-white hover:opacity-95"
+          style={{ backgroundColor: '#00D443' }}
+        >
+          <Star size={20} className="shrink-0" fill="currentColor" strokeWidth={1.75} aria-hidden />
+          AVALIAR PROFISSIONAL
+        </button>
+      ) : null}
+    </div>
+  ) : null
 
   const alvoIdsAvaliacao = useMemo(
     () => [...new Set([profissionalIndicadoId, profileId].filter(Boolean).map(String))],
@@ -383,11 +431,6 @@ export default function PopupCartaoVisitaProfissional({
     onFechar()
   }
 
-  const mostrarRodape =
-    acoes.mostrarContratar ||
-    acoes.mostrarRecomendar ||
-    acoes.mostrarRecomendarMobilidade ||
-    acoes.mostrarAvaliar
 
   if (!aberto) return null
 
@@ -460,9 +503,7 @@ export default function PopupCartaoVisitaProfissional({
         </div>
 
         <div
-          className={`min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain bg-[#0097b2] px-5 py-5 text-white sm:px-6 sm:py-6 ${
-            verificado && mostrarRodape && modo === 'cartao' ? 'pb-4' : 'pb-[max(1rem,env(safe-area-inset-bottom,0px))]'
-          }`}
+          className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain bg-[#0097b2] px-5 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] text-white sm:px-6 sm:py-6"
           data-modal-scroll-lock-scrollable
         >
             {modo === 'avaliar' ? (
@@ -662,6 +703,8 @@ export default function PopupCartaoVisitaProfissional({
                     </div>
                   </div>
                 ) : null}
+
+                {modo === 'cartao' ? botoesAcaoCartao : null}
               </>
             ) : (
               <div className="flex flex-col items-center gap-4 text-center">
@@ -683,60 +726,6 @@ export default function PopupCartaoVisitaProfissional({
               </div>
             )}
         </div>
-
-        {verificado && mostrarRodape && modo === 'cartao' ? (
-          <div className="shrink-0 border-t border-gray-100 bg-white px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
-              <div className="flex flex-col gap-2">
-                {acoes.mostrarContratar ? (
-                  <button
-                    type="button"
-                    onClick={() => onContratar?.()}
-                    className="w-full rounded-xl py-3 text-base font-bold text-white"
-                    style={{ backgroundColor: '#00D443' }}
-                  >
-                    CONTRATAR PROFISSIONAL
-                  </button>
-                ) : null}
-                {acoes.mostrarRecomendar ? (
-                  <button
-                    type="button"
-                    onClick={() => setPopupRecomendarAberto(true)}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-base font-bold text-white"
-                    style={{ backgroundColor: '#00D443' }}
-                  >
-                    <IconWhatsApp size={20} className="shrink-0 text-white" />
-                    RECOMENDAR
-                  </button>
-                ) : null}
-                {acoes.mostrarRecomendarMobilidade ? (
-                  <button
-                    type="button"
-                    onClick={() => setPopupMobilidadeAberto(true)}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-base font-bold text-white"
-                    style={{ backgroundColor: '#00D443' }}
-                  >
-                    <IconWhatsApp size={20} className="shrink-0 text-white" />
-                    RECOMENDAR MOBILIDADE
-                  </button>
-                ) : null}
-                {acoes.mostrarAvaliar ? (
-                  <button
-                    type="button"
-                    disabled={!acoes.avaliarHabilitado}
-                    title={acoes.avaliarHabilitado ? 'Avaliar profissional' : tituloAvaliarDesabilitado}
-                    onClick={() => {
-                      if (acoes.avaliarHabilitado) setModo('avaliar')
-                    }}
-                    className={`w-full rounded-xl bg-[#0097b2] py-3 text-base font-bold text-white ${
-                      acoes.avaliarHabilitado ? 'hover:opacity-95' : 'opacity-60'
-                    }`}
-                  >
-                    AVALIAR PROFISSIONAL
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
       </div>
 
       {profissionalRecomendacao ? (
