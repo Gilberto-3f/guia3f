@@ -35,6 +35,29 @@ function formatMesAno(iso) {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
+/** Cache de extras do cartão (pastas veículo/idiomas) — evita flash ao abrir. */
+const EXTRAS_CACHE_TTL_MS = 5 * 60 * 1000
+/** @type {Map<string, { at: number, idiomas: string[], veiculo: { fotos: string[], modelo: string, ano: number | null } | null, empresaHospedagem: { id: string, nomeFantasia: string, username: string | null, fotoUrl: string | null, notaMedia: number | null } | null }>} */
+const extrasCartaoCache = new Map()
+
+function lerExtrasCache(profileId) {
+  const hit = extrasCartaoCache.get(profileId)
+  if (!hit) return null
+  if (Date.now() - hit.at > EXTRAS_CACHE_TTL_MS) {
+    extrasCartaoCache.delete(profileId)
+    return null
+  }
+  return hit
+}
+
+function montarVeiculo(row) {
+  const fotos = normalizarVeiculoFotos(row?.veiculo_fotos)
+  const modelo = normalizarVeiculoModelo(row?.veiculo_modelo)
+  const ano = normalizarVeiculoAno(row?.veiculo_ano)
+  if (fotos.length > 0 || modelo || ano != null) return { fotos, modelo, ano }
+  return null
+}
+
 /**
  * @param {{
  *  aberto: boolean
@@ -102,13 +125,19 @@ export default function PopupCartaoVisitaProfissional({
   const [checandoJaAvaliou, setChecandoJaAvaliou] = useState(false)
   const [popupRecomendarAberto, setPopupRecomendarAberto] = useState(false)
   const [popupMobilidadeAberto, setPopupMobilidadeAberto] = useState(false)
-  const [idiomasGuia, setIdiomasGuia] = useState(/** @type {string[]} */ ([]))
   const [pastaVeiculoAberta, setPastaVeiculoAberta] = useState(false)
   const [pastaIdiomasAberta, setPastaIdiomasAberta] = useState(false)
+
+  const idiomasDaProp = useMemo(() => normalizarIdiomasGuia(idiomasProp), [idiomasProp])
+  const extrasCached = profileId ? lerExtrasCache(profileId) : null
+  const [idiomasGuia, setIdiomasGuia] = useState(() =>
+    extrasCached?.idiomas?.length ? extrasCached.idiomas : idiomasDaProp,
+  )
   /** @type {[{ fotos: string[], modelo: string, ano: number | null } | null, Function]} */
-  const [veiculo, setVeiculo] = useState(null)
+  const [veiculo, setVeiculo] = useState(() => extrasCached?.veiculo ?? null)
   /** @type {[{ id: string, nomeFantasia: string, username: string | null, fotoUrl: string | null, notaMedia: number | null } | null, Function]} */
-  const [empresaHospedagem, setEmpresaHospedagem] = useState(null)
+  const [empresaHospedagem, setEmpresaHospedagem] = useState(() => extrasCached?.empresaHospedagem ?? null)
+  const [extrasProntos, setExtrasProntos] = useState(() => extrasCached != null || idiomasDaProp.length > 0)
 
   const verificado = profissionalVerificado === true
   const mesAnoCadastro = formatMesAno(cadastradoEm ?? verificadoEm)
@@ -121,52 +150,34 @@ export default function PopupCartaoVisitaProfissional({
   const ehAnfitriao =
     classificarTipoProfissionalCartao(placaVermelha, categorias) === 'anfitriao' ||
     catsNorm.includes('anfitriao')
+  const precisaExtras = verificado && (ehGuia || ehMobilidade || ehAnfitriao)
 
+  /** Prefetch mesmo com o popup fechado — ao abrir, pastas já vêm no cartão. */
   useEffect(() => {
-    if (!aberto || !ehGuia) {
-      setIdiomasGuia([])
+    if (!profileId || !verificado) {
+      setExtrasProntos(true)
       return
     }
-    const fromProp = normalizarIdiomasGuia(idiomasProp)
-    if (fromProp.length > 0) {
-      setIdiomasGuia(fromProp)
+    if (!ehGuia && !ehMobilidade && !ehAnfitriao) {
+      setExtrasProntos(true)
       return
     }
-    let ativo = true
-    void (async () => {
-      const { data, error } = await supabase
-        .from('profissionais')
-        .select('idiomas')
-        .eq('usuario_id', profileId)
-        .maybeSingle()
-      if (!ativo) return
-      if (error && String(error.message ?? '').toLowerCase().includes('idiomas')) {
-        setIdiomasGuia([])
-        return
-      }
-      setIdiomasGuia(normalizarIdiomasGuia(data?.idiomas))
-    })()
-    return () => {
-      ativo = false
-    }
-  }, [aberto, ehGuia, profileId, idiomasProp])
 
-  /** Veículo (mobilidade) + empresa de hospedagem (anfitrião). */
-  useEffect(() => {
-    if (!aberto || !profileId || !verificado) {
-      setVeiculo(null)
-      setEmpresaHospedagem(null)
-      setPastaVeiculoAberta(false)
+    const cached = lerExtrasCache(profileId)
+    if (cached) {
+      setIdiomasGuia(cached.idiomas)
+      setVeiculo(cached.veiculo)
+      setEmpresaHospedagem(cached.empresaHospedagem)
+      setExtrasProntos(true)
       return
     }
-    if (!ehMobilidade && !ehAnfitriao) {
-      setVeiculo(null)
-      setEmpresaHospedagem(null)
-      return
-    }
+    if (idiomasDaProp.length > 0) setIdiomasGuia(idiomasDaProp)
+
     let ativo = true
+    setExtrasProntos(false)
     void (async () => {
       const cols = [
+        ehGuia ? 'idiomas' : null,
         ehMobilidade ? 'veiculo_fotos, veiculo_modelo, veiculo_ano' : null,
         ehAnfitriao ? 'empresa_hospedagem_id' : null,
       ]
@@ -179,66 +190,69 @@ export default function PopupCartaoVisitaProfissional({
         .maybeSingle()
       if (!ativo) return
       if (error) {
-        console.error('[CartaoVisita] veiculo/empresa:', error.message)
+        console.error('[CartaoVisita] extras:', error.message)
+        setIdiomasGuia(idiomasDaProp)
         setVeiculo(null)
         setEmpresaHospedagem(null)
+        setExtrasProntos(true)
         return
       }
 
-      if (ehMobilidade) {
-        const fotos = normalizarVeiculoFotos(data?.veiculo_fotos)
-        const modelo = normalizarVeiculoModelo(data?.veiculo_modelo)
-        const ano = normalizarVeiculoAno(data?.veiculo_ano)
-        if (fotos.length > 0 || modelo || ano != null) {
-          setVeiculo({ fotos, modelo, ano })
-        } else {
-          setVeiculo(null)
-        }
-      } else {
-        setVeiculo(null)
-      }
+      const idiomas = ehGuia
+        ? normalizarIdiomasGuia(data?.idiomas).length
+          ? normalizarIdiomasGuia(data?.idiomas)
+          : idiomasDaProp
+        : []
+      const veiculoNovo = ehMobilidade ? montarVeiculo(data) : null
 
+      let empresaNova = null
       const empId =
         ehAnfitriao && data?.empresa_hospedagem_id != null
           ? String(data.empresa_hospedagem_id).trim()
           : ''
-      if (!empId) {
-        setEmpresaHospedagem(null)
-        return
-      }
-      const { data: emp, error: empErr } = await supabase
-        .from('empresas')
-        .select('id, nome_fantasia, nome_usuario, foto_url, nota_media')
-        .eq('id', empId)
-        .maybeSingle()
-      if (!ativo) return
-      if (empErr || !emp?.id) {
+      if (empId) {
+        const { data: emp, error: empErr } = await supabase
+          .from('empresas')
+          .select('id, nome_fantasia, nome_usuario, foto_url, nota_media')
+          .eq('id', empId)
+          .maybeSingle()
+        if (!ativo) return
         if (empErr) console.error('[CartaoVisita] empresa:', empErr.message)
-        setEmpresaHospedagem(null)
-        return
+        if (emp?.id) {
+          const usernameEmp = String(emp.nome_usuario ?? '')
+            .replace(/^@+/, '')
+            .trim()
+          const nota =
+            emp.nota_media != null && Number.isFinite(Number(emp.nota_media))
+              ? Number(emp.nota_media)
+              : null
+          empresaNova = {
+            id: String(emp.id),
+            nomeFantasia: String(emp.nome_fantasia ?? 'Empresa'),
+            username: usernameEmp || null,
+            fotoUrl:
+              emp.foto_url != null && String(emp.foto_url).trim() ? String(emp.foto_url) : null,
+            notaMedia: nota != null && nota > 0 ? nota : null,
+          }
+        }
       }
-      const usernameEmp = String(emp.nome_usuario ?? '')
-        .replace(/^@+/, '')
-        .trim()
-      const nota =
-        emp.nota_media != null && Number.isFinite(Number(emp.nota_media))
-          ? Number(emp.nota_media)
-          : null
-      setEmpresaHospedagem({
-        id: String(emp.id),
-        nomeFantasia: String(emp.nome_fantasia ?? 'Empresa'),
-        username: usernameEmp || null,
-        fotoUrl:
-          emp.foto_url != null && String(emp.foto_url).trim()
-            ? String(emp.foto_url)
-            : null,
-        notaMedia: nota != null && nota > 0 ? nota : null,
+
+      if (!ativo) return
+      setIdiomasGuia(idiomas)
+      setVeiculo(veiculoNovo)
+      setEmpresaHospedagem(empresaNova)
+      extrasCartaoCache.set(profileId, {
+        at: Date.now(),
+        idiomas,
+        veiculo: veiculoNovo,
+        empresaHospedagem: empresaNova,
       })
+      setExtrasProntos(true)
     })()
     return () => {
       ativo = false
     }
-  }, [aberto, profileId, verificado, ehMobilidade, ehAnfitriao])
+  }, [profileId, verificado, ehGuia, ehMobilidade, ehAnfitriao, idiomasDaProp])
 
   const souDono = Boolean(meuId && profileId && meuId === profileId)
   const visao = resolverVisaoCartaoVisita({ meuId, profileId, meuRole, souDono })
@@ -293,15 +307,17 @@ export default function PopupCartaoVisitaProfissional({
   const botoesAcaoCartao = mostrarAcoes ? (
     <div className="mx-auto mt-8 flex w-full max-w-sm flex-col items-stretch gap-2">
       {acoes.mostrarContratar ? (
-        <button
-          type="button"
-          onClick={() => onContratar?.()}
-          className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-base font-bold text-white"
-          style={{ backgroundColor: '#00D443' }}
-        >
-          <Briefcase size={20} className="shrink-0" strokeWidth={2.25} aria-hidden />
-          CONTRATAR PROFISSIONAL
-        </button>
+        <div className="rounded-2xl bg-white p-1.5">
+          <button
+            type="button"
+            onClick={() => onContratar?.()}
+            className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-base font-bold text-white"
+            style={{ backgroundColor: '#00D443' }}
+          >
+            <Briefcase size={20} className="shrink-0" strokeWidth={2.25} aria-hidden />
+            CONTRATAR PROFISSIONAL
+          </button>
+        </div>
       ) : null}
       {acoes.mostrarRecomendar ? (
         <button
@@ -577,6 +593,7 @@ export default function PopupCartaoVisitaProfissional({
                 )}
               </div>
             ) : verificado ? (
+              extrasProntos || !precisaExtras ? (
               <>
                 <div className="flex flex-col items-center">
                   <p className="w-full whitespace-normal px-1 text-center text-2xl font-bold leading-snug tracking-wide text-white sm:text-3xl">
@@ -719,6 +736,9 @@ export default function PopupCartaoVisitaProfissional({
 
                 {modo === 'cartao' ? botoesAcaoCartao : null}
               </>
+              ) : (
+                <div className="min-h-[12rem]" aria-busy="true" aria-label="Carregando cartão de visita" />
+              )
             ) : (
               <div className="flex flex-col items-center gap-4 text-center">
                 {avatarCartao}
