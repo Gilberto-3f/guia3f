@@ -19,19 +19,17 @@ export default function AbasPerfil({ ativa, onChange, counts, modoCompacto = fal
 
   if (modoCompacto) {
     return (
-      <div className="flex w-full border-b border-[#E0E0E0] bg-white">
-        {tabs.map((item, idx) => {
+      <div className="flex w-full items-end justify-between border-b border-[#E0E0E0] bg-white px-3">
+        {tabs.map((item) => {
           const Icon = item.icon
           const selecionada = ativa === item.key
-          const posicao =
-            idx === 0 ? 'pl-3' : idx === tabs.length - 1 ? 'ml-auto pr-3' : 'mx-auto'
           return (
             <button
               key={item.key}
               type="button"
               onClick={() => onChange(item.key)}
               aria-label={item.label}
-              className={`flex shrink-0 flex-col items-stretch ${posicao}`}
+              className="flex shrink-0 flex-col items-stretch"
             >
               <span
                 className={`inline-flex items-center gap-1.5 whitespace-nowrap pt-2.5 pb-2 text-[17px] font-bold leading-none ${
@@ -53,18 +51,16 @@ export default function AbasPerfil({ ativa, onChange, counts, modoCompacto = fal
   }
 
   return (
-    <div className="flex w-full border-b border-[#E0E0E0] bg-white">
-      {tabs.map((item, idx) => {
+    <div className="flex w-full items-end justify-between border-b border-[#E0E0E0] bg-white px-3">
+      {tabs.map((item) => {
         const Icon = item.icon
         const selecionada = ativa === item.key
-        const posicao =
-          idx === 0 ? 'pl-3' : idx === tabs.length - 1 ? 'ml-auto pr-3' : 'mx-auto'
         return (
           <button
             key={item.key}
             type="button"
             onClick={() => onChange(item.key)}
-            className={`flex shrink-0 flex-col items-stretch ${posicao}`}
+            className="flex shrink-0 flex-col items-stretch"
           >
             <span
               className={`inline-flex flex-col items-center gap-0.5 whitespace-nowrap pt-2 pb-1.5 text-sm font-bold ${
