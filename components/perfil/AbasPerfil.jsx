@@ -19,30 +19,32 @@ export default function AbasPerfil({ ativa, onChange, counts, modoCompacto = fal
 
   if (modoCompacto) {
     return (
-      <div className="flex w-full border-b border-[#E0E0E0] bg-white">
+      <div className="grid w-full grid-cols-3 border-b border-[#E0E0E0] bg-white">
         {tabs.map((item, idx) => {
           const Icon = item.icon
           const selecionada = ativa === item.key
           const lado =
-            idx === 0
-              ? 'justify-start pl-3'
-              : idx === tabs.length - 1
-                ? 'justify-end pr-3'
-                : 'justify-center'
+            idx === 0 ? 'justify-start pl-3' : idx === tabs.length - 1 ? 'justify-end pr-3' : 'justify-center'
           return (
             <button
               key={item.key}
               type="button"
               onClick={() => onChange(item.key)}
               aria-label={item.label}
-              className={`flex min-w-0 flex-1 items-center gap-1.5 border-b-[3px] py-2.5 text-[17px] font-bold leading-none transition-colors ${lado} ${
-                selecionada
-                  ? 'border-[#0097b2] text-[#0097b2]'
-                  : 'border-transparent text-gray-500'
-              }`}
+              className="flex min-w-0 flex-col"
             >
-              <Icon size={22} strokeWidth={2.25} className="shrink-0" aria-hidden />
-              <span>{selecionada ? item.label : item.count}</span>
+              <span
+                className={`flex w-full items-center gap-1.5 pt-2.5 pb-2 text-[17px] font-bold leading-none ${lado} ${
+                  selecionada ? 'text-[#0097b2]' : 'text-gray-500'
+                }`}
+              >
+                <Icon size={22} strokeWidth={2.25} className="shrink-0" aria-hidden />
+                <span className="truncate">{selecionada ? item.label : item.count}</span>
+              </span>
+              <span
+                className={`block h-[3px] w-full ${selecionada ? 'bg-[#0097b2]' : 'bg-transparent'}`}
+                aria-hidden
+              />
             </button>
           )
         })}
@@ -51,30 +53,32 @@ export default function AbasPerfil({ ativa, onChange, counts, modoCompacto = fal
   }
 
   return (
-    <div className="flex w-full border-b border-[#E0E0E0] bg-white">
+    <div className="grid w-full grid-cols-3 border-b border-[#E0E0E0] bg-white">
       {tabs.map((item, idx) => {
         const Icon = item.icon
         const selecionada = ativa === item.key
         const lado =
-          idx === 0
-            ? 'items-start pl-3'
-            : idx === tabs.length - 1
-              ? 'items-end pr-3'
-              : 'items-center'
+          idx === 0 ? 'items-start pl-3' : idx === tabs.length - 1 ? 'items-end pr-3' : 'items-center'
         return (
           <button
             key={item.key}
             type="button"
             onClick={() => onChange(item.key)}
-            className={`flex min-w-0 flex-1 flex-col border-b-[3px] pt-2 pb-1.5 text-sm font-bold transition-colors ${lado} ${
-              selecionada
-                ? 'border-[#0097b2] text-[#0097b2]'
-                : 'border-transparent text-gray-500'
-            }`}
+            className="flex min-w-0 flex-col"
           >
-            <Icon size={22} strokeWidth={2.25} className="shrink-0" aria-hidden />
-            <span>{item.label.toUpperCase()}</span>
-            <span className="text-xs opacity-80">({item.count})</span>
+            <span
+              className={`flex w-full flex-col gap-0.5 pt-2 pb-1.5 text-sm font-bold ${lado} ${
+                selecionada ? 'text-[#0097b2]' : 'text-gray-500'
+              }`}
+            >
+              <Icon size={22} strokeWidth={2.25} className="shrink-0" aria-hidden />
+              <span>{item.label.toUpperCase()}</span>
+              <span className="text-xs opacity-80">({item.count})</span>
+            </span>
+            <span
+              className={`block h-[3px] w-full ${selecionada ? 'bg-[#0097b2]' : 'bg-transparent'}`}
+              aria-hidden
+            />
           </button>
         )
       })}
