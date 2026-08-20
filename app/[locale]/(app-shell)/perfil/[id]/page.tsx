@@ -696,7 +696,7 @@ export default function PerfilSocialPage() {
   useEffect(() => {
     if (
       !profileId ||
-      (perfilRole !== 'turista' && perfilRole !== 'profissional')
+      (perfilRole !== 'turista' && perfilRole !== 'profissional' && perfilRole !== 'admin')
     ) {
       setStoryAtivoPerfil(null)
       return
@@ -883,7 +883,7 @@ export default function PerfilSocialPage() {
   const mostrarBotaoSeguir = Boolean(meuId && !souDono)
   const mostrarMenu = Boolean(souDono && menuVariant)
   const layoutCompacto =
-    perfilRole === 'turista' || perfilRole === 'profissional'
+    perfilRole === 'turista' || perfilRole === 'profissional' || perfilRole === 'admin'
 
   return (
     <div className={layoutCompacto ? 'bg-white' : 'bg-gray-50'}>

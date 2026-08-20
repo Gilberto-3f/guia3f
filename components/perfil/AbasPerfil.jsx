@@ -29,7 +29,7 @@ export default function AbasPerfil({ ativa, onChange, counts, modoCompacto = fal
               type="button"
               onClick={() => onChange(item.key)}
               aria-label={item.label}
-              className={`flex flex-1 items-center justify-center gap-1.5 border-b-2 py-2.5 text-sm font-medium transition-colors ${
+              className={`flex flex-1 items-center justify-center gap-1.5 border-b-2 py-2.5 text-sm font-bold transition-colors ${
                 selecionada
                   ? 'border-[#0097b2] text-[#0097b2]'
                   : 'border-transparent text-gray-500'
@@ -54,7 +54,7 @@ export default function AbasPerfil({ ativa, onChange, counts, modoCompacto = fal
             key={item.key}
             type="button"
             onClick={() => onChange(item.key)}
-            className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2 text-xs font-medium transition-colors ${
+            className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2 text-xs font-bold transition-colors ${
               selecionada
                 ? 'border-[#0097b2] text-[#0097b2]'
                 : 'border-transparent text-gray-500'
