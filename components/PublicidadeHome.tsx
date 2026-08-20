@@ -341,7 +341,10 @@ export default function PublicidadeHome() {
       impressoesRegistradas.add(id)
       void rpcAnon('registrar_impressao_anuncio_home', { p_anuncio_id: id }).then((res) => {
         if (!res.ok) {
-          impressoesRegistradas.delete(id)
+          // 5xx/timeout: não retentar nesta sessão (evita fila de UPDATE na mesma linha).
+          if (res.status > 0 && res.status < 500) {
+            impressoesRegistradas.delete(id)
+          }
           console.warn('[PublicidadeHome] impressão:', res.error)
         }
       })
