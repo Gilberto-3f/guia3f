@@ -19,6 +19,7 @@ import {
 import {
   normalizarVeiculoAno,
   normalizarVeiculoFotos,
+  normalizarVeiculoLugares,
   normalizarVeiculoModelo,
   profissionalElegivelPerfilMobilidade,
 } from '@/lib/mobilidadePerfilProfissional'
@@ -37,7 +38,7 @@ function formatMesAno(iso) {
 
 /** Cache de extras do cartão (pastas veículo/idiomas) — evita flash ao abrir. */
 const EXTRAS_CACHE_TTL_MS = 5 * 60 * 1000
-/** @type {Map<string, { at: number, idiomas: string[], veiculo: { fotos: string[], modelo: string, ano: number | null } | null, empresaHospedagem: { id: string, nomeFantasia: string, username: string | null, fotoUrl: string | null, notaMedia: number | null } | null }>} */
+/** @type {Map<string, { at: number, idiomas: string[], veiculo: { fotos: string[], modelo: string, ano: number | null, lugares: number | null } | null, empresaHospedagem: { id: string, nomeFantasia: string, username: string | null, fotoUrl: string | null, notaMedia: number | null } | null }>} */
 const extrasCartaoCache = new Map()
 
 function lerExtrasCache(profileId) {
@@ -54,7 +55,10 @@ function montarVeiculo(row) {
   const fotos = normalizarVeiculoFotos(row?.veiculo_fotos)
   const modelo = normalizarVeiculoModelo(row?.veiculo_modelo)
   const ano = normalizarVeiculoAno(row?.veiculo_ano)
-  if (fotos.length > 0 || modelo || ano != null) return { fotos, modelo, ano }
+  const lugares = normalizarVeiculoLugares(row?.veiculo_lugares)
+  if (fotos.length > 0 || modelo || ano != null || lugares != null) {
+    return { fotos, modelo, ano, lugares }
+  }
   return null
 }
 
@@ -133,7 +137,7 @@ export default function PopupCartaoVisitaProfissional({
   const [idiomasGuia, setIdiomasGuia] = useState(() =>
     extrasCached?.idiomas?.length ? extrasCached.idiomas : idiomasDaProp,
   )
-  /** @type {[{ fotos: string[], modelo: string, ano: number | null } | null, Function]} */
+  /** @type {[{ fotos: string[], modelo: string, ano: number | null, lugares: number | null } | null, Function]} */
   const [veiculo, setVeiculo] = useState(() => extrasCached?.veiculo ?? null)
   /** @type {[{ id: string, nomeFantasia: string, username: string | null, fotoUrl: string | null, notaMedia: number | null } | null, Function]} */
   const [empresaHospedagem, setEmpresaHospedagem] = useState(() => extrasCached?.empresaHospedagem ?? null)
@@ -178,7 +182,7 @@ export default function PopupCartaoVisitaProfissional({
     void (async () => {
       const cols = [
         ehGuia ? 'idiomas' : null,
-        ehMobilidade ? 'veiculo_fotos, veiculo_modelo, veiculo_ano' : null,
+        ehMobilidade ? 'veiculo_fotos, veiculo_modelo, veiculo_ano, veiculo_lugares' : null,
         ehAnfitriao ? 'empresa_hospedagem_id' : null,
       ]
         .filter(Boolean)
@@ -633,15 +637,15 @@ export default function PopupCartaoVisitaProfissional({
                         aberto={pastaVeiculoAberta}
                         onToggle={() => setPastaVeiculoAberta((v) => !v)}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-gray-100 ring-1 ring-gray-200">
+                        <div className="flex flex-col items-center text-center">
+                          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-gray-100 ring-1 ring-gray-200">
                             {veiculo.fotos[0] ? (
                               <AvatarImage
                                 src={veiculo.fotos[0]}
                                 alt=""
                                 fill
                                 className="object-cover"
-                                sizes="56px"
+                                sizes="64px"
                               />
                             ) : (
                               <span className="flex h-full w-full items-center justify-center text-[#0097b2]">
@@ -649,14 +653,17 @@ export default function PopupCartaoVisitaProfissional({
                               </span>
                             )}
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-bold text-gray-900">
-                              {veiculo.modelo || 'Veículo'}
+                          <p className="mt-2 max-w-full truncate text-sm font-bold text-gray-900">
+                            {veiculo.modelo || 'Veículo'}
+                          </p>
+                          {veiculo.ano != null ? (
+                            <p className="mt-0.5 text-xs text-gray-500">{veiculo.ano}</p>
+                          ) : null}
+                          {veiculo.lugares != null ? (
+                            <p className="mt-0.5 text-xs font-semibold text-[#0097b2]">
+                              {veiculo.lugares} {veiculo.lugares === 1 ? 'lugar' : 'lugares'}
                             </p>
-                            {veiculo.ano != null ? (
-                              <p className="mt-0.5 text-xs text-gray-500">{veiculo.ano}</p>
-                            ) : null}
-                          </div>
+                          ) : null}
                         </div>
                       </ChevronPasta>
                     ) : null}
