@@ -307,7 +307,7 @@ export default function PopupCartaoVisitaProfissional({
   const botoesAcaoCartao = mostrarAcoes ? (
     <div className="mx-auto mt-8 flex w-full max-w-sm flex-col items-stretch gap-2">
       {acoes.mostrarContratar ? (
-        <div className="rounded-2xl bg-white p-1.5">
+        <div className="rounded-[0.9rem] bg-white p-0.5">
           <button
             type="button"
             onClick={() => onContratar?.()}
