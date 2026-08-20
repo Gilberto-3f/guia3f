@@ -169,8 +169,9 @@ export function resolverAcoesCartaoVisitaProfissional(params: {
     mostrarContratar: false,
     mostrarRecomendar,
     mostrarRecomendarMobilidade,
-    mostrarAvaliar: params.temParceriaFechada,
-    avaliarHabilitado: params.temParceriaFechada,
+    // Profissional visitando outro: só recomendar (sem avaliar).
+    mostrarAvaliar: false,
+    avaliarHabilitado: false,
   }
 }
 

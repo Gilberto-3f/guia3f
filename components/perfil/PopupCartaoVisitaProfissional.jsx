@@ -291,7 +291,7 @@ export default function PopupCartaoVisitaProfissional({
     acoes.mostrarAvaliar
 
   const botoesAcaoCartao = mostrarAcoes ? (
-    <div className="mt-8 flex w-full max-w-md flex-col gap-2">
+    <div className="mx-auto mt-8 flex w-full max-w-sm flex-col items-stretch gap-2">
       {acoes.mostrarContratar ? (
         <button
           type="button"
@@ -360,6 +360,17 @@ export default function PopupCartaoVisitaProfissional({
       setPastaIdiomasAberta(false)
     }
   }, [aberto, resetAvaliacao])
+
+  useEffect(() => {
+    if (!aberto) return
+    const meta = document.querySelector('meta[name="theme-color"]')
+    if (!meta) return
+    const anterior = meta.getAttribute('content')
+    meta.setAttribute('content', '#ffffff')
+    return () => {
+      meta.setAttribute('content', anterior || '#0097b2')
+    }
+  }, [aberto])
 
   useEffect(() => {
     if (!aberto || modo !== 'avaliar' || !meuId || alvoIdsAvaliacao.length === 0) return
@@ -451,13 +462,13 @@ export default function PopupCartaoVisitaProfissional({
   return (
     <>
       <div
-        className="fixed inset-0 z-[240] flex flex-col bg-[#0097b2]"
+        className="fixed inset-0 z-[240] flex flex-col bg-white"
         style={{ height: 'var(--app-height, 100dvh)' }}
         role="dialog"
         aria-modal="true"
         aria-label="Cartão de visita"
       >
-        <div className="relative shrink-0 border-b border-gray-100 bg-white pt-safe pb-3">
+        <div className="relative shrink-0 border-b border-gray-100 bg-white pt-safe pb-2">
           {modo === 'avaliar' ? (
             <>
               <button
@@ -468,15 +479,15 @@ export default function PopupCartaoVisitaProfissional({
               >
                 <ChevronLeft size={22} strokeWidth={2} aria-hidden />
               </button>
-              <h2 className="px-10 pt-3 text-center text-xl font-bold text-[#0097b2]">Avaliar Profissional</h2>
+              <h2 className="px-10 pt-2 text-center text-xl font-bold leading-tight text-[#0097b2]">Avaliar Profissional</h2>
             </>
           ) : verificado ? (
-            <>
-              <div className="flex items-center justify-center gap-2 pt-3">
+            <div className="flex flex-col items-center justify-center gap-0 pt-2 leading-tight">
+              <div className="flex items-center justify-center gap-2">
                 <ShieldCheck className="h-5 w-5 text-[#00D443]" fill="currentColor" stroke="white" strokeWidth={2} aria-hidden />
                 <h2 className="text-xl font-bold tracking-wide text-[#00D443]">VERIFICADO</h2>
               </div>
-              <p className="mt-1 px-4 text-center text-sm text-gray-600">
+              <p className="px-4 text-center text-sm leading-tight text-gray-600">
                 {mesAnoCadastro ? (
                   <>
                     desde <span className="font-semibold text-gray-800">{mesAnoCadastro}</span>
@@ -485,9 +496,9 @@ export default function PopupCartaoVisitaProfissional({
                   'Profissional verificado'
                 )}
               </p>
-            </>
+            </div>
           ) : (
-            <div className="flex items-center justify-center gap-2 pt-3">
+            <div className="flex items-center justify-center gap-2 pt-2">
               <EscudoVerificacaoPendente className="h-6 w-6" iconSize={20} />
               <h2 className="text-xl font-bold tracking-wide text-[#F44336]">EM ANÁLISE</h2>
             </div>
@@ -567,91 +578,93 @@ export default function PopupCartaoVisitaProfissional({
               </div>
             ) : verificado ? (
               <>
-                <div className="space-y-3">
-                  {avatarCartao}
-                  <p className="line-clamp-2 px-1 text-center text-lg font-bold text-white sm:text-xl">
-                    {nome || 'Profissional'}
-                  </p>
-                  <p className="flex items-center justify-center gap-1.5 text-sm text-white/90 sm:text-base">
-                    {paisBandeira ? (
-                      <span className="shrink-0 text-base leading-none" aria-hidden>
-                        {paisBandeira}
-                      </span>
-                    ) : null}
-                    <span className="truncate">@{uShown || 'usuario'}</span>
-                  </p>
+                <div className="flex flex-col items-center">
                   <p className="w-full whitespace-normal px-1 text-center text-2xl font-bold leading-snug tracking-wide text-white sm:text-3xl">
                     {rotuloCategoria}
                   </p>
-                  <div className="flex items-center justify-center gap-1.5 pt-1">
-                    <Star className="h-5 w-5 fill-white text-white" aria-hidden />
-                    <span className="text-xl font-bold text-white">
+                  <div className="mt-0.5 inline-flex items-baseline justify-center gap-1">
+                    <Star className="h-5 w-5 shrink-0 translate-y-[1px] fill-white text-white" aria-hidden />
+                    <span className="text-xl font-bold leading-none text-white">
                       {total ? media.toFixed(1).replace('.', ',') : '—'}
                     </span>
-                    <span className="text-sm text-white/90">({total} avaliações)</span>
+                    <span className="text-sm leading-none text-white/90">({total} avaliações)</span>
+                  </div>
+                  <div className="mt-3">{avatarCartao}</div>
+                  <div className="mt-3 flex min-w-0 flex-col items-center gap-0.5">
+                    <p className="line-clamp-2 px-1 text-center text-lg font-bold leading-tight text-white sm:text-xl">
+                      {nome || 'Profissional'}
+                    </p>
+                    <p className="flex items-center justify-center gap-1.5 text-sm leading-tight text-white/90 sm:text-base">
+                      {paisBandeira ? (
+                        <span className="shrink-0 text-base leading-none" aria-hidden>
+                          {paisBandeira}
+                        </span>
+                      ) : null}
+                      <span className="truncate">@{uShown || 'usuario'}</span>
+                    </p>
                   </div>
                 </div>
 
-                {veiculo ? (
-                  <div className="mt-5">
-                    <ChevronPasta
-                      titulo="Veículo"
-                      icone={Car}
-                      fundo="branco"
-                      corTitulo="#0097b2"
-                      aberto={pastaVeiculoAberta}
-                      onToggle={() => setPastaVeiculoAberta((v) => !v)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-gray-100 ring-1 ring-gray-200">
-                          {veiculo.fotos[0] ? (
-                            <AvatarImage
-                              src={veiculo.fotos[0]}
-                              alt=""
-                              fill
-                              className="object-cover"
-                              sizes="56px"
-                            />
-                          ) : (
-                            <span className="flex h-full w-full items-center justify-center text-[#0097b2]">
-                              <Car className="h-6 w-6" aria-hidden />
-                            </span>
-                          )}
+                {veiculo || (ehGuia && idiomasGuia.length > 0) ? (
+                  <div className="mt-5 flex flex-col gap-2">
+                    {veiculo ? (
+                      <ChevronPasta
+                        titulo="Veículo"
+                        icone={Car}
+                        fundo="branco"
+                        corTitulo="#0097b2"
+                        aberto={pastaVeiculoAberta}
+                        onToggle={() => setPastaVeiculoAberta((v) => !v)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-gray-100 ring-1 ring-gray-200">
+                            {veiculo.fotos[0] ? (
+                              <AvatarImage
+                                src={veiculo.fotos[0]}
+                                alt=""
+                                fill
+                                className="object-cover"
+                                sizes="56px"
+                              />
+                            ) : (
+                              <span className="flex h-full w-full items-center justify-center text-[#0097b2]">
+                                <Car className="h-6 w-6" aria-hidden />
+                              </span>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-bold text-gray-900">
+                              {veiculo.modelo || 'Veículo'}
+                            </p>
+                            {veiculo.ano != null ? (
+                              <p className="mt-0.5 text-xs text-gray-500">{veiculo.ano}</p>
+                            ) : null}
+                          </div>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-bold text-gray-900">
-                            {veiculo.modelo || 'Veículo'}
-                          </p>
-                          {veiculo.ano != null ? (
-                            <p className="mt-0.5 text-xs text-gray-500">{veiculo.ano}</p>
-                          ) : null}
-                        </div>
-                      </div>
-                    </ChevronPasta>
-                  </div>
-                ) : null}
+                      </ChevronPasta>
+                    ) : null}
 
-                {ehGuia && idiomasGuia.length > 0 ? (
-                  <div className="mt-5">
-                    <ChevronPasta
-                      titulo="Idiomas"
-                      icone={Languages}
-                      fundo="branco"
-                      corTitulo="#0097b2"
-                      aberto={pastaIdiomasAberta}
-                      onToggle={() => setPastaIdiomasAberta((v) => !v)}
-                    >
-                      <div className="flex flex-wrap gap-1.5">
-                        {idiomasGuia.map((cod) => (
-                          <span
-                            key={cod}
-                            className="inline-flex items-center rounded-full bg-[#0097b2]/10 px-2.5 py-1 text-xs font-semibold text-[#0097b2]"
-                          >
-                            {labelIdiomaGuia(cod)}
-                          </span>
-                        ))}
-                      </div>
-                    </ChevronPasta>
+                    {ehGuia && idiomasGuia.length > 0 ? (
+                      <ChevronPasta
+                        titulo="Idiomas"
+                        icone={Languages}
+                        fundo="branco"
+                        corTitulo="#0097b2"
+                        aberto={pastaIdiomasAberta}
+                        onToggle={() => setPastaIdiomasAberta((v) => !v)}
+                      >
+                        <div className="flex flex-wrap gap-1.5">
+                          {idiomasGuia.map((cod) => (
+                            <span
+                              key={cod}
+                              className="inline-flex items-center rounded-full bg-[#0097b2]/10 px-2.5 py-1 text-xs font-semibold text-[#0097b2]"
+                            >
+                              {labelIdiomaGuia(cod)}
+                            </span>
+                          ))}
+                        </div>
+                      </ChevronPasta>
+                    ) : null}
                   </div>
                 ) : null}
 
