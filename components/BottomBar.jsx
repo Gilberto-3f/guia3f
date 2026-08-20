@@ -238,8 +238,7 @@ export default function BottomBar() {
 
     const onResume = () => {
       if (document.visibilityState !== 'visible') return
-      // Não espera o refresh — evita travar a barra se Auth/DB estiver lento
-      void resumirSessaoAposIdle()
+      // CookieSync já chama resumirSessaoAposIdle (visibility/pageshow).
       void syncAuth()
     }
     document.addEventListener('visibilitychange', onResume)

@@ -102,11 +102,17 @@ function registrarPausaRealtimeEmBackground(): () => void {
           clearTimeout(hideTimer)
           hideTimer = null
         }
-        try {
-          supabase.realtime.connect()
-        } catch {
-          /* ignore */
-        }
+        // Só reconecta depois do refresh: evita CDC 57014 / broadcast :streaming
+        // enquanto o POST /token ainda está em voo.
+        void (async () => {
+          await resumirSessaoAposIdle()
+          if (document.visibilityState !== 'visible') return
+          try {
+            supabase.realtime.connect()
+          } catch {
+            /* ignore */
+          }
+        })()
       }
     } catch (err) {
       console.warn('[authResume] realtime pause/resume', err)
