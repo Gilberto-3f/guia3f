@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import CardPinEmpresaMapa from '@/components/mobilidade/CardPinEmpresaMapa'
-import PopupProfissionalMapaMobilidade from '@/components/mobilidade/PopupProfissionalMapaMobilidade'
 import { type EmpresaMapaMobilidade } from '@/lib/mobilidadeMapaEmpresas'
 import type { VisitanteParceriaMapa } from '@/lib/mobilidadeMapaVisitante'
 import { podeIndicarAtrativoMapa, type ContextoMapaMobilidade } from '@/lib/parceriaMapaMobilidade'
@@ -159,7 +158,6 @@ export default function MapaMobilidade({
   const [mapReady, setMapReady] = useState(false)
   const [mapError, setMapError] = useState<string | null>(null)
   const [selecionada, setSelecionada] = useState<EmpresaMapaMobilidade | null>(null)
-  const [profSelecionado, setProfSelecionado] = useState<ProfissionalOnlineMapa | null>(null)
   const profissionaisRef = useRef(profissionais)
   const centroRef = useRef(centro)
   profissionaisRef.current = profissionais
@@ -251,6 +249,9 @@ export default function MapaMobilidade({
           id: LAYER_PROFS,
           type: 'circle',
           source: SOURCE_PROFS,
+          layout: {
+            visibility: profissionaisRef.current.length > 0 ? 'visible' : 'none',
+          },
           paint: {
             'circle-color': ['get', 'cor'],
             'circle-radius': 11,
@@ -259,26 +260,9 @@ export default function MapaMobilidade({
           },
         })
 
-        map.on('click', LAYER_PROFS, (e) => {
-          const id = String(e.features?.[0]?.properties?.id ?? '')
-          const prof = profissionaisRef.current.find((x) => x.id === id) ?? null
-          setSelecionada(null)
-          setProfSelecionado(prof)
-        })
-
         // Clique no fundo do mapa fecha o card (pins HTML já usam stopPropagation)
-        map.on('click', (e) => {
-          const sobProf = map.queryRenderedFeatures(e.point, { layers: [LAYER_PROFS] })
-          if (sobProf.length > 0) return
+        map.on('click', () => {
           setSelecionada(null)
-          setProfSelecionado(null)
-        })
-
-        map.on('mouseenter', LAYER_PROFS, () => {
-          map.getCanvas().style.cursor = 'pointer'
-        })
-        map.on('mouseleave', LAYER_PROFS, () => {
-          map.getCanvas().style.cursor = ''
         })
 
         setMapReady(true)
@@ -323,7 +307,6 @@ export default function MapaMobilidade({
     for (const emp of lista) {
       if (!Number.isFinite(emp.latitude) || !Number.isFinite(emp.longitude)) continue
       const el = criarElPinEmpresa(emp, () => {
-        setProfSelecionado(null)
         setSelecionada(emp)
       })
       const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
@@ -338,6 +321,9 @@ export default function MapaMobilidade({
     if (!map || !mapReady) return
     const source = map.getSource(SOURCE_PROFS) as mapboxgl.GeoJSONSource | undefined
     if (source) source.setData(profissionaisToGeoJSON(profissionais))
+    if (map.getLayer(LAYER_PROFS)) {
+      map.setLayoutProperty(LAYER_PROFS, 'visibility', profissionais.length > 0 ? 'visible' : 'none')
+    }
   }, [profissionais, mapReady])
 
   useEffect(() => {
@@ -502,14 +488,6 @@ export default function MapaMobilidade({
         <p className="pointer-events-auto absolute inset-x-3 bottom-[calc(5.5rem+4.5rem)] z-30 mx-auto max-w-lg rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-800 shadow sm:left-1/2 sm:w-[min(100%-1.5rem,28rem)] sm:-translate-x-1/2">
           {parceriaSelecionada.motivo}
         </p>
-      ) : null}
-
-      {profSelecionado ? (
-        <PopupProfissionalMapaMobilidade
-          prof={profSelecionado}
-          onFechar={() => setProfSelecionado(null)}
-          visitanteParceria={visitanteParceria}
-        />
       ) : null}
     </div>
   )

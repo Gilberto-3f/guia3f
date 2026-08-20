@@ -33,7 +33,6 @@ import {
 } from '@/lib/chamarCorridaIntent'
 import { type EmpresaMapaMobilidade } from '@/lib/mobilidadeMapaEmpresas'
 import { abreviarCidadeTriplice } from '@/lib/mobilidadeRegional'
-import type { ProfissionalOnlineMapa } from '@/lib/mobilidadeStatusProfissional'
 import {
   parseCidadesAtuacaoProf,
   type VisitanteParceriaMapa,
@@ -127,7 +126,6 @@ export default function VisaoTuristaMobilidade({
   const [empresas, setEmpresas] = useState<EmpresaMapaMobilidade[]>([])
   const [empresasErro, setEmpresasErro] = useState<string | null>(null)
   const [carregandoEmpresas, setCarregandoEmpresas] = useState(true)
-  const [profissionaisOnline, setProfissionaisOnline] = useState<ProfissionalOnlineMapa[]>([])
   const [visitanteParceria, setVisitanteParceria] = useState<VisitanteParceriaMapa | null>(null)
   const [gpsCentro, setGpsCentro] = useState<{ lat: number; lng: number } | null>(null)
   const [origemLabelGps, setOrigemLabelGps] = useState<string | null>(null)
@@ -736,31 +734,6 @@ export default function VisaoTuristaMobilidade({
   }, [])
 
   useEffect(() => {
-    let ativo = true
-    const load = async () => {
-      try {
-        const res = await fetch('/api/mobilidade/profissionais-online')
-        const json = (await res.json()) as { profissionais?: ProfissionalOnlineMapa[] }
-        if (!ativo || !res.ok) return
-        setProfissionaisOnline(Array.isArray(json.profissionais) ? json.profissionais : [])
-      } catch {
-        /* ignore */
-      }
-    }
-    // Atrasa o 1º fetch para não competir com empresas-mapa no first load
-    const boot = window.setTimeout(() => {
-      if (!ativo) return
-      void load()
-    }, 4000)
-    const id = setInterval(() => void load(), 90_000)
-    return () => {
-      ativo = false
-      window.clearTimeout(boot)
-      clearInterval(id)
-    }
-  }, [])
-
-  useEffect(() => {
     if (pesquisa.origem.lat != null && pesquisa.origem.lng != null) {
       setGpsCentro({ lat: pesquisa.origem.lat, lng: pesquisa.origem.lng })
       const nome = String(pesquisa.origem.nome ?? '').trim()
@@ -865,7 +838,6 @@ export default function VisaoTuristaMobilidade({
       <div className="absolute inset-0 z-0">
         <MapaMobilidade
           empresas={empresas}
-          profissionais={profissionaisOnline}
           centro={gpsCentro}
           origem={origemCorrida ?? origemPonto}
           destino={destinoCorrida ?? destinoPonto}
