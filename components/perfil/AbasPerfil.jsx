@@ -19,28 +19,30 @@ export default function AbasPerfil({ ativa, onChange, counts, modoCompacto = fal
 
   if (modoCompacto) {
     return (
-      <div className="flex justify-evenly border-b border-[#E0E0E0] bg-white px-1">
-        {tabs.map((item) => {
+      <div className="flex w-full border-b border-[#E0E0E0] bg-white">
+        {tabs.map((item, idx) => {
           const Icon = item.icon
           const selecionada = ativa === item.key
+          const lado =
+            idx === 0
+              ? 'justify-start pl-3'
+              : idx === tabs.length - 1
+                ? 'justify-end pr-3'
+                : 'justify-center'
           return (
             <button
               key={item.key}
               type="button"
               onClick={() => onChange(item.key)}
               aria-label={item.label}
-              className="flex shrink-0 flex-col items-center px-1.5 pt-2.5"
+              className={`flex min-w-0 flex-1 items-center gap-1.5 border-b-[3px] py-2.5 text-[17px] font-bold leading-none transition-colors ${lado} ${
+                selecionada
+                  ? 'border-[#0097b2] text-[#0097b2]'
+                  : 'border-transparent text-gray-500'
+              }`}
             >
-              <span
-                className={`inline-flex items-center gap-1.5 border-b-[3px] pb-2 text-[17px] font-bold leading-none transition-colors ${
-                  selecionada
-                    ? 'border-[#0097b2] text-[#0097b2]'
-                    : 'border-transparent text-gray-500'
-                }`}
-              >
-                <Icon size={22} strokeWidth={2.25} aria-hidden />
-                <span>{selecionada ? item.label : item.count}</span>
-              </span>
+              <Icon size={22} strokeWidth={2.25} className="shrink-0" aria-hidden />
+              <span>{selecionada ? item.label : item.count}</span>
             </button>
           )
         })}
@@ -49,28 +51,30 @@ export default function AbasPerfil({ ativa, onChange, counts, modoCompacto = fal
   }
 
   return (
-    <div className="flex justify-evenly border-b border-[#E0E0E0] bg-white px-1">
-      {tabs.map((item) => {
+    <div className="flex w-full border-b border-[#E0E0E0] bg-white">
+      {tabs.map((item, idx) => {
         const Icon = item.icon
         const selecionada = ativa === item.key
+        const lado =
+          idx === 0
+            ? 'items-start pl-3'
+            : idx === tabs.length - 1
+              ? 'items-end pr-3'
+              : 'items-center'
         return (
           <button
             key={item.key}
             type="button"
             onClick={() => onChange(item.key)}
-            className="flex shrink-0 flex-col items-center px-1.5 pt-2"
+            className={`flex min-w-0 flex-1 flex-col border-b-[3px] pt-2 pb-1.5 text-sm font-bold transition-colors ${lado} ${
+              selecionada
+                ? 'border-[#0097b2] text-[#0097b2]'
+                : 'border-transparent text-gray-500'
+            }`}
           >
-            <span
-              className={`inline-flex flex-col items-center gap-0.5 border-b-[3px] pb-1.5 text-sm font-bold transition-colors ${
-                selecionada
-                  ? 'border-[#0097b2] text-[#0097b2]'
-                  : 'border-transparent text-gray-500'
-              }`}
-            >
-              <Icon size={22} strokeWidth={2.25} aria-hidden />
-              <span>{item.label.toUpperCase()}</span>
-              <span className="text-xs opacity-80">({item.count})</span>
-            </span>
+            <Icon size={22} strokeWidth={2.25} className="shrink-0" aria-hidden />
+            <span>{item.label.toUpperCase()}</span>
+            <span className="text-xs opacity-80">({item.count})</span>
           </button>
         )
       })}
