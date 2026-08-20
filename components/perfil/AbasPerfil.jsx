@@ -19,7 +19,7 @@ export default function AbasPerfil({ ativa, onChange, counts, modoCompacto = fal
 
   if (modoCompacto) {
     return (
-      <div className="flex border-b border-[#E0E0E0] bg-white px-2">
+      <div className="flex justify-evenly border-b border-[#E0E0E0] bg-white px-1">
         {tabs.map((item) => {
           const Icon = item.icon
           const selecionada = ativa === item.key
@@ -29,14 +29,18 @@ export default function AbasPerfil({ ativa, onChange, counts, modoCompacto = fal
               type="button"
               onClick={() => onChange(item.key)}
               aria-label={item.label}
-              className={`flex flex-1 items-center justify-center gap-1.5 border-b-2 py-2.5 text-sm font-bold transition-colors ${
-                selecionada
-                  ? 'border-[#0097b2] text-[#0097b2]'
-                  : 'border-transparent text-gray-500'
-              }`}
+              className="flex shrink-0 flex-col items-center px-1.5 pt-2.5"
             >
-              <Icon size={18} aria-hidden />
-              <span>{selecionada ? item.label : item.count}</span>
+              <span
+                className={`inline-flex items-center gap-1.5 border-b-[3px] pb-2 text-[17px] font-bold leading-none transition-colors ${
+                  selecionada
+                    ? 'border-[#0097b2] text-[#0097b2]'
+                    : 'border-transparent text-gray-500'
+                }`}
+              >
+                <Icon size={22} strokeWidth={2.25} aria-hidden />
+                <span>{selecionada ? item.label : item.count}</span>
+              </span>
             </button>
           )
         })}
@@ -45,7 +49,7 @@ export default function AbasPerfil({ ativa, onChange, counts, modoCompacto = fal
   }
 
   return (
-    <div className="flex border-b border-[#E0E0E0] bg-white px-2">
+    <div className="flex justify-evenly border-b border-[#E0E0E0] bg-white px-1">
       {tabs.map((item) => {
         const Icon = item.icon
         const selecionada = ativa === item.key
@@ -54,15 +58,19 @@ export default function AbasPerfil({ ativa, onChange, counts, modoCompacto = fal
             key={item.key}
             type="button"
             onClick={() => onChange(item.key)}
-            className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2 text-xs font-bold transition-colors ${
-              selecionada
-                ? 'border-[#0097b2] text-[#0097b2]'
-                : 'border-transparent text-gray-500'
-            }`}
+            className="flex shrink-0 flex-col items-center px-1.5 pt-2"
           >
-            <Icon size={18} aria-hidden />
-            <span>{item.label.toUpperCase()}</span>
-            <span className="text-[10px] opacity-80">({item.count})</span>
+            <span
+              className={`inline-flex flex-col items-center gap-0.5 border-b-[3px] pb-1.5 text-sm font-bold transition-colors ${
+                selecionada
+                  ? 'border-[#0097b2] text-[#0097b2]'
+                  : 'border-transparent text-gray-500'
+              }`}
+            >
+              <Icon size={22} strokeWidth={2.25} aria-hidden />
+              <span>{item.label.toUpperCase()}</span>
+              <span className="text-xs opacity-80">({item.count})</span>
+            </span>
           </button>
         )
       })}
