@@ -35,6 +35,7 @@ import { registrarVisitaPerfil } from '@/lib/perfilVisitas'
 import PerfilRecomendacaoContratarGate from '@/components/perfil/PerfilRecomendacaoContratarGate'
 import { normalizarCategoriasProfissional } from '@/lib/cartaoVisitaProfissional'
 import { resolverHrefContratarCartaoVisita } from '@/lib/recomendacaoContratacaoDestino'
+import { seedProfissionalDrawerSnap, carregarProfissionalDrawerParticular } from '@/lib/profissionalDrawerParticular'
 import { isPostOcultoDoFeed } from '@/lib/feedFiltroSeguidos'
 import {
   escolherIdStoryInicialPorEmail,
@@ -1157,6 +1158,16 @@ export default function PerfilSocialPage() {
             empresaHospedagemId: profMeta.empresaHospedagemId,
             apiMobilidadeUrl,
           })
+
+          seedProfissionalDrawerSnap(profileId, {
+            nome_completo: nome || 'Profissional',
+            nome_usuario: username || null,
+            foto_url: fotoPerfil,
+            verificado:
+              profMeta.statusProfissional === 'aprovado' || Boolean(profMeta.docsVerificado),
+            verificado_em: profMeta.verificadoEm ?? profMeta.cadastradoEm,
+          })
+          void carregarProfissionalDrawerParticular(supabase, profileId)
 
           setPopCartao(false)
           if (!href) return

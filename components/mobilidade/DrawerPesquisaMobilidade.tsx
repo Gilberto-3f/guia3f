@@ -59,13 +59,16 @@ import {
   PAGAMENTOS_ORDEM,
 } from '@/lib/mobilidadePopupPesquisa'
 import type { RotaTabelada } from '@/lib/servicosTabeladosCatalogo'
-import { IDIOMAS_GUIA, labelIdiomaGuia, normalizarIdiomasGuia } from '@/lib/idiomasGuia'
-import { parseMobilidadeStatus } from '@/lib/mobilidadeStatusProfissional'
+import { labelIdiomaGuia } from '@/lib/idiomasGuia'
 import { forwardGeocodeMapbox } from '@/lib/mapboxForwardGeocode'
 import CotacaoValorMobilidade from '@/components/mobilidade/CotacaoValorMobilidade'
 import BlocoProfissionalDrawerParticular, {
   type ProfissionalDrawerParticular,
 } from '@/components/mobilidade/BlocoProfissionalDrawerParticular'
+import {
+  carregarProfissionalDrawerParticular,
+  peekProfissionalDrawerCache,
+} from '@/lib/profissionalDrawerParticular'
 import type {
   OfertaResultadoUi,
   ResultadoCorridaMobilidade,
@@ -308,13 +311,18 @@ export default function DrawerPesquisaMobilidade({
   const tabBoot = cidadeTripliceParaTabelado(cidadeOrigemBoot)
   const rotasBoot = tabBoot ? peekRotasTabeladasCache(tabBoot) : null
 
+  const cacheProfBoot = ehContratacaoDirigida(pesquisa)
+    ? peekProfissionalDrawerCache(String(pesquisa.profissionalUsuarioId ?? '').trim())
+    : null
+
   const [etapa, setEtapa] = useState<1 | 2 | 3>(1)
   /** Já nasce com a modalidade correta (evita flash do motorista de app na fronteira). */
   const [modalidade, setModalidade] = useState<ModalidadeMobilidadeId | null>(
     () =>
-      disponiveisBoot.includes('motorista_app')
+      cacheProfBoot?.modalidade ??
+      (disponiveisBoot.includes('motorista_app')
         ? 'motorista_app'
-        : (disponiveisBoot[0] ?? null),
+        : (disponiveisBoot[0] ?? null)),
   )
   const [rotas, setRotas] = useState<RotaTabelada[]>(() => rotasBoot ?? [])
   const [carregandoValores, setCarregandoValores] = useState(() => Boolean(tabBoot) && !rotasBoot)
@@ -347,10 +355,16 @@ export default function DrawerPesquisaMobilidade({
   const [dicaLugaresAberta, setDicaLugaresAberta] = useState(false)
   const [dicaPagamentoAberta, setDicaPagamentoAberta] = useState(false)
   const [enviando, setEnviando] = useState(false)
-  const [profParticular, setProfParticular] = useState<ProfissionalDrawerParticular | null>(null)
-  const [profParticularLoading, setProfParticularLoading] = useState(false)
+  const [profParticular, setProfParticular] = useState<ProfissionalDrawerParticular | null>(
+    () => cacheProfBoot?.snap ?? null,
+  )
+  const [profParticularLoading, setProfParticularLoading] = useState(
+    () => ehContratacaoDirigida(pesquisa) && !cacheProfBoot?.snap,
+  )
   /** Online permite imediato; offline / em atendimento → só agendamento. */
-  const [particularPermiteImediato, setParticularPermiteImediato] = useState(true)
+  const [particularPermiteImediato, setParticularPermiteImediato] = useState(
+    () => cacheProfBoot?.imediatoOk ?? true,
+  )
 
   const modoParticular = ehContratacaoDirigida(pesquisa)
   const modoCamposAbertos = resolverModoContratacaoMobilidade(pesquisa) === 'particular'
@@ -421,8 +435,10 @@ export default function DrawerPesquisaMobilidade({
     setDicaLugaresAberta(false)
     setDicaPagamentoAberta(false)
     setEnviando(false)
-    setProfParticular(null)
-    setParticularPermiteImediato(true)
+    const uidBoot = String(pesquisa.profissionalUsuarioId ?? '').trim()
+    const cachedBoot = uidBoot ? peekProfissionalDrawerCache(uidBoot) : null
+    setProfParticular(cachedBoot?.snap ?? null)
+    setParticularPermiteImediato(cachedBoot?.imediatoOk ?? true)
     setSugestoesDestinoAbertas(false)
     setOrigemDraft({ ...pesquisa.origem })
     if (modoCamposAbertos) {
@@ -468,64 +484,57 @@ export default function DrawerPesquisaMobilidade({
 
   useEffect(() => {
     if (!aberto || !modoParticular) {
-      setProfParticular(null)
-      setProfParticularLoading(false)
-      setParticularPermiteImediato(true)
+      if (!modoParticular) {
+        setProfParticular(null)
+        setProfParticularLoading(false)
+        setParticularPermiteImediato(true)
+      }
       return
     }
     const uid = String(pesquisa.profissionalUsuarioId ?? '').trim()
     if (!uid) return
+    const cached = peekProfissionalDrawerCache(uid)
+    if (cached?.snap) {
+      setProfParticular(cached.snap)
+      setProfParticularLoading(false)
+      if (cached.completo) {
+        if (cached.modalidade) setModalidade(cached.modalidade)
+        if (cached.idiomas.length > 0) {
+          setIdiomasFiltro(cached.idiomas)
+          setIdiomaPreferido(cached.idiomaPreferido)
+          setIdiomasFiltroLoading(false)
+        }
+        setParticularPermiteImediato(cached.imediatoOk)
+        if (!cached.imediatoOk) {
+          setAgendarOutraData(true)
+          setChevAgendar(true)
+        }
+        return
+      }
+    } else {
+      setProfParticularLoading(true)
+    }
     let ativo = true
-    setProfParticularLoading(true)
     void (async () => {
-      const { data, error } = await supabase
-        .from('profissionais')
-        .select(
-          'nome_completo, nome_usuario, foto_url, foto_perfil_url, categorias, placa_vermelha, docs_verificado, docs_verificado_em, created_at, status, mobilidade_status, idiomas',
-        )
-        .eq('usuario_id', uid)
-        .maybeSingle()
+      const next = await carregarProfissionalDrawerParticular(supabase, uid)
       if (!ativo) return
-      if (error || !data) {
+      if (!next) {
         setProfParticular(null)
         setProfParticularLoading(false)
         return
       }
-      const cats = Array.isArray(data.categorias) ? data.categorias.map(String) : []
-      const placa = Boolean(data.placa_vermelha)
-      const mod = modalidadeDeCategoriasProfissional(cats, placa)
-      if (mod) setModalidade(mod)
-      if (mod === 'guia') {
-        const lista = IDIOMAS_GUIA.filter((i) =>
-          normalizarIdiomasGuia(data.idiomas).includes(i.codigo),
-        ).map((i) => ({ codigo: i.codigo, label: i.label, bandeira: i.bandeira }))
-        setIdiomasFiltro(lista)
-        setIdiomaPreferido(lista[0]?.codigo ?? '')
+      if (next.modalidade) setModalidade(next.modalidade)
+      if (next.idiomas.length > 0) {
+        setIdiomasFiltro(next.idiomas)
+        setIdiomaPreferido(next.idiomaPreferido)
         setIdiomasFiltroLoading(false)
       }
-      const statusMob = parseMobilidadeStatus(data.mobilidade_status)
-      const imediatoOk = statusMob === 'online'
-      setParticularPermiteImediato(imediatoOk)
-      if (!imediatoOk) {
+      setParticularPermiteImediato(next.imediatoOk)
+      if (!next.imediatoOk) {
         setAgendarOutraData(true)
         setChevAgendar(true)
       }
-      const foto =
-        (data.foto_perfil_url != null && String(data.foto_perfil_url).trim()) ||
-        (data.foto_url != null && String(data.foto_url).trim()) ||
-        null
-      setProfParticular({
-        nome_completo: String(data.nome_completo ?? 'Profissional'),
-        nome_usuario: data.nome_usuario != null ? String(data.nome_usuario) : null,
-        foto_url: foto,
-        verificado: String(data.status ?? '') === 'aprovado' || Boolean(data.docs_verificado),
-        verificado_em:
-          data.docs_verificado_em != null
-            ? String(data.docs_verificado_em)
-            : data.created_at != null
-              ? String(data.created_at)
-              : null,
-      })
+      setProfParticular(next.snap)
       setProfParticularLoading(false)
     })()
     return () => {
@@ -949,13 +958,13 @@ export default function DrawerPesquisaMobilidade({
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3" data-modal-scroll-lock-scrollable>
         {modoParticular ? (
           <div className="mb-2">
-            {profParticularLoading ? (
-              <p className="py-6 text-center text-sm text-gray-500">…</p>
-            ) : profParticular ? (
+            {profParticular ? (
               <BlocoProfissionalDrawerParticular
                 prof={profParticular}
                 labelVerificadoDesde={(mesAno) => t('particularVerificadoDesde', { mesAno })}
               />
+            ) : profParticularLoading ? (
+              <p className="py-6 text-center text-sm text-gray-500">…</p>
             ) : (
               <p className="py-4 text-center text-sm text-rose-600">{t('particularProfErro')}</p>
             )}
@@ -1313,6 +1322,8 @@ export default function DrawerPesquisaMobilidade({
 
         {etapa === 2 && modalidade === 'guia' ? (
           <div className="space-y-2">
+            {!modoParticular ? (
+              <>
             <ChevronSecao
               aberto={chevBeneficios}
               onToggle={() => setChevBeneficios((v) => !v)}
@@ -1365,12 +1376,12 @@ export default function DrawerPesquisaMobilidade({
                       </button>
                     ))}
                   </div>
-                  {modoParticular ? null : (
-                    <p className="mt-2 text-[11px] text-gray-400">{t('idiomaHint')}</p>
-                  )}
+                  <p className="mt-2 text-[11px] text-gray-400">{t('idiomaHint')}</p>
                 </>
               )}
             </ChevronSecao>
+              </>
+            ) : null}
             <ChevronSecao
               aberto={chevLugares}
               onToggle={() => setChevLugares((v) => !v)}
@@ -1435,6 +1446,7 @@ export default function DrawerPesquisaMobilidade({
 
         {etapa === 2 && modalidade === 'van' ? (
           <div className="space-y-2">
+            {!modoParticular ? (
             <ChevronSecao
               aberto={chevBeneficios}
               onToggle={() => setChevBeneficios((v) => !v)}
@@ -1459,6 +1471,7 @@ export default function DrawerPesquisaMobilidade({
                 ) : null}
               </div>
             </ChevronSecao>
+            ) : null}
             <ChevronSecao
               aberto={chevLugares}
               onToggle={() => setChevLugares((v) => !v)}
@@ -1523,6 +1536,7 @@ export default function DrawerPesquisaMobilidade({
 
         {etapa === 2 && modalidade === 'taxista' ? (
           <div className="space-y-2">
+            {!modoParticular ? (
             <ChevronSecao
               aberto={chevBeneficios}
               onToggle={() => setChevBeneficios((v) => !v)}
@@ -1547,6 +1561,7 @@ export default function DrawerPesquisaMobilidade({
                 ) : null}
               </div>
             </ChevronSecao>
+            ) : null}
             <ChevronSecao
               aberto={chevAgendar}
               onToggle={() => setChevAgendar((v) => !v)}

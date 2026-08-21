@@ -15,6 +15,8 @@ import {
   type ParceiroRecomendacaoOferta,
 } from '@/lib/mobilidadeOfertaAtendimento'
 
+const RODAPE_PB = 'p-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]'
+
 const COR = '#0097b2'
 const VERDE = '#00D443'
 
@@ -57,19 +59,6 @@ type Props = {
 
 function formatBrl(n: number): string {
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-
-function formatDataHora(iso: string | null | undefined): string | null {
-  if (!iso) return null
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return null
-  return d.toLocaleString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 }
 
 function labelPagamento(pagamento: string, t: (key: string) => string): string {
@@ -133,7 +122,7 @@ export default function DrawerAtendimentoMobilidade({
 
   const turista = oferta.turista
   const username = String(turista?.username ?? '').replace(/^@+/, '') || 'usuario'
-  const dataHoraAgenda = formatDataHora(oferta.data_agendada)
+  const dataHoraAgenda = formatDataHoraAtendimentoCurta(oferta.data_agendada)
   const dirigida = Boolean(oferta.contratacao_direcionada)
   const warn = segundosRestantes != null && ofertaWarnAmarelo(segundosRestantes, dirigida)
   const relogioTxt =
@@ -177,10 +166,10 @@ export default function DrawerAtendimentoMobilidade({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4" data-modal-scroll-lock-scrollable>
         {/* Card do turista */}
-        <div className="flex flex-col items-center gap-0.5 text-center">
+        <div className="flex items-center gap-3">
           <div
-            className="relative mb-1.5 h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100"
-            style={{ boxShadow: `0 0 0 4px ${COR}` }}
+            className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-gray-100"
+            style={{ boxShadow: `0 0 0 3px ${COR}` }}
           >
             {turista?.foto_url ? (
               <AvatarImage
@@ -188,37 +177,43 @@ export default function DrawerAtendimentoMobilidade({
                 alt=""
                 fill
                 className="object-cover"
-                sizes="80px"
+                sizes="64px"
               />
             ) : null}
           </div>
-          <p className="max-w-md text-lg font-bold leading-tight text-gray-900">
-            {turista?.nome || t('atendimentoTuristaFallback')}
-          </p>
-          <UsuarioHandleVerificado
-            username={username}
-            verificado={Boolean(turista?.verificado)}
-            verificadoTipo="profissional"
-            notaMedia={turista?.nota_media ?? null}
-            asButton={false}
-            className="justify-center text-sm font-normal leading-tight text-gray-600"
-          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-lg font-bold leading-tight text-gray-900">
+              {turista?.nome || t('atendimentoTuristaFallback')}
+            </p>
+            <UsuarioHandleVerificado
+              username={username}
+              verificado={Boolean(turista?.verificado)}
+              verificadoTipo="profissional"
+              notaMedia={turista?.nota_media ?? null}
+              asButton={false}
+              className="justify-start text-sm font-normal leading-tight text-gray-600"
+            />
+          </div>
         </div>
 
-        {/* Resumo da corrida */}
-        <div className="mt-5 rounded-xl border border-gray-200 bg-[#f5f5f5] px-4 py-3">
+        {/* Resumo da corrida (partida + destino) — mesmo modelo drawers 2/3 */}
+        <div className="mt-5 rounded-xl px-3 py-2.5 text-sm text-white" style={{ backgroundColor: COR }}>
+          <p>
+            <span className="font-semibold text-white">{t('origemLabel')}: </span>
+            {oferta.origem_nome || '—'}
+          </p>
+          <p className="mt-1">
+            <span className="font-semibold text-white">{t('destinoLabel')}: </span>
+            {oferta.destino_nome || '—'}
+          </p>
+        </div>
+
+        {/* Informações do atendimento */}
+        <div className="mt-3 rounded-xl border border-[#0097b2] bg-white px-4 py-3">
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: COR }}>
-            {t('resumoCorrida')}
+            {t('infoAtendimentoTitulo')}
           </p>
           <ul className="mt-2 space-y-1.5 text-sm text-gray-800">
-            <li>
-              <span className="font-semibold text-gray-600">{t('origemLabel')}: </span>
-              {oferta.origem_nome || '—'}
-            </li>
-            <li>
-              <span className="font-semibold text-gray-600">{t('destinoLabel')}: </span>
-              {oferta.destino_nome || '—'}
-            </li>
             <li>
               <span className="font-semibold text-gray-600">{t('valorCorrida')}: </span>
               {oferta.valor_estimado != null ? formatBrl(oferta.valor_estimado) : t('valorIndisponivel')}
@@ -233,21 +228,26 @@ export default function DrawerAtendimentoMobilidade({
               <span className="font-semibold text-gray-600">{t('resumoPassageiros')}: </span>
               {oferta.lugares ?? 1}
             </li>
-            {dataHoraAgenda ? (
-              <li>
-                <span className="font-semibold text-gray-600">{t('resumoAgendamento')}: </span>
-                {dataHoraAgenda}
-              </li>
-            ) : (
-              <li>
-                <span className="font-semibold text-gray-600">{t('resumoAgendamento')}: </span>
-                {t('atendimentoImediato')}
-              </li>
-            )}
             {oferta.distancia_km > 0 ? (
               <li className="text-xs text-gray-500">~{oferta.distancia_km} km</li>
             ) : null}
           </ul>
+        </div>
+
+        {/* Para quando? */}
+        <div className="mt-3 rounded-xl border border-[#0097b2] bg-white px-4 py-3">
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: COR }}>
+            {t('paraQuandoTitulo')}
+          </p>
+          {dataHoraAgenda ? (
+            <p className="mt-2 text-sm font-semibold text-gray-800">
+              {t('agendamentoPara', { quando: dataHoraAgenda })}
+            </p>
+          ) : (
+            <p className="mt-2 text-sm font-bold uppercase" style={{ color: VERDE }}>
+              {t('paraQuandoAgora')}
+            </p>
+          )}
         </div>
 
         {/* Recomendação (condicional) */}
@@ -288,7 +288,7 @@ export default function DrawerAtendimentoMobilidade({
         </p>
       </div>
 
-      <div className="shrink-0 border-t border-gray-100 p-3 pb-safe">
+      <div className={`shrink-0 border-t border-gray-100 ${RODAPE_PB}`}>
         {rodapeExtra}
         {!ocultarBotoes ? (
           <div className={`grid grid-cols-2 gap-2 ${rodapeExtra ? 'mt-2' : ''}`}>

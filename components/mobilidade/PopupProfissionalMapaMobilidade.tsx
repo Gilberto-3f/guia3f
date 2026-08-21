@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import PopupCartaoVisitaProfissional from '@/components/perfil/PopupCartaoVisitaProfissional'
 import { resolverHrefContratarCartaoVisita } from '@/lib/recomendacaoContratacaoDestino'
+import { seedProfissionalDrawerSnap, carregarProfissionalDrawerParticular } from '@/lib/profissionalDrawerParticular'
 import type { ProfissionalOnlineMapa } from '@/lib/mobilidadeStatusProfissional'
 import type { VisitanteParceriaMapa } from '@/lib/mobilidadeMapaVisitante'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
@@ -94,6 +95,14 @@ export default function PopupProfissionalMapaMobilidade({
       profissionalUsuarioId: prof.usuario_id,
       apiMobilidadeUrl,
     })
+    seedProfissionalDrawerSnap(prof.usuario_id, {
+      nome_completo: prof.nome_completo || 'Profissional',
+      nome_usuario: prof.nome_usuario ?? null,
+      foto_url: prof.foto_url,
+      verificado: true,
+      verificado_em: null,
+    })
+    void carregarProfissionalDrawerParticular(supabase, prof.usuario_id)
     onFechar()
     if (!href) return
     if (externo) {

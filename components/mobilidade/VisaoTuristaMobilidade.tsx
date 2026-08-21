@@ -22,6 +22,7 @@ import { resolverPainelMobilidade } from '@/lib/mobilidadePainelProfissional'
 import { supabase } from '@/lib/supabase'
 import {
   buildMobilidadePesquisaHref,
+  ehContratacaoDirigida,
   parseMobilidadePesquisaSearchParams,
   pontoPreenchido,
   resolverModoContratacaoMobilidade,
@@ -46,6 +47,7 @@ import {
   inferirCidadeDePonto,
   peekRotasTabeladasCache,
 } from '@/lib/mobilidadePopupPesquisa'
+import { carregarProfissionalDrawerParticular } from '@/lib/profissionalDrawerParticular'
 import {
   MOBILIDADE_LIMPAR_PESQUISA,
 } from '@/lib/mobilidadeAtendimentoAtivoEventos'
@@ -297,6 +299,10 @@ export default function VisaoTuristaMobilidade({
         const tab = cidadeTripliceParaTabelado(cidade)
         if (tab && !peekRotasTabeladasCache(tab)) {
           await carregarRotasTabeladasCidade(supabase, tab)
+        }
+        const uidProf = String(next.profissionalUsuarioId ?? '').trim()
+        if (uidProf && ehContratacaoDirigida(next)) {
+          await carregarProfissionalDrawerParticular(supabase, uidProf)
         }
         if (gen !== openGenRef.current) return
         const lista = empresasRef.current

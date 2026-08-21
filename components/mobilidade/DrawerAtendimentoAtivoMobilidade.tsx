@@ -315,10 +315,10 @@ export default function DrawerAtendimentoAtivoMobilidade({
             ) : null}
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-0.5 text-center">
+          <div className="flex items-center gap-3">
             <div
-              className="relative mb-1.5 h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100"
-              style={{ boxShadow: `0 0 0 4px ${headerCor}` }}
+              className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-gray-100"
+              style={{ boxShadow: `0 0 0 3px ${headerCor}` }}
             >
               {parte?.foto_url ? (
                 <AvatarImage
@@ -326,28 +326,30 @@ export default function DrawerAtendimentoAtivoMobilidade({
                   alt=""
                   fill
                   className="object-cover"
-                  sizes="80px"
+                  sizes="64px"
                 />
               ) : (
                 <span className="flex h-full w-full items-center justify-center text-[#0097b2]">
-                  <UserRound className="h-10 w-10" aria-hidden />
+                  <UserRound className="h-8 w-8" aria-hidden />
                 </span>
               )}
             </div>
-            <p className="max-w-md text-lg font-bold leading-tight text-gray-900">
-              {parte?.nome ||
-                (papel === 'profissional'
-                  ? t('atendimentoTuristaFallback')
-                  : t('atendimentoProfissionalFallback'))}
-            </p>
-            <UsuarioHandleVerificado
-              username={username}
-              verificado={Boolean(parte?.verificado)}
-              verificadoTipo="profissional"
-              notaMedia={parte?.nota_media ?? null}
-              asButton={false}
-              className="justify-center text-sm font-normal leading-tight text-gray-600"
-            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-lg font-bold leading-tight text-gray-900">
+                {parte?.nome ||
+                  (papel === 'profissional'
+                    ? t('atendimentoTuristaFallback')
+                    : t('atendimentoProfissionalFallback'))}
+              </p>
+              <UsuarioHandleVerificado
+                username={username}
+                verificado={Boolean(parte?.verificado)}
+                verificadoTipo="profissional"
+                notaMedia={parte?.nota_media ?? null}
+                asButton={false}
+                className="justify-start text-sm font-normal leading-tight text-gray-600"
+              />
+            </div>
           </div>
         )}
 
@@ -478,7 +480,7 @@ export default function DrawerAtendimentoAtivoMobilidade({
       </div>
 
       {papel === 'profissional' && modalidadeUsaDeslocamentoProprio(atendimento.modalidade) ? (
-        <div className="shrink-0 border-t border-gray-100 p-3 pb-safe">
+        <div className="shrink-0 border-t border-gray-100 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
           {rodapeExtra}
           {erroConcluir ? (
             <div className="mb-2 space-y-1">
