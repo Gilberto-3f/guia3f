@@ -68,10 +68,8 @@ import {
 } from '@/lib/cartaoVisitaAvaliacaoTurista'
 
 /**
- * Turista/empresa: botão Avaliar só quando liberado (sem estado desabilitado).
- * - Motorista de app: sempre (se ainda não avaliou).
- * - Anfitrião: após check-out da hospedagem.
- * - Mobilidade (guia/van/taxista): após atendimento concluído.
+ * Turista/empresa: botão Avaliar no cartão só para motorista de app (personal shopper).
+ * Guia/van/taxista avaliam ao finalizar o atendimento; anfitrião no check-out.
  */
 export function resolverAvaliarVisaoTurista(
   visitadoTipo: TipoProfissionalCartao,

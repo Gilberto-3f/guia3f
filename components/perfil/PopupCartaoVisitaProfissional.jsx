@@ -637,7 +637,7 @@ export default function PopupCartaoVisitaProfissional({
                         aberto={pastaVeiculoAberta}
                         onToggle={() => setPastaVeiculoAberta((v) => !v)}
                       >
-                        <div className="flex flex-col items-center text-center">
+                        <div className="flex items-center justify-center gap-3">
                           <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-gray-100 ring-1 ring-gray-200">
                             {veiculo.fotos[0] ? (
                               <AvatarImage
@@ -653,17 +653,19 @@ export default function PopupCartaoVisitaProfissional({
                               </span>
                             )}
                           </div>
-                          <p className="mt-2 max-w-full truncate text-sm font-bold text-gray-900">
-                            {veiculo.modelo || 'Veículo'}
-                          </p>
-                          {veiculo.ano != null ? (
-                            <p className="mt-0.5 text-xs text-gray-500">{veiculo.ano}</p>
-                          ) : null}
-                          {veiculo.lugares != null ? (
-                            <p className="mt-0.5 text-xs font-semibold text-[#0097b2]">
-                              {veiculo.lugares} {veiculo.lugares === 1 ? 'lugar' : 'lugares'}
+                          <div className="min-w-0 text-left">
+                            <p className="truncate text-sm font-bold text-gray-900">
+                              {veiculo.modelo || 'Veículo'}
                             </p>
-                          ) : null}
+                            {veiculo.ano != null ? (
+                              <p className="mt-0.5 text-xs text-gray-500">{veiculo.ano}</p>
+                            ) : null}
+                            {veiculo.lugares != null ? (
+                              <p className="mt-0.5 text-xs font-semibold text-[#0097b2]">
+                                {veiculo.lugares} {veiculo.lugares === 1 ? 'lugar' : 'lugares'}
+                              </p>
+                            ) : null}
+                          </div>
                         </div>
                       </ChevronPasta>
                     ) : null}
@@ -694,7 +696,7 @@ export default function PopupCartaoVisitaProfissional({
 
                 {empresaHospedagem ? (
                   <div className="mt-5">
-                    <div className="mb-2 flex items-center gap-2 text-sm font-bold text-white">
+                    <div className="mb-2 flex items-center justify-center gap-2 text-sm font-bold text-white">
                       <Building2 className="h-4 w-4 shrink-0" aria-hidden />
                       <span>Empresa de hospedagem</span>
                     </div>

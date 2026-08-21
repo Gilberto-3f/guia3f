@@ -186,6 +186,8 @@ export async function turistaPodeAvaliarMotoristaApp(
 
 /**
  * Resolve se o turista/empresa pode ver o botão Avaliar no cartão de visita.
+ * Só motorista de app: personal shopper. Mobilidade e anfitrião avaliam no
+ * fluxo de conclusão / check-out, não no cartão.
  */
 export async function turistaPodeAvaliarProfissionalCartao(
   supabase: SupabaseClient,
@@ -203,31 +205,13 @@ export async function turistaPodeAvaliarProfissionalCartao(
     return turistaPodeAvaliarMotoristaApp(supabase, turistaUsuarioId, profissionalUsuarioId)
   }
 
-  if (visitadoTipo === 'anfitriao') {
-    return turistaPodeAvaliarAnfitriaoPosCheckout(
-      supabase,
-      turistaUsuarioId,
-      profissionalUsuarioId,
-    )
-  }
-
-  if (visitadoTipo === 'regular' || visitadoEhMobilidadeAvaliavel(visitadoPlacaVermelha, visitadoCategorias)) {
-    return turistaPodeAvaliarProfissionalMobilidade(
-      supabase,
-      turistaUsuarioId,
-      profissionalUsuarioId,
-    )
-  }
-
   return false
 }
 
 export function tipoProfissionalCartaoPermiteAvaliarTurista(
   visitadoTipo: TipoProfissionalCartao,
-  visitadoPlacaVermelha: boolean,
-  visitadoCategorias: string[] | null | undefined,
+  _visitadoPlacaVermelha: boolean,
+  _visitadoCategorias: string[] | null | undefined,
 ): boolean {
-  if (visitadoTipo === 'motorista_app' || visitadoTipo === 'anfitriao') return true
-  if (visitadoTipo === 'regular') return true
-  return visitadoEhMobilidadeAvaliavel(visitadoPlacaVermelha, visitadoCategorias)
+  return visitadoTipo === 'motorista_app'
 }
