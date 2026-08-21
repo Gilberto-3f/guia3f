@@ -1,5 +1,11 @@
--- Idempotente: a migration 20260821010000 pode ter sido revertida no rollback
--- (coluna ida_volta nunca ficou persistida). Recria colunas + checks frouxos.
+-- Normaliza duração/ida-volta/horas nas rotas tabeladas.
+-- Idempotente: pode rodar mesmo se 20260821010000 / 11000 falharam ou reverteram.
+--
+-- O que aconteceu:
+-- 1) Check antigo da van exigia hora_saida + hora_retorno.
+-- 2) Vans de junho (ex.: CDE → Foz) não têm horário.
+-- 3) UPDATE ida_volta = true nessas linhas violou o check (23514).
+-- 4) O SQL Editor reverteu a transação inteira → colunas sumiram (42703).
 
 ALTER TABLE public.servicos_tabelados_rotas
   ADD COLUMN IF NOT EXISTS duracao_estimada_min INTEGER NULL;
@@ -29,17 +35,28 @@ ALTER TABLE public.servicos_tabelados_rotas
     duracao_horas IS NULL OR duracao_horas > 0
   );
 
-COMMENT ON COLUMN public.servicos_tabelados_rotas.duracao_estimada_min IS
-  'Taxista: duração estimada do deslocamento (minutos). Não trava Finalizar.';
-COMMENT ON COLUMN public.servicos_tabelados_rotas.usar_eta_mapbox IS
-  'Taxista: usar ETA Mapbox (ruas) no atendimento. Default efetivo: true.';
-COMMENT ON COLUMN public.servicos_tabelados_rotas.ida_volta IS
-  'Van: true = ida e volta (hora_saida + hora_retorno). false = somente ida.';
-COMMENT ON COLUMN public.servicos_tabelados_rotas.duracao_horas IS
-  'Guia: duração em horas quando tipo_periodo_guia = horas.';
-
-ALTER TABLE public.servicos_tabelados_rotas
-  DROP CONSTRAINT IF EXISTS servicos_tabelados_rotas_tipo_periodo_guia_check;
+-- Check inline antigo de tipo_periodo_guia (só acompanhamento/diaria).
+DO $$
+DECLARE
+  r record;
+BEGIN
+  FOR r IN
+    SELECT c.conname
+    FROM pg_constraint c
+    JOIN pg_class t ON c.conrelid = t.oid
+    JOIN pg_namespace n ON t.relnamespace = n.oid
+    WHERE n.nspname = 'public'
+      AND t.relname = 'servicos_tabelados_rotas'
+      AND c.contype = 'c'
+      AND pg_get_constraintdef(c.oid) ILIKE '%tipo_periodo_guia%'
+  LOOP
+    EXECUTE format(
+      'ALTER TABLE public.servicos_tabelados_rotas DROP CONSTRAINT IF EXISTS %I',
+      r.conname
+    );
+  END LOOP;
+END
+$$;
 
 ALTER TABLE public.servicos_tabelados_rotas
   ADD CONSTRAINT servicos_tabelados_rotas_tipo_periodo_guia_check CHECK (
@@ -74,7 +91,7 @@ ALTER TABLE public.servicos_tabelados_rotas
 ALTER TABLE public.servicos_tabelados_rotas
   DROP CONSTRAINT IF EXISTS servicos_tabelados_van_horario_chk;
 
--- Vans antigas (antes dos horários) podem ficar sem hora_saida.
+-- Van legado sem horário: válido. Ida e volta só exige retorno se já houver saída.
 ALTER TABLE public.servicos_tabelados_rotas
   ADD CONSTRAINT servicos_tabelados_van_horario_chk CHECK (
     categoria <> 'van'
@@ -89,6 +106,15 @@ ALTER TABLE public.servicos_tabelados_rotas
       )
     )
   ) NOT VALID;
+
+COMMENT ON COLUMN public.servicos_tabelados_rotas.duracao_estimada_min IS
+  'Taxista: duração estimada do deslocamento (minutos). Não trava Finalizar.';
+COMMENT ON COLUMN public.servicos_tabelados_rotas.usar_eta_mapbox IS
+  'Taxista: usar ETA Mapbox (ruas) no atendimento. Default efetivo: true.';
+COMMENT ON COLUMN public.servicos_tabelados_rotas.ida_volta IS
+  'Van: true = ida e volta. false = somente ida. null = legado (tratar como ida e volta).';
+COMMENT ON COLUMN public.servicos_tabelados_rotas.duracao_horas IS
+  'Guia: duração em horas quando tipo_periodo_guia = horas.';
 
 UPDATE public.servicos_tabelados_rotas
 SET ida_volta = TRUE

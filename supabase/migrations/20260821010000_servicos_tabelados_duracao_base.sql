@@ -46,6 +46,7 @@ ALTER TABLE public.servicos_tabelados_rotas
           tipo_periodo_guia = 'horas'
           AND duracao_horas IS NOT NULL
         )
+        OR tipo_periodo_guia IS NULL
       )
     )
   ) NOT VALID;
