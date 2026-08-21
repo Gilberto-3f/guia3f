@@ -515,6 +515,8 @@
     "drawerAtivoMotoristaACaminho": "Conductor en camino",
     "drawerAtivoInicio": "Inicio",
     "drawerAtivoRota": "Ruta",
+    "etaChegadaPartida": "Llegada al punto de partida en ~{eta}",
+    "etaChegadaDestino": "Llegada al destino en ~{eta}",
     "drawerAtivoReabrir": "Atención en curso — tocar para abrir",
     "drawerAtivoAbrirDetalhe": "Abrir atención",
     "drawerAtivoManifesto": "Manifiesto",

@@ -159,6 +159,12 @@ export default function ChegadaTuristaMobilidadeListener({ onCorridaChange }: Pr
     data_agendada: corrida.data_agendada,
     modalidade: corrida.modalidade,
     conversa_id: corrida.conversa_id,
+    lat_origem: corrida.lat_origem ?? null,
+    lng_origem: corrida.lng_origem ?? null,
+    lat_destino: corrida.lat_destino ?? null,
+    lng_destino: corrida.lng_destino ?? null,
+    prof_lat: corrida.prof_lat ?? null,
+    prof_lng: corrida.prof_lng ?? null,
     parte: pro
       ? {
           nome: pro.nome,

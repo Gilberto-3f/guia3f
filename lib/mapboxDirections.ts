@@ -23,6 +23,15 @@ export function chaveRotaDirections(de: PontoLatLng, ate: PontoLatLng): string {
 
 const cache = new Map<string, RotaDirectionsMobilidade>()
 
+/** Texto curto de duração (ETA no drawer). */
+export function formatarDuracaoEta(sec: number): string {
+  const min = Math.max(1, Math.round(sec / 60))
+  if (min < 60) return `${min} min`
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  return m ? `${h} h ${m} min` : `${h} h`
+}
+
 export function peekRotaDirectionsCache(
   de: PontoLatLng,
   ate: PontoLatLng,

@@ -515,6 +515,8 @@
     "drawerAtivoMotoristaACaminho": "Motorista a caminho",
     "drawerAtivoInicio": "Início",
     "drawerAtivoRota": "Rota",
+    "etaChegadaPartida": "Chegada ao ponto de partida em ~{eta}",
+    "etaChegadaDestino": "Chegada ao destino em ~{eta}",
     "drawerAtivoReabrir": "Atendimento em andamento — tocar para abrir",
     "drawerAtivoAbrirDetalhe": "Abrir atendimento",
     "drawerAtivoManifesto": "Manifesto",

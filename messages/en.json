@@ -515,6 +515,8 @@
     "drawerAtivoMotoristaACaminho": "Driver on the way",
     "drawerAtivoInicio": "Start",
     "drawerAtivoRota": "Route",
+    "etaChegadaPartida": "Arrival at pickup in ~{eta}",
+    "etaChegadaDestino": "Arrival at destination in ~{eta}",
     "drawerAtivoReabrir": "Service in progress — tap to open",
     "drawerAtivoAbrirDetalhe": "Open service",
     "drawerAtivoManifesto": "Manifest",

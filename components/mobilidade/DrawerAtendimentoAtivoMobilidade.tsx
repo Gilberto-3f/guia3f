@@ -7,6 +7,7 @@ import {
   Car,
   ChevronDown,
   ClipboardList,
+  Clock,
   Info,
   MapPin,
   Navigation,
@@ -19,6 +20,8 @@ import ChatCorridaMobilidade from '@/components/mobilidade/ChatCorridaMobilidade
 import DrawerManifestoEspaco from '@/components/mobilidade/DrawerManifestoEspaco'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import { modalidadeUsaManifesto, modalidadeUsaDeslocamentoProprio } from '@/lib/mobilidadeOfertaAtendimento'
+import { buscarRotaMapboxDriving, formatarDuracaoEta } from '@/lib/mapboxDirections'
+import { montarTrajetoEtaCorrida } from '@/lib/mobilidadeTrajetoMapa'
 
 const COR = '#0097b2'
 const VERDE = '#00D443'
@@ -43,6 +46,12 @@ export type AtendimentoAtivoUi = {
   modalidade: string | null
   conversa_id: string | null
   manifesto_id?: string | null
+  lat_origem?: number | null
+  lng_origem?: number | null
+  lat_destino?: number | null
+  lng_destino?: number | null
+  prof_lat?: number | null
+  prof_lng?: number | null
   /** Outra parte: turista (visão pro) ou profissional (visão turista). */
   parte: ParteAtendimentoAtivo | null
 }
@@ -118,6 +127,8 @@ export default function DrawerAtendimentoAtivoMobilidade({
   const [chatUnread, setChatUnread] = useState(0)
   const [chatLastReadIso, setChatLastReadIso] = useState<string | null>(null)
   const [manifestoAberto, setManifestoAberto] = useState(false)
+  const [etaSec, setEtaSec] = useState<number | null>(null)
+  const [etaFase, setEtaFase] = useState<'partida' | 'destino' | null>(null)
 
   const st = String(atendimento.status ?? 'a_caminho')
   const headerVerde = st === 'em_viagem' || st === 'no_local'
@@ -167,6 +178,56 @@ export default function DrawerAtendimentoAtivoMobilidade({
     },
     [chatAberto, chatLastReadIso],
   )
+
+  const trajetoEta = useMemo(
+    () =>
+      montarTrajetoEtaCorrida({
+        status: atendimento.status,
+        data_agendada: atendimento.data_agendada,
+        origem_nome: atendimento.origem_nome,
+        destino_nome: atendimento.destino_nome,
+        lat_origem: atendimento.lat_origem,
+        lng_origem: atendimento.lng_origem,
+        lat_destino: atendimento.lat_destino,
+        lng_destino: atendimento.lng_destino,
+        prof_lat: atendimento.prof_lat,
+        prof_lng: atendimento.prof_lng,
+        modalidade: atendimento.modalidade,
+      }),
+    [
+      atendimento.status,
+      atendimento.data_agendada,
+      atendimento.origem_nome,
+      atendimento.destino_nome,
+      atendimento.lat_origem,
+      atendimento.lng_origem,
+      atendimento.lat_destino,
+      atendimento.lng_destino,
+      atendimento.prof_lat,
+      atendimento.prof_lng,
+      atendimento.modalidade,
+    ],
+  )
+
+  useEffect(() => {
+    if (!aberto || !trajetoEta) {
+      setEtaSec(null)
+      setEtaFase(null)
+      return
+    }
+    let cancelled = false
+    setEtaFase(trajetoEta.fase)
+    void buscarRotaMapboxDriving(trajetoEta.de, trajetoEta.ate).then((rota) => {
+      if (cancelled) return
+      setEtaSec(rota?.durationSec != null && rota.durationSec > 0 ? rota.durationSec : null)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [
+    aberto,
+    trajetoEta,
+  ])
 
   if (!aberto) return null
 
@@ -269,6 +330,14 @@ export default function DrawerAtendimentoAtivoMobilidade({
             <span className="font-semibold text-gray-600">{t('destinoLabel')}: </span>
             {atendimento.destino_nome || '—'}
           </p>
+          {etaSec != null && etaFase ? (
+            <p className="mt-2.5 flex items-center gap-1.5 text-sm font-semibold text-[#0097b2]">
+              <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              {etaFase === 'destino'
+                ? t('etaChegadaDestino', { eta: formatarDuracaoEta(etaSec) })
+                : t('etaChegadaPartida', { eta: formatarDuracaoEta(etaSec) })}
+            </p>
+          ) : null}
         </div>
 
         {/* Resumo (chevron) */}

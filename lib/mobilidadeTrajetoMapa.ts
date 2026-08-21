@@ -106,6 +106,42 @@ export function marcadorDeslocamentoCorrida(
   return { lat: prof.lat, lng: prof.lng, tipo }
 }
 
+export type TrajetoEtaCorrida = {
+  de: PontoMapaCorrida
+  ate: PontoMapaCorrida
+  fase: 'partida' | 'destino'
+}
+
+/**
+ * Percurso para ETA no drawer (não no mapa).
+ * a_caminho: profissional → partida. em_viagem: profissional → destino.
+ * no_local / agendado / app: sem ETA.
+ */
+export function montarTrajetoEtaCorrida(
+  c: CorridaMapaCoords | null | undefined,
+): TrajetoEtaCorrida | null {
+  if (!c) return null
+  if (c.data_agendada) return null
+  if (c.modalidade && !modalidadeUsaDeslocamentoProprio(c.modalidade)) return null
+  const st = String(c.status ?? '')
+  const partida = pontoPartidaCorrida(c)
+  const destino = pontoDestinoCorrida(c)
+  const prof = pontoProfissionalCorrida(c)
+
+  if (st === 'em_viagem') {
+    if (prof && destino) return { de: prof, ate: destino, fase: 'destino' }
+    if (partida && destino) return { de: partida, ate: destino, fase: 'destino' }
+    return null
+  }
+
+  if (st === 'aceita' || st === 'a_caminho') {
+    if (prof && partida) return { de: prof, ate: partida, fase: 'partida' }
+    return null
+  }
+
+  return null
+}
+
 /** Marcador de destino só faz sentido em viagem (ou se não houver trajeto de ida). */
 export function destinoVisivelNoMapa(c: CorridaMapaCoords | null | undefined): PontoMapaCorrida | null {
   if (!c) return null
