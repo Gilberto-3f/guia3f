@@ -61,7 +61,7 @@ export default function ChegadaTuristaMobilidadeListener({ onCorridaChange }: Pr
   const { perfilEhTurista, perfilEhEmpresa, perfilEhProfissional, roleEfetivo, loading } =
     useProfissionalGate()
   const [corrida, setCorrida] = useState<CorridaTurista | null>(null)
-  const [drawerAberto, setDrawerAberto] = useState(true)
+  const [drawerAberto, setDrawerAberto] = useState(false)
   const [chegadaDismissedId, setChegadaDismissedId] = useState<string | null>(null)
   const solicitacaoAnteriorRef = useRef<string | null>(null)
 
@@ -94,7 +94,12 @@ export default function ChegadaTuristaMobilidadeListener({ onCorridaChange }: Pr
       }
       if (next?.solicitacao_id && next.solicitacao_id !== solicitacaoAnteriorRef.current) {
         solicitacaoAnteriorRef.current = next.solicitacao_id
-        setDrawerAberto(true)
+        const imediato = ehAtendimentoImediatoAtivo({
+          status: next.status,
+          data_agendada: next.data_agendada,
+        })
+        // Imediato: mapa + card flutuante. Agendado: drawer (sem rota ao vivo).
+        setDrawerAberto(!imediato)
         setChegadaDismissedId(null)
       }
       if (!next) {
@@ -197,7 +202,7 @@ export default function ChegadaTuristaMobilidadeListener({ onCorridaChange }: Pr
         aberto={mostrarChegada}
         usernameProfissional={corrida.profissional_username ?? pro?.username ?? null}
         onFechar={() => setChegadaDismissedId(corrida.solicitacao_id)}
-        onOk={() => setDrawerAberto(true)}
+        onOk={() => setChegadaDismissedId(corrida.solicitacao_id)}
       />
     </>
   )

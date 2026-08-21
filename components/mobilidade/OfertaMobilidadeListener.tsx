@@ -93,7 +93,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
   const [conclusaoValor, setConclusaoValor] = useState<string | null>(null)
   const [conclusaoDetalhes, setConclusaoDetalhes] = useState<string[]>([])
   const [erroChegada, setErroChegada] = useState('')
-  const [drawerAtivoAberto, setDrawerAtivoAberto] = useState(true)
+  const [drawerAtivoAberto, setDrawerAtivoAberto] = useState(false)
   const detectandoChegadaRef = useRef(false)
 
   const categoriasProf = (() => {
@@ -117,7 +117,11 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
       const next = json.corrida ?? null
       setCorrida((prev) => {
         if (next?.solicitacao_id && next.solicitacao_id !== prev?.solicitacao_id) {
-          queueMicrotask(() => setDrawerAtivoAberto(true))
+          const imediato = ehAtendimentoImediatoAtivo({
+            status: next.status,
+            data_agendada: next.data_agendada,
+          })
+          queueMicrotask(() => setDrawerAtivoAberto(!imediato))
         }
         return next
       })
@@ -357,7 +361,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
       }
       await carregarCorrida()
       avisarCorridaAtivaAtualizada()
-      setDrawerAtivoAberto(true)
+      // Mantém o mapa (fase 2) — drawer reabre pelo card flutuante.
     } finally {
       setBusy(false)
     }

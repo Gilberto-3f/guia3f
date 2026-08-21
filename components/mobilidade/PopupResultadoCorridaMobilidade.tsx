@@ -61,7 +61,7 @@ export default function PopupResultadoCorridaMobilidade({
 
   useModalScrollLock(aberto && !statusAtivo)
 
-  /** Após aceite: drawer full-screen fica no listener do turista. */
+  /** Após aceite: fecha o popup de espera; o mapa + card flutuante assumem. */
   useEffect(() => {
     if (!aberto || !statusAtivo) return
     avisarCorridaAtivaAtualizada()
