@@ -64,8 +64,6 @@ type Props = {
   onCorridaChange?: (corrida: CorridaAtivaMobilidade | null) => void
 }
 
-}
-
 /** Pré-aceite + chat + concluir corrida (manifesto). */
 export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}) {
   const t = useTranslations('Mobilidade')
