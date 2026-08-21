@@ -48,7 +48,7 @@ export function resolverDestinoContratacaoRecomendacao(params: {
   if (slug === 'motorista_app') {
     const url = String(params.apiMobilidadeUrl ?? '').trim()
     if (url) return { tipo: 'api_parceiro', url }
-    return { tipo: 'mobilidade_canal', profissionalUsuarioId: params.profissionalUsuarioId }
+    return { tipo: 'canal' }
   }
 
   // taxista, van, guia, outro → contratação particular (canal / mobilidade do app)
@@ -102,7 +102,7 @@ export function hrefDestinoContratacao(
 /**
  * CONTRATAR no cartão de visita (perfil/mapa): resolve destino sem gravar manifesto.
  * Placa vermelha (guia/van/taxista) → drawer particular (`modo=particular&prof=`), destino vazio.
- * Anfitrião → reserva; motorista app → API parceiro.
+ * Anfitrião → reserva da hospedagem; motorista app → API parceiro (não entra na corrida nossa).
  */
 export function resolverHrefContratarCartaoVisita(params: {
   categorias: string[] | null | undefined

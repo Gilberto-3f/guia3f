@@ -10,6 +10,10 @@ import type { ModalidadeMobilidadeId } from '@/lib/mobilidadePopupPesquisa'
 import { ehCruzamentoFronteira, inferirCidadeDePonto } from '@/lib/mobilidadePopupPesquisa'
 import { normalizarMoedasPreferencia } from '@/lib/mobilidadePerfilProfissional'
 import {
+  enriquecerCoordsSolicitacaoMobilidade,
+  validarCoordsDeslocamentoProprio,
+} from '@/lib/mobilidadeSolicitacaoCoords'
+import {
   canalParceiroPorTrecho,
   CONFIG_APIS_MOBILIDADE_SELECT,
   resolverUrlApiMobilidadeParceiro,
@@ -48,13 +52,10 @@ export async function POST(req: Request) {
     lng: body.destino_lng != null ? Number(body.destino_lng) : null,
   }
 
-  const cidadeOrigem = inferirCidadeDePonto(origem)
-  const cidadeDestino = inferirCidadeDePonto(
-    destino,
-    body.destino_cidade != null ? String(body.destino_cidade) : null,
-  )
-  const cruzamento =
-    body.cruzamento_fronteira === true || ehCruzamentoFronteira(cidadeOrigem, cidadeDestino)
+  const destEmpresaId =
+    body.destino_empresa_id != null ? String(body.destino_empresa_id).trim() || null : null
+  const destCidade =
+    body.destino_cidade != null ? String(body.destino_cidade).trim() || null : null
 
   let admin
   try {
@@ -62,6 +63,31 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: 'Serviço indisponível.' }, { status: 503 })
   }
+
+  const coords = await enriquecerCoordsSolicitacaoMobilidade(admin, {
+    origemLat: origem.lat,
+    origemLng: origem.lng,
+    destinoLat: destino.lat,
+    destinoLng: destino.lng,
+    destinoNome: destino.nome,
+    destinoEmpresaId: destEmpresaId,
+    destinoCidade: destCidade,
+  })
+
+  const erroCoords = validarCoordsDeslocamentoProprio(modalidade, coords)
+  if (erroCoords) {
+    return NextResponse.json({ error: erroCoords }, { status: 400 })
+  }
+
+  origem.lat = coords.origemLat
+  origem.lng = coords.origemLng
+  destino.lat = coords.destinoLat
+  destino.lng = coords.destinoLng
+
+  const cidadeOrigem = inferirCidadeDePonto(origem)
+  const cidadeDestino = inferirCidadeDePonto(destino, destCidade)
+  const cruzamento =
+    body.cruzamento_fronteira === true || ehCruzamentoFronteira(cidadeOrigem, cidadeDestino)
 
   const { data: cfg } = await admin
     .from('config_apis')
@@ -101,8 +127,7 @@ export async function POST(req: Request) {
     origemLng: origem.lng != null && Number.isFinite(origem.lng) ? origem.lng : null,
     destinoLat: destino.lat != null && Number.isFinite(destino.lat) ? destino.lat : null,
     destinoLng: destino.lng != null && Number.isFinite(destino.lng) ? destino.lng : null,
-    destinoEmpresaId:
-      body.destino_empresa_id != null ? String(body.destino_empresa_id).trim() || null : null,
+    destinoEmpresaId: destEmpresaId,
     cruzamentoFronteira: cruzamento,
     cidadeOrigem,
     valorEstimado:

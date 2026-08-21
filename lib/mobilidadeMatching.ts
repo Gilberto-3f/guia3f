@@ -22,6 +22,7 @@ import {
 } from '@/lib/mobilidadePerfilProfissional'
 import { parseMobilidadeStatus } from '@/lib/mobilidadeStatusProfissional'
 import { mediaNotaAlvo } from '@/lib/notaMediaAvaliacoes'
+import { modalidadeUsaDeslocamentoProprio } from '@/lib/mobilidadeOfertaAtendimento'
 
 /** Tempo total para aceitar no matching da home (ms). */
 export const MOBILIDADE_OFERTA_TIMEOUT_MS = 45_000
@@ -536,6 +537,12 @@ async function criarOfertaDirecionadaImediata(
   const fixadoId = String(input.profissionalFixadoId ?? '').trim()
   if (!fixadoId) {
     return { ok: false, error: 'Profissional não informado para contratação dirigida.' }
+  }
+  if (input.modalidade === 'motorista_app' || !modalidadeUsaDeslocamentoProprio(input.modalidade)) {
+    return {
+      ok: false,
+      error: 'Motorista de app é contratado pelo aplicativo parceiro.',
+    }
   }
 
   const { data: fix, error: fixErr } = await admin

@@ -8,6 +8,7 @@ import {
 import { encerrarConversaCorrida } from '@/lib/mobilidadeChatCorrida'
 import { liquidarComissaoCorridaMobilidade } from '@/lib/mobilidadeFinanceiro'
 import { registrarCompraTuristaCorridaMobilidade } from '@/lib/turistaCompras'
+import { modalidadeUsaDeslocamentoProprio } from '@/lib/mobilidadeOfertaAtendimento'
 
 function metaObj(raw: unknown): Record<string, unknown> {
   return typeof raw === 'object' && raw != null && !Array.isArray(raw)
@@ -159,6 +160,9 @@ export async function concluirCorridaMobilidade(
   }
   if (String(row.profissional_id) !== String(prof.id)) {
     return { ok: false, error: 'Esta corrida não é sua.' }
+  }
+  if (!modalidadeUsaDeslocamentoProprio(row.modalidade != null ? String(row.modalidade) : '')) {
+    return { ok: false, error: 'Este atendimento é concluído no aplicativo parceiro.' }
   }
 
   const meta = metaObj(row.metadata)

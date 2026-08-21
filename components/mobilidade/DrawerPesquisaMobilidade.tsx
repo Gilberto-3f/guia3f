@@ -32,6 +32,7 @@ import { refreshAppViewportHeight } from '@/lib/useAppViewportHeight'
 import {
   buildMobilidadePesquisaHref,
   ehContratacaoDirigida,
+  pontoComCoords,
   pontoPreenchido,
   resolverModoContratacaoMobilidade,
   type MobilidadePesquisaState,
@@ -60,6 +61,7 @@ import {
 import type { RotaTabelada } from '@/lib/servicosTabeladosCatalogo'
 import { IDIOMAS_GUIA, labelIdiomaGuia, normalizarIdiomasGuia } from '@/lib/idiomasGuia'
 import { parseMobilidadeStatus } from '@/lib/mobilidadeStatusProfissional'
+import { forwardGeocodeMapbox } from '@/lib/mapboxForwardGeocode'
 import CotacaoValorMobilidade from '@/components/mobilidade/CotacaoValorMobilidade'
 import BlocoProfissionalDrawerParticular, {
   type ProfissionalDrawerParticular,
@@ -763,6 +765,60 @@ export default function DrawerPesquisaMobilidade({
     if (particularExigeAgenda && !agendaPreenchida) return
     setEnviando(true)
 
+    try {
+    let origemEnvio: MobilidadePonto = {
+      nome: origemEfetiva.nome.trim() || origemLabel,
+      lat: origemEfetiva.lat,
+      lng: origemEfetiva.lng,
+    }
+    let destinoEnvio: MobilidadePonto = {
+      nome: destinoEfetiva.nome.trim() || destinoLabelBase,
+      lat: destinoEfetiva.lat,
+      lng: destinoEfetiva.lng,
+    }
+    let destEmpId = destEmpresaEfetiva
+
+    if (!pontoComCoords(origemEnvio) && typeof navigator !== 'undefined' && navigator.geolocation) {
+      const pos = await new Promise<GeolocationPosition | null>((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (p) => resolve(p),
+          () => resolve(null),
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 60_000 },
+        )
+      })
+      if (pos) {
+        origemEnvio = {
+          nome: origemEnvio.nome,
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        }
+      }
+    }
+
+    if (!pontoComCoords(destinoEnvio) && destEmpId) {
+      const emp = empresas.find((e) => e.id === destEmpId)
+      if (emp && Number.isFinite(Number(emp.latitude)) && Number.isFinite(Number(emp.longitude))) {
+        destinoEnvio = {
+          nome: destinoEnvio.nome || String(emp.nome_fantasia ?? ''),
+          lat: Number(emp.latitude),
+          lng: Number(emp.longitude),
+        }
+      }
+    }
+
+    if (!pontoComCoords(destinoEnvio) && destinoEnvio.nome.trim().length >= 2) {
+      const geo = await forwardGeocodeMapbox(
+        [destinoEnvio.nome.trim(), destinoCidadeEmpresa].filter(Boolean).join(', '),
+      )
+      if (geo) {
+        destinoEnvio = { ...destinoEnvio, lat: geo.lat, lng: geo.lng }
+      }
+    }
+
+    if (origemEnvio.lat != null) {
+      aplicarRota(origemEnvio, destinoEnvio, destEmpId)
+    }
+
     const valor = valorCorridaComLugares(
       modalidade,
       modalidade !== 'motorista_app' ? valoresPorMod[modalidade]?.valor ?? null : null,
@@ -774,19 +830,18 @@ export default function DrawerPesquisaMobilidade({
         ? dataHoraCombinada
         : null
 
-    try {
       const res = await fetch('/api/mobilidade/solicitar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           modalidade,
-          origem_nome: origemLabel,
-          destino_nome: destinoLabelBase,
-          origem_lat: origemEfetiva.lat,
-          origem_lng: origemEfetiva.lng,
-          destino_lat: destinoEfetiva.lat,
-          destino_lng: destinoEfetiva.lng,
-          destino_empresa_id: destEmpresaEfetiva,
+          origem_nome: origemEnvio.nome || origemLabel,
+          destino_nome: destinoEnvio.nome || destinoLabelBase,
+          origem_lat: origemEnvio.lat,
+          origem_lng: origemEnvio.lng,
+          destino_lat: destinoEnvio.lat,
+          destino_lng: destinoEnvio.lng,
+          destino_empresa_id: destEmpId,
           destino_cidade: destinoCidadeEmpresa,
           cruzamento_fronteira: cruzamento,
           valor_estimado: valor,

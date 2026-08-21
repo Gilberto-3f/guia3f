@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { encerrarConversaCorrida } from '@/lib/mobilidadeChatCorrida'
+import { modalidadeUsaDeslocamentoProprio } from '@/lib/mobilidadeOfertaAtendimento'
 
 /** Raio (metros) para considerar chegada no ponto de partida. */
 export const RAIO_CHEGADA_METROS = 100
@@ -66,13 +67,16 @@ export async function registrarChegadaNoLocal(
 
   const { data: row } = await admin
     .from('solicitacao_mobilidade')
-    .select('id, status, profissional_id, lat_origem, lng_origem, metadata')
+    .select('id, status, profissional_id, lat_origem, lng_origem, metadata, modalidade')
     .eq('id', params.solicitacaoId)
     .maybeSingle()
 
   if (!row) return { ok: false, error: 'Solicitação não encontrada.' }
   if (String(row.profissional_id) !== String(prof.id)) {
     return { ok: false, error: 'Esta corrida não é sua.' }
+  }
+  if (!modalidadeUsaDeslocamentoProprio(row.modalidade != null ? String(row.modalidade) : '')) {
+    return { ok: false, error: 'Chegada no app vale só para guia, van e taxista.' }
   }
 
   const st = String(row.status)
@@ -149,13 +153,16 @@ export async function responderEmbarqueNoLocal(
 
   const { data: row } = await admin
     .from('solicitacao_mobilidade')
-    .select('id, status, profissional_id, metadata')
+    .select('id, status, profissional_id, metadata, modalidade')
     .eq('id', params.solicitacaoId)
     .maybeSingle()
 
   if (!row) return { ok: false, error: 'Solicitação não encontrada.' }
   if (String(row.profissional_id) !== String(prof.id)) {
     return { ok: false, error: 'Esta corrida não é sua.' }
+  }
+  if (!modalidadeUsaDeslocamentoProprio(row.modalidade != null ? String(row.modalidade) : '')) {
+    return { ok: false, error: 'Chegada no app vale só para guia, van e taxista.' }
   }
   if (String(row.status) !== 'no_local') {
     return { ok: false, error: 'Confirmação de embarque só no local de partida.' }

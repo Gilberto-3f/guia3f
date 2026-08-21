@@ -27,6 +27,7 @@ import {
   ehAtendimentoImediatoAtivo,
   MOBILIDADE_ABRIR_DRAWER_ATIVO,
 } from '@/lib/mobilidadeAtendimentoAtivoEventos'
+import { modalidadeUsaDeslocamentoProprio } from '@/lib/mobilidadeOfertaAtendimento'
 
 type Oferta = OfertaAtendimentoUi & {
   /** Marcador interno: confirmação de agendamento (API dedicada). */
@@ -272,6 +273,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
   useEffect(() => {
     const st = String(corrida?.status ?? '')
     if (!corrida || (st !== 'a_caminho' && st !== 'aceita')) return
+    if (!modalidadeUsaDeslocamentoProprio(corrida.modalidade)) return
     const oLat = corrida.lat_origem
     const oLng = corrida.lng_origem
     if (oLat == null || oLng == null || !Number.isFinite(oLat) || !Number.isFinite(oLng)) return
@@ -324,6 +326,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
       clearInterval(id)
     }
   }, [
+    corrida?.modalidade,
     corrida?.solicitacao_id,
     corrida?.status,
     corrida?.lat_origem,
@@ -654,7 +657,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
           </button>
         ) : null}
         <PopupChegadaProfissionalMobilidade
-          aberto={st === 'no_local'}
+          aberto={st === 'no_local' && modalidadeUsaDeslocamentoProprio(corrida.modalidade)}
           busy={busy}
           erro={erroChegada}
           onSim={() => void confirmarEmbarque(true)}

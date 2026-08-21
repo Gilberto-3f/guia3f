@@ -12,6 +12,7 @@ import {
   MOBILIDADE_ABRIR_DRAWER_ATIVO,
   MOBILIDADE_CORRIDA_ATIVA,
 } from '@/lib/mobilidadeAtendimentoAtivoEventos'
+import { modalidadeUsaDeslocamentoProprio } from '@/lib/mobilidadeOfertaAtendimento'
 
 type ProfissionalCorrida = {
   usuario_id: string
@@ -166,7 +167,9 @@ export default function ChegadaTuristaMobilidadeListener({ onCorridaChange }: Pr
 
   const st = String(corrida.status)
   const mostrarChegada =
-    st === 'no_local' && chegadaDismissedId !== corrida.solicitacao_id
+    st === 'no_local' &&
+    chegadaDismissedId !== corrida.solicitacao_id &&
+    modalidadeUsaDeslocamentoProprio(corrida.modalidade)
   const imediato = ehAtendimentoImediatoAtivo({
     status: st,
     data_agendada: corrida.data_agendada,

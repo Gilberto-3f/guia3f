@@ -32,6 +32,14 @@ function numOrNull(raw: string | null): number | null {
 export function pontoPreenchido(p: MobilidadePonto): boolean {
   const nome = String(p.nome ?? '').trim()
   if (nome) return true
+  return pontoComCoords(p)
+}
+
+/** GPS / mapa: precisa de lat e lng válidos (nome sozinho não basta). */
+export function pontoComCoords(p: {
+  lat: number | null | undefined
+  lng: number | null | undefined
+}): boolean {
   return p.lat != null && p.lng != null && Number.isFinite(p.lat) && Number.isFinite(p.lng)
 }
 

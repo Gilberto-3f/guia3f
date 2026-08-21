@@ -18,7 +18,7 @@ import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import ChatCorridaMobilidade from '@/components/mobilidade/ChatCorridaMobilidade'
 import DrawerManifestoEspaco from '@/components/mobilidade/DrawerManifestoEspaco'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
-import { modalidadeUsaManifesto } from '@/lib/mobilidadeOfertaAtendimento'
+import { modalidadeUsaManifesto, modalidadeUsaDeslocamentoProprio } from '@/lib/mobilidadeOfertaAtendimento'
 
 const COR = '#0097b2'
 const VERDE = '#00D443'
@@ -125,7 +125,11 @@ export default function DrawerAtendimentoAtivoMobilidade({
   const titulo = tituloPorStatus(st, papel, t)
   const HeaderIcon = papel === 'profissional' ? Navigation : Car
 
-  const podeConcluir = papel === 'profissional' && st === 'em_viagem' && Boolean(onConcluir)
+  const podeConcluir =
+    papel === 'profissional' &&
+    st === 'em_viagem' &&
+    Boolean(onConcluir) &&
+    modalidadeUsaDeslocamentoProprio(atendimento.modalidade)
   /** INÍCIO (guia/van): botão MANIFESTO no lugar do card do turista. */
   const faseInicioManifesto =
     papel === 'profissional' && st === 'em_viagem' && modalidadeUsaManifesto(atendimento.modalidade)
@@ -363,7 +367,7 @@ export default function DrawerAtendimentoAtivoMobilidade({
         ) : null}
       </div>
 
-      {papel === 'profissional' ? (
+      {papel === 'profissional' && modalidadeUsaDeslocamentoProprio(atendimento.modalidade) ? (
         <div className="shrink-0 border-t border-gray-100 p-3 pb-safe">
           {rodapeExtra}
           {erroConcluir ? (

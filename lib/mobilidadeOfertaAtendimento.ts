@@ -63,6 +63,17 @@ export function modalidadeUsaManifesto(modalidade: string | null | undefined): b
   return m === 'guia' || m === 'van'
 }
 
+/**
+ * Corrida nossa (chegada, rota no mapa, finalizar, avaliação).
+ * Motorista de app segue o app parceiro — não usa este padrão.
+ */
+export function modalidadeUsaDeslocamentoProprio(
+  modalidade: string | null | undefined,
+): boolean {
+  const m = String(modalidade ?? '').trim().toLowerCase()
+  return m === 'guia' || m === 'van' || m === 'taxista'
+}
+
 /** Data curta: 04/08 às 14:30 */
 export function formatDataHoraAtendimentoCurta(iso: string | null | undefined): string | null {
   if (!iso) return null
