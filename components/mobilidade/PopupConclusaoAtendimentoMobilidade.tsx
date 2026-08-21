@@ -8,7 +8,7 @@ import AvaliacaoCorridaMobilidade from '@/components/mobilidade/AvaliacaoCorrida
 
 const VERDE = '#00D443'
 
-export type FaseConclusaoUi = 'resumo' | 'avaliar'
+export type FaseConclusaoUi = 'resumo' | 'aguardando' | 'avaliar'
 
 type Props = {
   aberto: boolean
@@ -26,7 +26,8 @@ type Props = {
 /**
  * Popup verde pós-conclusão:
  * 1) resumo + RECEBIDO (pro) / OK (turista)
- * 2) avaliação mútua
+ * 2) aguardando a outra parte (cadeia)
+ * 3) avaliação (texto preto no card branco)
  */
 export default function PopupConclusaoAtendimentoMobilidade({
   aberto,
@@ -116,8 +117,14 @@ export default function PopupConclusaoAtendimentoMobilidade({
                 {cta}
               </button>
             </>
+          ) : fase === 'aguardando' ? (
+            <p className="mt-4 text-sm font-medium text-white">
+              {papel === 'profissional'
+                ? t('conclusaoAguardandoTurista')
+                : t('conclusaoAguardandoPro')}
+            </p>
           ) : (
-            <div className="mt-4 rounded-2xl bg-white p-3 text-left shadow-sm">
+            <div className="mt-4 rounded-2xl bg-white p-3 text-left text-gray-900 shadow-sm">
               <AvaliacaoCorridaMobilidade
                 solicitacaoId={solicitacaoId}
                 titulo={
@@ -130,7 +137,7 @@ export default function PopupConclusaoAtendimentoMobilidade({
               <button
                 type="button"
                 onClick={onFechar}
-                className="mt-2 w-full py-2 text-xs font-semibold text-gray-500 underline"
+                className="mt-2 w-full py-2 text-xs font-semibold text-gray-700 underline"
               >
                 {t('conclusaoPularAvaliacao')}
               </button>

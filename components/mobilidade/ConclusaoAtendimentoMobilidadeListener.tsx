@@ -24,7 +24,7 @@ function formatBrl(n: number): string {
 }
 
 /**
- * Turista (e fallback do pro): popup verde de conclusão + avaliação após RECEBIDO/OK.
+ * Popup verde de conclusão + cadeia de avaliação (RECEBIDO → turista → profissional).
  */
 export default function ConclusaoAtendimentoMobilidadeListener() {
   const t = useTranslations('Mobilidade')
@@ -52,14 +52,13 @@ export default function ConclusaoAtendimentoMobilidadeListener() {
         setConclusao(null)
         return
       }
-      if (next.papel === 'profissional') return
       if (next.ja_avaliou) {
         setConclusao(null)
         return
       }
-      if (dismissedId === next.solicitacao_id) return
+      if (dismissedId === next.solicitacao_id && next.fase !== 'avaliar') return
       setConclusao(next)
-      setFase(next.fase === 'avaliar' ? 'avaliar' : 'resumo')
+      setFase(next.fase === 'avaliar' || next.fase === 'aguardando' ? next.fase : 'resumo')
     } catch {
       /* ignore */
     }
@@ -94,6 +93,18 @@ export default function ConclusaoAtendimentoMobilidadeListener() {
       detalhes.push(`${t('formaPagamento')}: ${conclusao.pagamento}`)
     }
   }
+  if (
+    conclusao.papel === 'profissional' &&
+    conclusao.valor_regular != null &&
+    Number.isFinite(conclusao.valor_regular) &&
+    conclusao.valor_regular > 0 &&
+    conclusao.valor_regular !== conclusao.valor_corrida
+  ) {
+    detalhes.push(t('finSuaComissao', { v: formatBrl(conclusao.valor_regular) }))
+  }
+  if (conclusao.bonus_voluntario != null && conclusao.bonus_voluntario > 0) {
+    detalhes.push(t('finBonus', { v: formatBrl(conclusao.bonus_voluntario) }))
+  }
 
   const ack = async () => {
     try {
@@ -103,7 +114,7 @@ export default function ConclusaoAtendimentoMobilidadeListener() {
     } catch {
       /* ignore */
     }
-    setFase('avaliar')
+    void carregar()
   }
 
   const fechar = () => {
@@ -115,7 +126,7 @@ export default function ConclusaoAtendimentoMobilidadeListener() {
   return (
     <PopupConclusaoAtendimentoMobilidade
       aberto
-      papel="turista"
+      papel={conclusao.papel}
       fase={fase}
       solicitacaoId={conclusao.solicitacao_id}
       valorTexto={valorTexto}

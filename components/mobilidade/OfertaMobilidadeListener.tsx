@@ -19,9 +19,6 @@ import DrawerAtendimentoAtivoMobilidade, {
   type AtendimentoAtivoUi,
 } from '@/components/mobilidade/DrawerAtendimentoAtivoMobilidade'
 import PopupChegadaProfissionalMobilidade from '@/components/mobilidade/PopupChegadaProfissionalMobilidade'
-import PopupConclusaoAtendimentoMobilidade, {
-  type FaseConclusaoUi,
-} from '@/components/mobilidade/PopupConclusaoAtendimentoMobilidade'
 import {
   avisarCorridaAtivaAtualizada,
   ehAtendimentoImediatoAtivo,
@@ -67,8 +64,6 @@ type Props = {
   onCorridaChange?: (corrida: CorridaAtivaMobilidade | null) => void
 }
 
-function formatBrl(n: number): string {
-  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
 /** Pré-aceite + chat + concluir corrida (manifesto). */
@@ -87,11 +82,6 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
   const [erroConcluir, setErroConcluir] = useState('')
   const [recebiDinheiro, setRecebiDinheiro] = useState(false)
   const [bonus, setBonus] = useState('')
-  const [resumoFin, setResumoFin] = useState<string | null>(null)
-  const [solicitacaoAvaliar, setSolicitacaoAvaliar] = useState<string | null>(null)
-  const [conclusaoFase, setConclusaoFase] = useState<FaseConclusaoUi>('resumo')
-  const [conclusaoValor, setConclusaoValor] = useState<string | null>(null)
-  const [conclusaoDetalhes, setConclusaoDetalhes] = useState<string[]>([])
   const [erroChegada, setErroChegada] = useState('')
   const [drawerAtivoAberto, setDrawerAtivoAberto] = useState(false)
   const detectandoChegadaRef = useRef(false)
@@ -512,37 +502,6 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
         setErroConcluir(String(json.error ?? t('concluirErro')))
         return
       }
-      const detalhes: string[] = []
-      let valorTxt: string | null = null
-      if (json.financeiro?.valorCorrida != null) {
-        valorTxt = formatBrl(json.financeiro.valorCorrida)
-      } else if (corrida.valor_estimado != null) {
-        valorTxt = formatBrl(corrida.valor_estimado)
-      }
-      if (
-        json.financeiro?.valorRegular != null &&
-        json.financeiro.valorRegular > 0 &&
-        json.financeiro.valorRegular !== json.financeiro.valorCorrida
-      ) {
-        detalhes.push(t('finSuaComissao', { v: formatBrl(json.financeiro.valorRegular) }))
-      }
-      if (json.financeiro?.bonusVoluntario != null && json.financeiro.bonusVoluntario > 0) {
-        detalhes.push(t('finBonus', { v: formatBrl(json.financeiro.bonusVoluntario) }))
-      }
-      if (corrida.pagamento) {
-        try {
-          detalhes.push(
-            `${t('formaPagamento')}: ${t(`pag.${corrida.pagamento}` as 'pag.dinheiro')}`,
-          )
-        } catch {
-          detalhes.push(`${t('formaPagamento')}: ${corrida.pagamento}`)
-        }
-      }
-      setConclusaoValor(valorTxt)
-      setConclusaoDetalhes(detalhes)
-      setConclusaoFase('resumo')
-      setResumoFin(valorTxt || t('corridaConcluida'))
-      setSolicitacaoAvaliar(corrida.solicitacao_id)
       setCorrida(null)
       avisarCorridaAtivaAtualizada()
       setErroConcluir('')
@@ -555,32 +514,6 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
   }
 
   if (!elegivel) return null
-
-  if (resumoFin && solicitacaoAvaliar) {
-    return (
-      <PopupConclusaoAtendimentoMobilidade
-        aberto
-        papel="profissional"
-        fase={conclusaoFase}
-        solicitacaoId={solicitacaoAvaliar}
-        valorTexto={conclusaoValor}
-        detalhes={conclusaoDetalhes}
-        onAvancar={() => {
-          void fetch(`/api/mobilidade/solicitar/${solicitacaoAvaliar}/conclusao-ack`, {
-            method: 'POST',
-          }).catch(() => {})
-          setConclusaoFase('avaliar')
-        }}
-        onFechar={() => {
-          setResumoFin(null)
-          setSolicitacaoAvaliar(null)
-          setConclusaoFase('resumo')
-          setConclusaoValor(null)
-          setConclusaoDetalhes([])
-        }}
-      />
-    )
-  }
 
   if (corrida) {
     const st = String(corrida.status ?? 'a_caminho')

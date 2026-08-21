@@ -58,8 +58,8 @@ export default function AvaliacaoCorridaMobilidade({
 
   return (
     <div className="space-y-3 rounded-xl border border-gray-200 bg-white px-3 py-3">
-      <p className="text-sm font-bold text-[#0097b2]">{titulo ?? t('avaliacaoTitulo')}</p>
-      <p className="text-[11px] text-gray-400">{t('avaliacaoAntiDisc')}</p>
+      <p className="text-sm font-bold text-gray-900">{titulo ?? t('avaliacaoTitulo')}</p>
+      <p className="text-[11px] text-gray-700">{t('avaliacaoAntiDisc')}</p>
       <div className="flex justify-center">
         <EstrelasAvaliacao nota={nota} onChange={setNota} tamanho={28} disabled={busy} />
       </div>
@@ -69,7 +69,7 @@ export default function AvaliacaoCorridaMobilidade({
         rows={2}
         maxLength={500}
         placeholder={t('avaliacaoPlaceholder')}
-        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500"
       />
       {erro ? <p className="text-xs text-rose-600">{erro}</p> : null}
       <button

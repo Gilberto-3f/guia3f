@@ -73,13 +73,27 @@ export async function GET() {
           : 0
     if (!Number.isFinite(concluidoEm) || agora - concluidoEm > JANELA_MS) continue
 
-    const ackKey = papel === 'profissional' ? 'conclusao_ack_pro' : 'conclusao_ack_turista'
-    const avalKey =
-      papel === 'profissional' ? 'avaliacao_profissional_id' : 'avaliacao_turista_id'
-    const jaAvaliou = Boolean(meta[avalKey])
-    const jaAck = Boolean(meta[ackKey])
+    const ackPro = meta.conclusao_ack_pro === true
+    const ackTurista = meta.conclusao_ack_turista === true
+    const avalTurista = Boolean(meta.avaliacao_turista_id)
+    const avalPro = Boolean(meta.avaliacao_profissional_id)
+    const jaAvaliou = papel === 'profissional' ? avalPro : avalTurista
 
-    if (jaAck && jaAvaliou) continue
+    if (papel === 'turista' && avalTurista) continue
+    if (papel === 'profissional' && avalPro) continue
+
+    let fase: 'resumo' | 'aguardando' | 'avaliar'
+    if (papel === 'turista') {
+      if (!ackTurista) fase = 'resumo'
+      else if (!ackPro) fase = 'aguardando'
+      else fase = 'avaliar'
+    } else if (!ackPro) {
+      fase = 'resumo'
+    } else if (!avalTurista) {
+      fase = 'aguardando'
+    } else {
+      fase = 'avaliar'
+    }
 
     const valorCorrida =
       meta.financeiro_valor_corrida != null
@@ -93,7 +107,7 @@ export async function GET() {
       conclusao: {
         solicitacao_id: String(row.id),
         papel,
-        fase: jaAck ? 'avaliar' : 'resumo',
+        fase,
         valor_corrida: Number.isFinite(valorCorrida as number) ? valorCorrida : null,
         pagamento: row.pagamento != null ? String(row.pagamento) : null,
         valor_regular:
@@ -105,6 +119,8 @@ export async function GET() {
             ? Number(meta.financeiro_bonus_voluntario)
             : null,
         ja_avaliou: jaAvaliou,
+        ack_pro: ackPro,
+        ack_turista: ackTurista,
       },
     })
   }

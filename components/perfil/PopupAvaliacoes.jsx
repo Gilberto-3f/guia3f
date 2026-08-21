@@ -190,6 +190,20 @@ export default function PopupAvaliacoes({
         }
       }
 
+      const avIds = rowsProf.map((r) => String(r.id)).filter(Boolean)
+      /** @type {Map<string, string>} */
+      const respostaPorAv = new Map()
+      if (avIds.length) {
+        const { data: resps, error: respErr } = await supabase
+          .from('avaliacao_respostas')
+          .select('avaliacao_id, texto')
+          .in('avaliacao_id', avIds)
+        if (respErr) console.error('[PopupAvaliacoes] respostas:', respErr.message)
+        for (const r of resps ?? []) {
+          respostaPorAv.set(String(r.avaliacao_id), String(r.texto ?? ''))
+        }
+      }
+
       return rowsProf.map((r) => {
         const alvo = String(perfilProfissional ? r.usuario_id : r.alvo_id)
         const prof = porProfId.get(alvo)
@@ -202,7 +216,7 @@ export default function PopupAvaliacoes({
           username: prof?.username ?? '',
           fotoUrl: prof?.fotoUrl ?? null,
           categoria: null,
-          resposta: null,
+          resposta: respostaPorAv.get(String(r.id)) || null,
         }
       })
     }
@@ -342,7 +356,10 @@ export default function PopupAvaliacoes({
                 ) : null}
               </div>
               {r.resposta ? (
-                <p className="mt-3 rounded-lg bg-gray-50 p-3 text-center text-sm leading-relaxed text-gray-700">
+                <p className="mt-3 rounded-lg bg-gray-50 p-3 text-left text-sm leading-relaxed text-gray-800">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#0097b2]">
+                    Resposta
+                  </span>
                   {r.resposta}
                 </p>
               ) : null}

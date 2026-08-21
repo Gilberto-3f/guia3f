@@ -5,6 +5,7 @@ import { useRouter } from '@/i18n/navigation'
 import PublicidadeHome from '@/components/PublicidadeHome'
 import GradeFiltros from '@/components/GradeFiltros'
 import OfertaMobilidadeListener from '@/components/mobilidade/OfertaMobilidadeListener'
+import ConclusaoAtendimentoMobilidadeListener from '@/components/mobilidade/ConclusaoAtendimentoMobilidadeListener'
 import CabecalhoAbasGuiaMobilidade from '@/components/mobilidade/CabecalhoAbasGuiaMobilidade'
 import VisaoTuristaMobilidade from '@/components/mobilidade/VisaoTuristaMobilidade'
 
@@ -48,6 +49,7 @@ export default function GuiaPage() {
         )}
       </main>
       <OfertaMobilidadeListener />
+      {abaAtiva !== 'mobilidade' ? <ConclusaoAtendimentoMobilidadeListener /> : null}
     </div>
   )
 }

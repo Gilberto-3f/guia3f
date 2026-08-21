@@ -6,6 +6,11 @@ function metaObj(raw: unknown): Record<string, unknown> {
     : {}
 }
 
+function textoRespostaProfissional(nota: number, feedback: string): string {
+  const base = `Nota ${nota}/5`
+  return feedback ? `${base}. ${feedback}` : `${base}.`
+}
+
 export type AvaliarCorridaResult =
   | { ok: true; avaliacaoId: string }
   | { ok: false; error: string }
@@ -47,6 +52,9 @@ export async function avaliarCorridaMobilidade(
   if (params.role === 'turista' || (params.role === 'admin' && String(row.turista_id) === params.avaliadorUsuarioId)) {
     if (String(row.turista_id) !== params.avaliadorUsuarioId && params.role !== 'admin') {
       return { ok: false, error: 'Sem permissão.' }
+    }
+    if (meta.conclusao_ack_pro !== true) {
+      return { ok: false, error: 'Aguarde o profissional confirmar o recebimento.' }
     }
     if (meta.avaliacao_turista_id) {
       return { ok: false, error: 'Você já avaliou esta corrida.' }
@@ -118,8 +126,33 @@ export async function avaliarCorridaMobilidade(
   if (!prof?.id || String(row.profissional_id) !== String(prof.id)) {
     return { ok: false, error: 'Sem permissão.' }
   }
+  if (!meta.avaliacao_turista_id) {
+    return { ok: false, error: 'Aguarde a avaliação do turista.' }
+  }
   if (meta.avaliacao_profissional_id) {
     return { ok: false, error: 'Você já avaliou esta corrida.' }
+  }
+
+  const profissionalId = String(prof.id)
+  const avaliacaoTuristaId = String(meta.avaliacao_turista_id)
+
+  const gravarRespostaEMeta = async (avaliacaoId: string) => {
+    await admin.from('avaliacao_respostas').upsert(
+      {
+        avaliacao_id: avaliacaoTuristaId,
+        profissional_id: profissionalId,
+        empresa_id: null,
+        autor_usuario_id: params.avaliadorUsuarioId,
+        texto: textoRespostaProfissional(nota, feedback),
+      },
+      { onConflict: 'avaliacao_id' },
+    )
+    await patchMeta(admin, params.solicitacaoId, meta, {
+      avaliacao_profissional_id: avaliacaoId,
+      avaliacao_profissional_em: new Date().toISOString(),
+      avaliacao_profissional_nota: nota,
+      avaliacao_resposta_id: avaliacaoTuristaId,
+    })
   }
 
   const turistaUsuarioId = String(row.turista_id)
@@ -133,10 +166,7 @@ export async function avaliarCorridaMobilidade(
     .maybeSingle()
 
   if (jaT?.id) {
-    await patchMeta(admin, params.solicitacaoId, meta, {
-      avaliacao_profissional_id: String(jaT.id),
-      avaliacao_profissional_em: new Date().toISOString(),
-    })
+    await gravarRespostaEMeta(String(jaT.id))
     return { ok: true, avaliacaoId: String(jaT.id) }
   }
 
@@ -170,11 +200,7 @@ export async function avaliarCorridaMobilidade(
     avaliacaoId = String(av.id)
   }
 
-  await patchMeta(admin, params.solicitacaoId, meta, {
-    avaliacao_profissional_id: avaliacaoId,
-    avaliacao_profissional_em: new Date().toISOString(),
-    avaliacao_profissional_nota: nota,
-  })
+  await gravarRespostaEMeta(avaliacaoId)
   return { ok: true, avaliacaoId }
 }
 
@@ -219,7 +245,8 @@ export async function statusAvaliacaoCorrida(
 
   if (role === 'turista' && String(row.turista_id) === viewerUsuarioId) {
     const ja = Boolean(meta.avaliacao_turista_id)
-    return { podeAvaliar: !ja, jaAvaliou: ja, solicitacaoId, status: st }
+    const liberado = meta.conclusao_ack_pro === true
+    return { podeAvaliar: liberado && !ja, jaAvaliou: ja, solicitacaoId, status: st }
   }
 
   if (role === 'profissional') {
@@ -230,7 +257,8 @@ export async function statusAvaliacaoCorrida(
       .maybeSingle()
     if (p?.id && String(row.profissional_id) === String(p.id)) {
       const ja = Boolean(meta.avaliacao_profissional_id)
-      return { podeAvaliar: !ja, jaAvaliou: ja, solicitacaoId, status: st }
+      const liberado = Boolean(meta.avaliacao_turista_id)
+      return { podeAvaliar: liberado && !ja, jaAvaliou: ja, solicitacaoId, status: st }
     }
   }
 
