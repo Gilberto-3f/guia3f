@@ -23,10 +23,24 @@ import {
 import { parseMobilidadeStatus } from '@/lib/mobilidadeStatusProfissional'
 import { mediaNotaAlvo } from '@/lib/notaMediaAvaliacoes'
 
-/** Tempo total para aceitar (ms). */
+/** Tempo total para aceitar no matching da home (ms). */
 export const MOBILIDADE_OFERTA_TIMEOUT_MS = 45_000
-/** Após este tempo a UI muda para amarelo (aviso). */
+/** Após este tempo a UI do algoritmo muda para amarelo (aviso). */
 export const MOBILIDADE_OFERTA_WARN_MS = 30_000
+/** Contratação particular (cartão): o profissional tem 5 minutos para aceitar. */
+export const MOBILIDADE_OFERTA_DIRIGIDA_TIMEOUT_MS = 300_000
+/** Particular: amarelo no último minuto. */
+export const MOBILIDADE_OFERTA_DIRIGIDA_WARN_MS = 240_000
+
+export function timeoutOfertaMobilidadeMs(dirigida: boolean): number {
+  return dirigida ? MOBILIDADE_OFERTA_DIRIGIDA_TIMEOUT_MS : MOBILIDADE_OFERTA_TIMEOUT_MS
+}
+
+export function ofertaWarnAmarelo(segRestantes: number, dirigida: boolean): boolean {
+  const timeout = timeoutOfertaMobilidadeMs(dirigida)
+  const warn = dirigida ? MOBILIDADE_OFERTA_DIRIGIDA_WARN_MS : MOBILIDADE_OFERTA_WARN_MS
+  return segRestantes * 1000 <= timeout - warn
+}
 /** Backups ocultos além do oferecido. */
 export const MOBILIDADE_BACKUPS_OCULTOS = 2
 
@@ -592,7 +606,7 @@ async function criarOfertaDirecionadaImediata(
   }
 
   const filaIds = [primeiro.id]
-  const expira = new Date(Date.now() + MOBILIDADE_OFERTA_TIMEOUT_MS).toISOString()
+  const expira = new Date(Date.now() + timeoutOfertaMobilidadeMs(true)).toISOString()
   const moedasDinheiro = normalizarMoedasPreferencia(input.moedasDinheiro)
   const idiomaPref =
     input.idiomaPreferido != null && String(input.idiomaPreferido).trim()

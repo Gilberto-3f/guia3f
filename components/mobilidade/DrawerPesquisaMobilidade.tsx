@@ -17,6 +17,7 @@ import {
   Minus,
   Plus,
   Search,
+  Send,
   Smartphone,
   Sparkles,
   Users,
@@ -691,6 +692,7 @@ export default function DrawerPesquisaMobilidade({
           backupsOcultos: 0,
           matchErro: String(json.error ?? t('matchErro')),
           dataHoraAgendada: dataAgendada || undefined,
+          contratacaoDirigida: modoParticular,
         })
         onFechar()
         return
@@ -706,6 +708,7 @@ export default function DrawerPesquisaMobilidade({
         oferta: of?.profissionalId ? of : null,
         backupsOcultos: Number(json.backupsOcultos ?? 0),
         dataHoraAgendada: dataAgendada || undefined,
+        contratacaoDirigida: modoParticular,
       })
       onFechar()
     } catch {
@@ -715,6 +718,7 @@ export default function DrawerPesquisaMobilidade({
         oferta: null,
         backupsOcultos: 0,
         matchErro: t('matchErro'),
+        contratacaoDirigida: modoParticular,
       })
       onFechar()
     } finally {
@@ -1431,8 +1435,12 @@ export default function DrawerPesquisaMobilidade({
               className="flex items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-bold uppercase text-white disabled:opacity-60"
               style={{ backgroundColor: VERDE }}
             >
-              <Search className="h-4 w-4" aria-hidden />
-              {enviando ? '…' : t('procurar')}
+              {modoParticular ? (
+                <Send className="h-4 w-4" aria-hidden />
+              ) : (
+                <Search className="h-4 w-4" aria-hidden />
+              )}
+              {enviando ? '…' : modoParticular ? t('solicitar') : t('procurar')}
             </button>
           </div>
         ) : null}

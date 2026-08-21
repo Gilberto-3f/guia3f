@@ -4,10 +4,7 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { X } from 'lucide-react'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
-import {
-  MOBILIDADE_OFERTA_TIMEOUT_MS,
-  MOBILIDADE_OFERTA_WARN_MS,
-} from '@/lib/mobilidadeMatching'
+import { ofertaWarnAmarelo } from '@/lib/mobilidadeMatching'
 import { avisarCorridaAtivaAtualizada } from '@/lib/mobilidadeAtendimentoAtivoEventos'
 import AvaliacaoCorridaMobilidade from '@/components/mobilidade/AvaliacaoCorridaMobilidade'
 
@@ -28,6 +25,8 @@ export type ResultadoCorridaMobilidade = {
   backupsOcultos: number
   matchErro?: string
   dataHoraAgendada?: string
+  /** Cartão / indicação: espera o profissional escolhido (5 min). */
+  contratacaoDirigida?: boolean
 }
 
 type Props = {
@@ -38,7 +37,7 @@ type Props = {
 }
 
 /**
- * Popup leve na página Mobilidade após PROCURAR nos drawers.
+ * Popup leve na página Mobilidade após PROCURAR / SOLICITAR nos drawers.
  * (Trajeto/ETA no mapa ficam para fase futura.)
  */
 export default function PopupResultadoCorridaMobilidade({
@@ -143,9 +142,15 @@ export default function PopupResultadoCorridaMobilidade({
   if (!aberto || !resultado || statusAtivo) return null
 
   const dataHora = resultado.dataHoraAgendada ?? ''
+  const dirigida = Boolean(resultado.contratacaoDirigida)
   const warnAmarelo =
-    segRestantes != null &&
-    segRestantes * 1000 <= MOBILIDADE_OFERTA_TIMEOUT_MS - MOBILIDADE_OFERTA_WARN_MS
+    segRestantes != null && ofertaWarnAmarelo(segRestantes, dirigida)
+  const relogioTxt =
+    segRestantes == null
+      ? ''
+      : dirigida && segRestantes >= 60
+        ? `${Math.floor(segRestantes / 60)}:${String(segRestantes % 60).padStart(2, '0')}`
+        : `${segRestantes}s`
 
   const mostrarFechar =
     matchStatus === 'sem_profissional' ||
@@ -234,7 +239,7 @@ export default function PopupResultadoCorridaMobilidade({
                         warnAmarelo ? 'bg-amber-400' : 'bg-[#0097b2]'
                       }`}
                     >
-                      {segRestantes}s
+                      {relogioTxt}
                     </span>
                   ) : null}
                 </div>

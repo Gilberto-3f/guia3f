@@ -7,6 +7,7 @@ import { Check, X, Bell } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
+import { ofertaWarnAmarelo } from '@/lib/mobilidadeMatching'
 import {
   formatDataHoraAtendimentoCurta,
   handleUsuarioAtendimento,
@@ -133,7 +134,14 @@ export default function DrawerAtendimentoMobilidade({
   const turista = oferta.turista
   const username = String(turista?.username ?? '').replace(/^@+/, '') || 'usuario'
   const dataHoraAgenda = formatDataHora(oferta.data_agendada)
-  const warn = segundosRestantes != null && segundosRestantes <= 15
+  const dirigida = Boolean(oferta.contratacao_direcionada)
+  const warn = segundosRestantes != null && ofertaWarnAmarelo(segundosRestantes, dirigida)
+  const relogioTxt =
+    segundosRestantes == null
+      ? ''
+      : dirigida && segundosRestantes >= 60
+        ? `${Math.floor(segundosRestantes / 60)}:${String(segundosRestantes % 60).padStart(2, '0')}`
+        : `${segundosRestantes}s`
   const mensagemPrincipal = mensagemPrincipalAtendimento(oferta, t)
   const rec = oferta.recomendacao ?? null
   const recHandle = handleUsuarioAtendimento(rec?.username)
@@ -161,7 +169,7 @@ export default function DrawerAtendimentoMobilidade({
                 warn ? 'bg-amber-400' : 'bg-white/20'
               }`}
             >
-              {segundosRestantes}s
+              {relogioTxt}
             </span>
           ) : null}
         </div>
