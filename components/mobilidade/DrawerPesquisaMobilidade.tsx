@@ -28,6 +28,7 @@ import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import { refreshAppViewportHeight } from '@/lib/useAppViewportHeight'
 import {
   buildMobilidadePesquisaHref,
+  ehContratacaoDirigida,
   type MobilidadePesquisaState,
   type MobilidadePonto,
 } from '@/lib/mobilidadePesquisaParams'
@@ -322,7 +323,7 @@ export default function DrawerPesquisaMobilidade({
   /** Online permite imediato; offline / em atendimento → só agendamento. */
   const [particularPermiteImediato, setParticularPermiteImediato] = useState(true)
 
-  const modoParticular = Boolean(String(pesquisa.profissionalUsuarioId ?? '').trim())
+  const modoParticular = ehContratacaoDirigida(pesquisa)
 
   const destinoLabelBase =
     destinoLabelCurto ||
@@ -381,7 +382,7 @@ export default function DrawerPesquisaMobilidade({
     })
     // Só no open / troca de pesquisa relevante — não a cada keystroke de draft.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aberto, pesquisa.destinoEmpresaId, pesquisa.destino.lat, pesquisa.destino.lng, pesquisa.profissionalUsuarioId])
+  }, [aberto, pesquisa.destinoEmpresaId, pesquisa.destino.lat, pesquisa.destino.lng, pesquisa.profissionalUsuarioId, pesquisa.modo])
 
   useEffect(() => {
     if (!aberto || !modoParticular) {
@@ -615,6 +616,7 @@ export default function DrawerPesquisaMobilidade({
         destinoEmpresaId: pesquisa.destinoEmpresaId,
         recomendacaoId: pesquisa.recomendacaoId,
         profissionalUsuarioId: pesquisa.profissionalUsuarioId,
+        modo: pesquisa.modo,
         abrirPesquisa: true,
       }),
     )

@@ -3,6 +3,7 @@ import {
   type CategoriaProfissionalSlug,
 } from '@/lib/canaisProfissionalSlugs'
 import { normalizarCategoriasProfissional } from '@/lib/cartaoVisitaProfissional'
+import { buildHrefContratarParticular } from '@/lib/mobilidadePesquisaParams'
 
 export type DestinoContratacaoRecomendacao =
   | { tipo: 'empresa_reserva'; empresaId: string }
@@ -88,11 +89,10 @@ export function hrefDestinoContratacao(
     return `/empresa/${destino.empresaId}?ref=recomendacao&abrir=reserva${recQs}`
   }
   if (destino.tipo === 'mobilidade_canal') {
-    const q = new URLSearchParams()
-    q.set('abrir_pesquisa', '1')
-    q.set('prof', destino.profissionalUsuarioId)
-    if (rec) q.set('rec', rec)
-    return `/mobilidade?${q.toString()}`
+    return buildHrefContratarParticular({
+      profissionalUsuarioId: destino.profissionalUsuarioId,
+      recomendacaoId: rec || null,
+    })
   }
   if (destino.tipo === 'api_parceiro') return destino.url
   if (destino.tipo === 'canal') return '/canal'
@@ -101,7 +101,7 @@ export function hrefDestinoContratacao(
 
 /**
  * CONTRATAR no cartão de visita (perfil/mapa): resolve destino sem gravar manifesto.
- * Placa vermelha (guia/van/taxista) → drawer de mobilidade com `prof` fixado.
+ * Placa vermelha (guia/van/taxista) → drawer particular (`modo=particular&prof=`), destino vazio.
  * Anfitrião → reserva; motorista app → API parceiro.
  */
 export function resolverHrefContratarCartaoVisita(params: {

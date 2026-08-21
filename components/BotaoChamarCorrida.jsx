@@ -75,6 +75,9 @@ export default function BotaoChamarCorrida({
           lng,
         },
         abrirPesquisa: true,
+        modo: 'algoritmo',
+        recomendacaoId: null,
+        profissionalUsuarioId: null,
       }),
     )
   }

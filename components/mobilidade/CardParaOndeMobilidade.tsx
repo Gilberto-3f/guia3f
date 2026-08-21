@@ -366,6 +366,9 @@ export default function CardParaOndeMobilidade({
         destino: d,
         destinoEmpresaId,
         abrirPesquisa: true,
+        modo: 'algoritmo',
+        recomendacaoId: null,
+        profissionalUsuarioId: null,
       }),
     )
   }

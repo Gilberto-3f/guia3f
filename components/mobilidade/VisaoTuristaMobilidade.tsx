@@ -24,6 +24,7 @@ import {
   buildMobilidadePesquisaHref,
   parseMobilidadePesquisaSearchParams,
   pontoPreenchido,
+  resolverModoContratacaoMobilidade,
   type MobilidadePesquisaState,
   type MobilidadePonto,
 } from '@/lib/mobilidadePesquisaParams'
@@ -291,15 +292,18 @@ export default function VisaoTuristaMobilidade({
       return
     }
     if (abrindoDrawerRef.current) return
-    if (pesquisa.destinoEmpresaId && carregandoEmpresas) return
+    const modoAbertura = resolverModoContratacaoMobilidade(pesquisa)
+    const particularDoZero = modoAbertura === 'particular'
+    if (pesquisa.destinoEmpresaId && carregandoEmpresas && !particularDoZero) return
 
-    const intent = consumirChamarCorridaIntent()
-    const empIdUrl = pesquisa.destinoEmpresaId
+    const intent = particularDoZero ? null : consumirChamarCorridaIntent()
+    const empIdUrl = particularDoZero ? null : pesquisa.destinoEmpresaId
     const empIdIntent = intent?.empresaId ? String(intent.empresaId).trim() : ''
     const empId = empIdIntent || empIdUrl
 
     // URL residual da empresa que acabamos de fechar — não reabrir.
     if (
+      !particularDoZero &&
       empId &&
       empresaFechadaIdRef.current &&
       empId === empresaFechadaIdRef.current &&
@@ -308,8 +312,9 @@ export default function VisaoTuristaMobilidade({
       return
     }
 
-    // Já mostrando este destino.
+    // Já mostrando este destino (algoritmo). Particular sempre reabre (nonce / modo).
     if (
+      !particularDoZero &&
       drawerAberto &&
       pesquisaDrawer?.destinoEmpresaId &&
       empId &&
@@ -324,7 +329,9 @@ export default function VisaoTuristaMobilidade({
 
     // Limpa visual da empresa anterior imediatamente.
     setDestinoLabelsSnap(null)
-    if (intent) {
+    if (particularDoZero) {
+      aplicarDestinoNoCard(null, null)
+    } else if (intent) {
       aplicarDestinoNoCard(
         {
           nome: intent.nomeDestino,
@@ -366,6 +373,16 @@ export default function VisaoTuristaMobilidade({
               lng: intent.lng ?? pesquisa.destino.lng,
             }
           : pesquisa.destino,
+      }
+
+      // Particular (cartão): sempre do zero — não herda destino da busca do algoritmo.
+      if (resolverModoContratacaoMobilidade(next) === 'particular') {
+        next = {
+          ...next,
+          destino: { nome: '', lat: null, lng: null },
+          destinoEmpresaId: null,
+          modo: 'particular',
+        }
       }
 
       let emp =
@@ -538,6 +555,7 @@ export default function VisaoTuristaMobilidade({
     aplicarDestinoNoCard,
     pesquisa.profissionalUsuarioId,
     pesquisa.recomendacaoId,
+    pesquisa.modo,
   ])
 
   const fecharDrawerPesquisa = () => {
@@ -560,6 +578,7 @@ export default function VisaoTuristaMobilidade({
         destinoEmpresaId: null,
         recomendacaoId: null,
         profissionalUsuarioId: null,
+        modo: 'algoritmo',
         abrirPesquisa: false,
       }),
     )
@@ -913,6 +932,7 @@ export default function VisaoTuristaMobilidade({
                     abrirPesquisa: true,
                     recomendacaoId: null,
                     profissionalUsuarioId: null,
+                    modo: 'algoritmo',
                   },
                   gen,
                 )
@@ -924,7 +944,7 @@ export default function VisaoTuristaMobilidade({
 
       {drawerAberto && pesquisaDrawer ? (
         <DrawerPesquisaMobilidade
-          key={`pesquisa-drawer-${drawerKey}-${pesquisaDrawer.destinoEmpresaId ?? 'geo'}`}
+          key={`pesquisa-drawer-${drawerKey}-${pesquisaDrawer.modo}-${pesquisaDrawer.profissionalUsuarioId ?? 'livre'}-${pesquisaDrawer.destinoEmpresaId ?? 'geo'}`}
           aberto
           onFechar={fecharDrawerPesquisa}
           pesquisa={pesquisaDrawer}

@@ -80,6 +80,9 @@ export default function BarrasPesquisaMobilidade({ destinoInicial = null, classN
         origem: o,
         destino: d,
         abrirPesquisa: true,
+        modo: 'algoritmo',
+        recomendacaoId: null,
+        profissionalUsuarioId: null,
       }),
     )
   }

@@ -6,6 +6,9 @@ export type MobilidadePonto = {
   lng: number | null
 }
 
+/** Como o turista chegou nos drawers de mobilidade. */
+export type MobilidadeContratacaoModo = 'algoritmo' | 'particular' | 'recomendacao'
+
 export type MobilidadePesquisaState = {
   origem: MobilidadePonto
   destino: MobilidadePonto
@@ -16,6 +19,8 @@ export type MobilidadePesquisaState = {
   recomendacaoId: string | null
   /** Indicação / contratar: usuarios.id do profissional */
   profissionalUsuarioId: string | null
+  /** Rota de contratação (explícita na URL; fallback pelos ids). */
+  modo: MobilidadeContratacaoModo
 }
 
 function numOrNull(raw: string | null): number | null {
@@ -28,6 +33,33 @@ export function pontoPreenchido(p: MobilidadePonto): boolean {
   const nome = String(p.nome ?? '').trim()
   if (nome) return true
   return p.lat != null && p.lng != null && Number.isFinite(p.lat) && Number.isFinite(p.lng)
+}
+
+export function resolverModoContratacaoMobilidade(params: {
+  modo?: string | null
+  profissionalUsuarioId?: string | null
+  recomendacaoId?: string | null
+}): MobilidadeContratacaoModo {
+  const raw = String(params.modo ?? '').trim().toLowerCase()
+  if (raw === 'particular' || raw === 'recomendacao' || raw === 'algoritmo') return raw
+  if (String(params.recomendacaoId ?? '').trim()) return 'recomendacao'
+  if (String(params.profissionalUsuarioId ?? '').trim()) return 'particular'
+  return 'algoritmo'
+}
+
+/** Particular (cartão) ou recomendação: profissional já escolhido, sem matching da home. */
+export function ehContratacaoDirigida(pesquisa: {
+  modo?: MobilidadeContratacaoModo | string | null
+  profissionalUsuarioId?: string | null
+  recomendacaoId?: string | null
+}): boolean {
+  const modo = resolverModoContratacaoMobilidade(pesquisa)
+  return modo === 'particular' || modo === 'recomendacao'
+}
+
+function appendNoncePesquisa(href: string): string {
+  const sep = href.includes('?') ? '&' : '?'
+  return `${href}${sep}_cc=${Date.now()}`
 }
 
 export function parseMobilidadePesquisaSearchParams(
@@ -56,6 +88,11 @@ export function parseMobilidadePesquisaSearchParams(
     abrirPesquisa: sp.get('abrir_pesquisa') === '1' || sp.get('pesquisar') === '1',
     recomendacaoId: rec || null,
     profissionalUsuarioId: prof || null,
+    modo: resolverModoContratacaoMobilidade({
+      modo: sp.get('modo'),
+      profissionalUsuarioId: prof,
+      recomendacaoId: rec,
+    }),
   }
 }
 
@@ -66,6 +103,7 @@ export function buildMobilidadePesquisaHref(params: {
   abrirPesquisa?: boolean
   recomendacaoId?: string | null
   profissionalUsuarioId?: string | null
+  modo?: MobilidadeContratacaoModo | null
 }): string {
   const q = new URLSearchParams()
   const oNome = String(params.origem.nome ?? '').trim()
@@ -97,8 +135,37 @@ export function buildMobilidadePesquisaHref(params: {
 
   if (params.abrirPesquisa === true) q.set('abrir_pesquisa', '1')
 
+  const modo = resolverModoContratacaoMobilidade({
+    modo: params.modo,
+    profissionalUsuarioId: prof,
+    recomendacaoId: rec,
+  })
+  if (params.abrirPesquisa === true || modo !== 'algoritmo') {
+    q.set('modo', modo)
+  }
+
   const qs = q.toString()
   return qs ? `/mobilidade?${qs}` : '/mobilidade'
+}
+
+/**
+ * Cartão de visita / indicação: drawer dirigido, destino vazio, nonce anti-stale (Android).
+ */
+export function buildHrefContratarParticular(params: {
+  profissionalUsuarioId: string
+  recomendacaoId?: string | null
+}): string {
+  const rec = String(params.recomendacaoId ?? '').trim()
+  const href = buildMobilidadePesquisaHref({
+    origem: { nome: '', lat: null, lng: null },
+    destino: { nome: '', lat: null, lng: null },
+    destinoEmpresaId: null,
+    abrirPesquisa: true,
+    profissionalUsuarioId: params.profissionalUsuarioId,
+    recomendacaoId: rec || null,
+    modo: rec ? 'recomendacao' : 'particular',
+  })
+  return appendNoncePesquisa(href)
 }
 
 /**
@@ -122,8 +189,7 @@ export function buildHrefChamarCorridaEmpresa(params: {
     },
     destinoEmpresaId: id || null,
     abrirPesquisa: true,
+    modo: 'algoritmo',
   })
-  // Nonce: garante novo ciclo de searchParams a cada clique (troca de empresa / reabrir).
-  const sep = href.includes('?') ? '&' : '?'
-  return `${href}${sep}_cc=${Date.now()}`
+  return appendNoncePesquisa(href)
 }
