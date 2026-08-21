@@ -6,7 +6,7 @@ import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import PopupConclusaoAtendimentoMobilidade, {
   type FaseConclusaoUi,
 } from '@/components/mobilidade/PopupConclusaoAtendimentoMobilidade'
-import { MOBILIDADE_CORRIDA_ATIVA } from '@/lib/mobilidadeAtendimentoAtivoEventos'
+import { MOBILIDADE_CORRIDA_ATIVA, avisarLimparPesquisaMobilidade } from '@/lib/mobilidadeAtendimentoAtivoEventos'
 
 type ConclusaoPendente = {
   solicitacao_id: string
@@ -109,6 +109,7 @@ export default function ConclusaoAtendimentoMobilidadeListener() {
   const fechar = () => {
     setDismissedId(conclusao.solicitacao_id)
     setConclusao(null)
+    avisarLimparPesquisaMobilidade()
   }
 
   return (

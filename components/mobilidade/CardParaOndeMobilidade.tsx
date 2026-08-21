@@ -24,6 +24,7 @@ import CardParteAtendimentoFlutuante from '@/components/mobilidade/CardParteAten
 import {
   ehAtendimentoImediatoAtivo,
   MOBILIDADE_CORRIDA_ATIVA,
+  MOBILIDADE_LIMPAR_PESQUISA,
   pedirAbrirDrawerAtendimentoAtivo,
 } from '@/lib/mobilidadeAtendimentoAtivoEventos'
 
@@ -171,6 +172,8 @@ export default function CardParaOndeMobilidade({
     if (!preenchido) {
       setDestino({ nome: '', lat: null, lng: null })
       setDestinoEmpresaId(null)
+      setSugestoesAbertas(false)
+      setErro('')
       return
     }
     setDestino({ nome, lat, lng })
@@ -182,6 +185,17 @@ export default function CardParaOndeMobilidade({
     destinoInicial?.lng,
     destinoEmpresaIdInicial,
   ])
+
+  useEffect(() => {
+    const onLimpar = () => {
+      setDestino({ nome: '', lat: null, lng: null })
+      setDestinoEmpresaId(null)
+      setSugestoesAbertas(false)
+      setErro('')
+    }
+    window.addEventListener(MOBILIDADE_LIMPAR_PESQUISA, onLimpar)
+    return () => window.removeEventListener(MOBILIDADE_LIMPAR_PESQUISA, onLimpar)
+  }, [])
 
   const aplicarOrigem = useCallback(
     (ponto: MobilidadePonto) => {

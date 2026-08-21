@@ -46,6 +46,9 @@ import {
   inferirCidadeDePonto,
   peekRotasTabeladasCache,
 } from '@/lib/mobilidadePopupPesquisa'
+import {
+  MOBILIDADE_LIMPAR_PESQUISA,
+} from '@/lib/mobilidadeAtendimentoAtivoEventos'
 
 const MapaMobilidade = dynamic(() => import('@/components/mobilidade/MapaMobilidade'), {
   ssr: false,
@@ -144,6 +147,7 @@ export default function VisaoTuristaMobilidade({
   const [drawerKey, setDrawerKey] = useState(0)
   /** Sincroniza destino no card Para Onde? (Chamar corrida / fechar). */
   const [destinoSyncToken, setDestinoSyncToken] = useState(0)
+  const [cardResetNonce, setCardResetNonce] = useState(0)
   const [cardDestino, setCardDestino] = useState<{
     ponto: MobilidadePonto
     empresaId: string | null
@@ -179,6 +183,28 @@ export default function VisaoTuristaMobilidade({
     },
     [],
   )
+
+  const limparPesquisaDestino = useCallback(() => {
+    limparChamarCorridaIntent()
+    setDestinoLabelsSnap(null)
+    aplicarDestinoNoCard(null, null)
+    setCardResetNonce((n) => n + 1)
+    router.replace(
+      buildMobilidadePesquisaHref({
+        origem: {
+          nome: origemLabelGpsRef.current || '',
+          lat: gpsCentroRef.current?.lat ?? null,
+          lng: gpsCentroRef.current?.lng ?? null,
+        },
+        destino: { nome: '', lat: null, lng: null },
+        destinoEmpresaId: null,
+        recomendacaoId: null,
+        profissionalUsuarioId: null,
+        modo: 'algoritmo',
+        abrirPesquisa: false,
+      }),
+    )
+  }, [aplicarDestinoNoCard, router])
 
   const montarLabelsDestino = useCallback(
     (
@@ -562,26 +588,9 @@ export default function VisaoTuristaMobilidade({
     openGenRef.current += 1
     abrindoDrawerRef.current = false
     empresaFechadaIdRef.current = pesquisaAtiva.destinoEmpresaId
-    limparChamarCorridaIntent()
     setDrawerAberto(false)
     setPesquisaDrawer(null)
-    setDestinoLabelsSnap(null)
-    aplicarDestinoNoCard(null, null)
-    router.replace(
-      buildMobilidadePesquisaHref({
-        origem: {
-          nome: origemLabelGps || pesquisaAtiva.origem.nome || '',
-          lat: gpsCentro?.lat ?? pesquisaAtiva.origem.lat,
-          lng: gpsCentro?.lng ?? pesquisaAtiva.origem.lng,
-        },
-        destino: { nome: '', lat: null, lng: null },
-        destinoEmpresaId: null,
-        recomendacaoId: null,
-        profissionalUsuarioId: null,
-        modo: 'algoritmo',
-        abrirPesquisa: false,
-      }),
-    )
+    limparPesquisaDestino()
   }
 
   /** URL já sem destino — reforça limpeza do card. */
@@ -599,6 +608,12 @@ export default function VisaoTuristaMobilidade({
     cardDestino,
     aplicarDestinoNoCard,
   ])
+
+  useEffect(() => {
+    const onLimpar = () => limparPesquisaDestino()
+    window.addEventListener(MOBILIDADE_LIMPAR_PESQUISA, onLimpar)
+    return () => window.removeEventListener(MOBILIDADE_LIMPAR_PESQUISA, onLimpar)
+  }, [limparPesquisaDestino])
 
   const reabrirDrawerParaAgendar = () => {
     setResultadoAberto(false)
@@ -900,7 +915,7 @@ export default function VisaoTuristaMobilidade({
             />
           ) : (
             <CardParaOndeMobilidade
-              key={`card-destino-${cardDestino?.empresaId ?? 'vazio'}-${anfitriaoChamarCorrida ? 'cc' : 'std'}`}
+              key={`card-destino-${cardDestino?.empresaId ?? 'vazio'}-${cardResetNonce}-${anfitriaoChamarCorrida ? 'cc' : 'std'}`}
               origemInicial={origemInicialCard}
               destinoInicial={destinoInicialCard}
               destinoEmpresaIdInicial={destinoEmpresaIdCard}
@@ -965,6 +980,7 @@ export default function VisaoTuristaMobilidade({
         onFechar={() => {
           setResultadoAberto(false)
           setResultadoCorrida(null)
+          limparPesquisaDestino()
         }}
         onReabrirAgendar={reabrirDrawerParaAgendar}
       />

@@ -2,6 +2,8 @@
 
 export const MOBILIDADE_ABRIR_DRAWER_ATIVO = 'mobilidade:abrir-drawer-ativo'
 export const MOBILIDADE_CORRIDA_ATIVA = 'mobilidade:corrida-ativa'
+/** Cancela busca: zera destino/autocomplete do card flutuante. */
+export const MOBILIDADE_LIMPAR_PESQUISA = 'mobilidade:limpar-pesquisa'
 
 export function pedirAbrirDrawerAtendimentoAtivo(): void {
   if (typeof window === 'undefined') return
@@ -11,6 +13,11 @@ export function pedirAbrirDrawerAtendimentoAtivo(): void {
 export function avisarCorridaAtivaAtualizada(): void {
   if (typeof window === 'undefined') return
   window.dispatchEvent(new Event(MOBILIDADE_CORRIDA_ATIVA))
+}
+
+export function avisarLimparPesquisaMobilidade(): void {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new Event(MOBILIDADE_LIMPAR_PESQUISA))
 }
 
 /** Atendimento imediato (sem data_agendada) — escopo do floating pós-aceite. */
