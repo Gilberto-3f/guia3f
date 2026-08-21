@@ -15,6 +15,7 @@ import { useGateComprasReservas } from '@/lib/useGateComprasReservas'
 import { ehAtendimentoImediatoAtivo } from '@/lib/mobilidadeAtendimentoAtivoEventos'
 import {
   destinoVisivelNoMapa,
+  marcadorDeslocamentoCorrida,
   montarTrajetoCorridaAtiva,
   pontoPartidaCorrida,
   type CorridaMapaCoords,
@@ -58,6 +59,10 @@ function MobilidadePageInner() {
     if (!imediatoAtivo) return null
     return montarTrajetoCorridaAtiva(corridaMapa)
   }, [imediatoAtivo, corridaMapa])
+  const marcadorDeslocamento = useMemo(
+    () => (imediatoAtivo ? marcadorDeslocamentoCorrida(corridaMapa) : null),
+    [imediatoAtivo, corridaMapa],
+  )
 
   useEffect(() => {
     if (!perfilEhTurista || gateLoading || podeComprarReservar) return
@@ -101,6 +106,7 @@ function MobilidadePageInner() {
           trajeto={trajeto}
           origemCorrida={pontoPartida}
           destinoCorrida={pontoDestinoMapa}
+          marcadorDeslocamento={marcadorDeslocamento}
           ocultarPinsEmpresas={imediatoAtivo}
         />
         <OfertaMobilidadeListener onCorridaChange={onCorridaProChange} />
@@ -115,6 +121,7 @@ function MobilidadePageInner() {
         trajeto={trajeto}
         origemCorrida={pontoPartida}
         destinoCorrida={pontoDestinoMapa}
+        marcadorDeslocamento={marcadorDeslocamento}
         onCorridaTuristaChange={onCorridaTuristaChange}
       />
     </div>

@@ -65,6 +65,8 @@ type Props = {
   className?: string
   /** Linha azul da corrida ativa (profissional). */
   trajeto?: { de: { lat: number; lng: number }; ate: { lat: number; lng: number } } | null
+  /** Ícone do profissional (carro / pessoa) na corrida ativa. */
+  marcadorDeslocamento?: { lat: number; lng: number; tipo: 'carro' | 'pessoa' } | null
   /** Marcadores da corrida (partida / destino) sobre o mapa. */
   origemCorrida?: { lat: number; lng: number; label?: string } | null
   destinoCorrida?: { lat: number; lng: number; label?: string } | null
@@ -84,6 +86,7 @@ type Props = {
       lng_destino?: number | null
       prof_lat?: number | null
       prof_lng?: number | null
+      modalidade?: string | null
     } | null,
   ) => void
 }
@@ -97,6 +100,7 @@ export default function VisaoTuristaMobilidade({
   trajeto = null,
   origemCorrida = null,
   destinoCorrida = null,
+  marcadorDeslocamento = null,
   ocultarPinsEmpresas = false,
   onCorridaTuristaChange,
 }: Props) {
@@ -876,6 +880,7 @@ export default function VisaoTuristaMobilidade({
           origem={origemCorrida ?? origemPonto}
           destino={destinoCorrida ?? destinoPonto}
           trajeto={trajeto}
+          marcadorDeslocamento={marcadorDeslocamento}
           contextoMapa={contextoMapa ?? 'turista'}
           visitanteParceria={visitanteParceria}
           carregandoPins={carregandoEmpresas}

@@ -7,10 +7,8 @@ import CardPinEmpresaMapa from '@/components/mobilidade/CardPinEmpresaMapa'
 import { type EmpresaMapaMobilidade } from '@/lib/mobilidadeMapaEmpresas'
 import type { VisitanteParceriaMapa } from '@/lib/mobilidadeMapaVisitante'
 import { podeIndicarAtrativoMapa, type ContextoMapaMobilidade } from '@/lib/parceriaMapaMobilidade'
-import {
-  COR_STATUS_MOBILIDADE,
-  type ProfissionalOnlineMapa,
-} from '@/lib/mobilidadeStatusProfissional'
+import { buscarRotaMapboxDriving, peekRotaDirectionsCache } from '@/lib/mapboxDirections'
+import type { TipoIconeDeslocamento } from '@/lib/mobilidadeTrajetoMapa'
 
 const SOURCE_PROFS = 'profissionais-mobilidade'
 const LAYER_PROFS = 'profissionais-unclustered'
@@ -27,8 +25,10 @@ type Props = {
   centro: { lat: number; lng: number } | null
   origem?: Ponto | null
   destino?: Ponto | null
-  /** Linha azul (logo) entre dois pontos — ex.: profissional → partida do turista. */
+  /** Linha da corrida (profissional → partida ou partida → destino). */
   trajeto?: { de: Ponto; ate: Ponto } | null
+  /** Ícone do profissional em deslocamento (carro / pessoa). */
+  marcadorDeslocamento?: { lat: number; lng: number; tipo: TipoIconeDeslocamento } | null
   contextoMapa?: ContextoMapaMobilidade
   visitanteParceria?: VisitanteParceriaMapa | null
   /** Enquanto true, não mostra aviso de “nenhuma empresa”. */
@@ -136,6 +136,30 @@ function criarElPinEmpresa(
   return btn
 }
 
+const SVG_CARRO =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>'
+
+const SVG_PESSOA =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><path d="M9 22V16l-3-5 6-3 6 3-3 5v6"/><path d="M6 11l3 1"/><path d="M18 11l-3 1"/></svg>'
+
+function criarElDeslocamento(tipo: TipoIconeDeslocamento): HTMLDivElement {
+  const el = document.createElement('div')
+  el.style.cssText = [
+    'width:36px',
+    'height:36px',
+    'border-radius:9999px',
+    'background:#0097b2',
+    'border:3px solid #ffffff',
+    'box-shadow:0 2px 10px rgba(0,0,0,.4)',
+    'display:flex',
+    'align-items:center',
+    'justify-content:center',
+  ].join(';')
+  el.innerHTML = tipo === 'pessoa' ? SVG_PESSOA : SVG_CARRO
+  el.setAttribute('aria-hidden', 'true')
+  return el
+}
+
 export default function MapaMobilidade({
   empresas,
   profissionais = [],
@@ -143,6 +167,7 @@ export default function MapaMobilidade({
   origem = null,
   destino = null,
   trajeto = null,
+  marcadorDeslocamento = null,
   contextoMapa = null,
   visitanteParceria = null,
   carregandoPins = false,
@@ -154,6 +179,9 @@ export default function MapaMobilidade({
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const markersRotaRef = useRef<mapboxgl.Marker[]>([])
   const markersEmpresaRef = useRef<mapboxgl.Marker[]>([])
+  const markerDeslocamentoRef = useRef<mapboxgl.Marker | null>(null)
+  const tipoDeslocamentoRef = useRef<TipoIconeDeslocamento | null>(null)
+  const rotaFitKeyRef = useRef<string>('')
   const [tokenMissing, setTokenMissing] = useState(false)
   const [mapReady, setMapReady] = useState(false)
   const [mapError, setMapError] = useState<string | null>(null)
@@ -281,6 +309,8 @@ export default function MapaMobilidade({
       markersEmpresaRef.current = []
       for (const m of markersRotaRef.current) m.remove()
       markersRotaRef.current = []
+      markerDeslocamentoRef.current?.remove()
+      markerDeslocamentoRef.current = null
       if (mapRef.current) {
         mapRef.current.remove()
         mapRef.current = null
@@ -379,57 +409,100 @@ export default function MapaMobilidade({
       !Number.isFinite(ate.lng)
     ) {
       limpar()
+      rotaFitKeyRef.current = ''
       return
     }
 
-    const geo: GeoJSON.FeatureCollection = {
-      type: 'FeatureCollection',
-      features: [
-        {
-          type: 'Feature',
-          properties: {},
-          geometry: {
-            type: 'LineString',
-            coordinates: [
-              [de.lng, de.lat],
-              [ate.lng, ate.lat],
-            ],
+    let cancelled = false
+    const aplicar = (coordinates: [number, number][]) => {
+      if (cancelled) return
+      const geo: GeoJSON.FeatureCollection = {
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            properties: {},
+            geometry: { type: 'LineString', coordinates },
           },
-        },
-      ],
+        ],
+      }
+      const existing = map.getSource(SOURCE_TRAJETO) as mapboxgl.GeoJSONSource | undefined
+      if (existing) {
+        existing.setData(geo)
+      } else {
+        map.addSource(SOURCE_TRAJETO, { type: 'geojson', data: geo })
+        map.addLayer({
+          id: LAYER_TRAJETO,
+          type: 'line',
+          source: SOURCE_TRAJETO,
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: {
+            'line-color': '#0097b2',
+            'line-width': 4.5,
+            'line-opacity': 0.95,
+          },
+        })
+      }
+      const fitKey = `${coordinates.length}:${coordinates[0]?.join(',')}:${coordinates[coordinates.length - 1]?.join(',')}`
+      if (fitKey === rotaFitKeyRef.current) return
+      rotaFitKeyRef.current = fitKey
+      try {
+        const bounds = new mapboxgl.LngLatBounds()
+        for (const c of coordinates) bounds.extend(c)
+        map.fitBounds(bounds, { padding: 72, maxZoom: 15, duration: 600 })
+      } catch {
+        /* ignore */
+      }
     }
 
-    const existing = map.getSource(SOURCE_TRAJETO) as mapboxgl.GeoJSONSource | undefined
-    if (existing) {
-      existing.setData(geo)
+    const cached = peekRotaDirectionsCache(de, ate)
+    if (cached?.coordinates?.length) {
+      aplicar(cached.coordinates)
     } else {
-      map.addSource(SOURCE_TRAJETO, { type: 'geojson', data: geo })
-      map.addLayer({
-        id: LAYER_TRAJETO,
-        type: 'line',
-        source: SOURCE_TRAJETO,
-        layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: {
-          'line-color': '#0097b2',
-          'line-width': 4,
-          'line-opacity': 0.9,
-        },
-      })
+      aplicar([
+        [de.lng, de.lat],
+        [ate.lng, ate.lat],
+      ])
     }
 
-    try {
-      const bounds = new mapboxgl.LngLatBounds()
-      bounds.extend([de.lng, de.lat])
-      bounds.extend([ate.lng, ate.lat])
-      map.fitBounds(bounds, { padding: 72, maxZoom: 15, duration: 600 })
-    } catch {
-      /* ignore */
-    }
+    void buscarRotaMapboxDriving(de, ate).then((rota) => {
+      if (cancelled || !rota?.coordinates?.length) return
+      aplicar(rota.coordinates)
+    })
 
     return () => {
-      /* mantém layer até próximo update / unmount do mapa */
+      cancelled = true
     }
   }, [trajeto, mapReady])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady) return
+
+    const m = marcadorDeslocamento
+    if (!m || !Number.isFinite(m.lat) || !Number.isFinite(m.lng)) {
+      markerDeslocamentoRef.current?.remove()
+      markerDeslocamentoRef.current = null
+      tipoDeslocamentoRef.current = null
+      return
+    }
+
+    const existente = markerDeslocamentoRef.current
+    if (existente && tipoDeslocamentoRef.current === m.tipo) {
+      existente.setLngLat([m.lng, m.lat])
+      return
+    }
+
+    existente?.remove()
+    const marker = new mapboxgl.Marker({
+      element: criarElDeslocamento(m.tipo),
+      anchor: 'center',
+    })
+      .setLngLat([m.lng, m.lat])
+      .addTo(map)
+    markerDeslocamentoRef.current = marker
+    tipoDeslocamentoRef.current = m.tipo
+  }, [marcadorDeslocamento, mapReady])
 
   if (tokenMissing || !token) {
     return (

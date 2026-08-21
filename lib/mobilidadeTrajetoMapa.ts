@@ -81,6 +81,31 @@ export function montarTrajetoCorridaAtiva(c: CorridaMapaCoords | null | undefine
   return null
 }
 
+export type TipoIconeDeslocamento = 'carro' | 'pessoa'
+
+export function iconeDeslocamentoModalidade(
+  modalidade: string | null | undefined,
+): TipoIconeDeslocamento | null {
+  const m = String(modalidade ?? '').trim().toLowerCase()
+  if (m === 'guia') return 'pessoa'
+  if (m === 'taxista' || m === 'van') return 'carro'
+  return null
+}
+
+/** Posição viva do profissional na corrida (ícone no mapa). */
+export function marcadorDeslocamentoCorrida(
+  c: CorridaMapaCoords | null | undefined,
+): { lat: number; lng: number; tipo: TipoIconeDeslocamento } | null {
+  if (!c) return null
+  const tipo = iconeDeslocamentoModalidade(c.modalidade)
+  if (!tipo) return null
+  const prof = pontoProfissionalCorrida(c)
+  if (!prof) return null
+  const st = String(c.status ?? '')
+  if (!['aceita', 'a_caminho', 'no_local', 'em_viagem'].includes(st)) return null
+  return { lat: prof.lat, lng: prof.lng, tipo }
+}
+
 /** Marcador de destino só faz sentido em viagem (ou se não houver trajeto de ida). */
 export function destinoVisivelNoMapa(c: CorridaMapaCoords | null | undefined): PontoMapaCorrida | null {
   if (!c) return null
