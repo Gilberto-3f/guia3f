@@ -23,9 +23,10 @@ import {
 import CardParteAtendimentoFlutuante from '@/components/mobilidade/CardParteAtendimentoFlutuante'
 import {
   ehAtendimentoImediatoAtivo,
-  MOBILIDADE_CORRIDA_ATIVA,
+  MOBILIDADE_CORRIDA_TURISTA,
   MOBILIDADE_LIMPAR_PESQUISA,
   pedirAbrirDrawerAtendimentoAtivo,
+  type CorridaTuristaFlutuante,
 } from '@/lib/mobilidadeAtendimentoAtivoEventos'
 
 const TECLADO_BOTTOM_BAR_EVENT = 'guia-criar-keyboard'
@@ -130,30 +131,14 @@ export default function CardParaOndeMobilidade({
   const [erro, setErro] = useState('')
   const [corridaAtiva, setCorridaAtiva] = useState<CorridaTuristaResumo | null>(null)
 
-  const carregarCorridaAtiva = useCallback(async () => {
-    try {
-      const res = await fetch('/api/mobilidade/corrida-ativa-turista')
-      if (!res.ok) {
-        setCorridaAtiva(null)
-        return
-      }
-      const json = (await res.json()) as { corrida?: CorridaTuristaResumo | null }
-      setCorridaAtiva(json.corrida ?? null)
-    } catch {
-      /* ignore */
-    }
-  }, [])
-
   useEffect(() => {
-    void carregarCorridaAtiva()
-    const id = window.setInterval(() => void carregarCorridaAtiva(), 4_000)
-    const onRefresh = () => void carregarCorridaAtiva()
-    window.addEventListener(MOBILIDADE_CORRIDA_ATIVA, onRefresh)
-    return () => {
-      window.clearInterval(id)
-      window.removeEventListener(MOBILIDADE_CORRIDA_ATIVA, onRefresh)
+    const onPoll = (ev: Event) => {
+      const detail = (ev as CustomEvent<CorridaTuristaFlutuante | null>).detail
+      setCorridaAtiva(detail ?? null)
     }
-  }, [carregarCorridaAtiva])
+    window.addEventListener(MOBILIDADE_CORRIDA_TURISTA, onPoll)
+    return () => window.removeEventListener(MOBILIDADE_CORRIDA_TURISTA, onPoll)
+  }, [])
 
   /** Chamar corrida / fechar drawer: aplica ou limpa o destino sem remount (preserva GPS). */
   useEffect(() => {

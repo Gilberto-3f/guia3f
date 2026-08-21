@@ -9,6 +9,7 @@ import { encerrarConversaCorrida } from '@/lib/mobilidadeChatCorrida'
 import { liquidarComissaoCorridaMobilidade } from '@/lib/mobilidadeFinanceiro'
 import { registrarCompraTuristaCorridaMobilidade } from '@/lib/turistaCompras'
 import { modalidadeUsaDeslocamentoProprio } from '@/lib/mobilidadeOfertaAtendimento'
+import { mediaNotaAlvo } from '@/lib/notaMediaAvaliacoes'
 
 function metaObj(raw: unknown): Record<string, unknown> {
   return typeof raw === 'object' && raw != null && !Array.isArray(raw)
@@ -350,16 +351,7 @@ export async function buscarCorridaAtivaProfissional(
       .eq('usuario_id', turistaId)
       .maybeSingle()
 
-    let notaMedia: number | null = null
-    const { data: avs } = await admin
-      .from('avaliacoes')
-      .select('nota')
-      .eq('alvo_tipo', 'turista')
-      .eq('alvo_id', turistaId)
-    if (avs && avs.length > 0) {
-      const soma = avs.reduce((acc, a) => acc + Number(a.nota || 0), 0)
-      notaMedia = Math.round((soma / avs.length) * 10) / 10
-    }
+    const notaMedia = await mediaNotaAlvo(admin, 'turista', [turistaId])
 
     const foto =
       tur?.foto_perfil_url != null && String(tur.foto_perfil_url).trim()

@@ -2,8 +2,34 @@
 
 export const MOBILIDADE_ABRIR_DRAWER_ATIVO = 'mobilidade:abrir-drawer-ativo'
 export const MOBILIDADE_CORRIDA_ATIVA = 'mobilidade:corrida-ativa'
+/** Payload do poll do turista → card flutuante (sem segundo GET). */
+export const MOBILIDADE_CORRIDA_TURISTA = 'mobilidade:corrida-turista'
+/** Payload do poll do profissional → card de status (sem segundo GET). */
+export const MOBILIDADE_CORRIDA_PRO = 'mobilidade:corrida-pro'
 /** Cancela busca: zera destino/autocomplete do card flutuante. */
 export const MOBILIDADE_LIMPAR_PESQUISA = 'mobilidade:limpar-pesquisa'
+
+export type ParteCorridaFlutuante = {
+  nome: string
+  username: string | null
+  foto_url: string | null
+  verificado: boolean
+  nota_media: number | null
+}
+
+export type CorridaTuristaFlutuante = {
+  solicitacao_id: string
+  status: string
+  data_agendada?: string | null
+  profissional?: ParteCorridaFlutuante | null
+}
+
+export type CorridaProFlutuante = {
+  solicitacao_id: string
+  status: string
+  data_agendada?: string | null
+  turista?: ParteCorridaFlutuante | null
+}
 
 export function pedirAbrirDrawerAtendimentoAtivo(): void {
   if (typeof window === 'undefined') return
@@ -13,6 +39,16 @@ export function pedirAbrirDrawerAtendimentoAtivo(): void {
 export function avisarCorridaAtivaAtualizada(): void {
   if (typeof window === 'undefined') return
   window.dispatchEvent(new Event(MOBILIDADE_CORRIDA_ATIVA))
+}
+
+export function avisarCorridaTuristaPoll(corrida: CorridaTuristaFlutuante | null): void {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent(MOBILIDADE_CORRIDA_TURISTA, { detail: corrida }))
+}
+
+export function avisarCorridaProPoll(corrida: CorridaProFlutuante | null): void {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent(MOBILIDADE_CORRIDA_PRO, { detail: corrida }))
 }
 
 export function avisarLimparPesquisaMobilidade(): void {

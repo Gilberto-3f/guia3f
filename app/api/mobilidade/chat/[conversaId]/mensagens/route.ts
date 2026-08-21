@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { assertUserSession } from '@/lib/apiUserSession'
+import { assertUserSession, assertUserSessionLight } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 
 type Ctx = { params: Promise<{ conversaId: string }> }
@@ -18,7 +18,7 @@ async function assertParticipante(admin: ReturnType<typeof createSupabaseAdmin>,
 }
 
 export async function GET(_req: Request, ctx: Ctx) {
-  const auth = await assertUserSession()
+  const auth = await assertUserSessionLight()
   if (!auth.ok) return auth.error
 
   const { conversaId } = await ctx.params
@@ -33,7 +33,7 @@ export async function GET(_req: Request, ctx: Ctx) {
   }
 
   const conv = await assertParticipante(admin, id, auth.userId)
-  if (!conv && auth.role !== 'admin') {
+  if (!conv) {
     return NextResponse.json({ error: 'Conversa não encontrada.' }, { status: 404 })
   }
 

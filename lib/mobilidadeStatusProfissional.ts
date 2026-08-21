@@ -21,8 +21,8 @@ export const COR_STATUS_MOBILIDADE: Record<MobilidadeStatusId, string> = {
 export const MOBILIDADE_ONLINE_IDLE_MS = 2 * 60 * 60 * 1000
 /** 1 minuto sem resposta no popup → força offline. */
 export const MOBILIDADE_IDLE_RESPOSTA_MS = 60 * 1000
-/** Heartbeat de GPS enquanto online. */
-export const MOBILIDADE_HEARTBEAT_MS = 60_000
+/** Heartbeat de GPS enquanto online (alinha com poll da corrida no mapa). */
+export const MOBILIDADE_HEARTBEAT_MS = 20_000
 
 export function profissionalTemCategoriaMobilidade(
   categorias: string[] | null | undefined,

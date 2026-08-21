@@ -7,6 +7,10 @@ import PopupConclusaoAtendimentoMobilidade, {
   type FaseConclusaoUi,
 } from '@/components/mobilidade/PopupConclusaoAtendimentoMobilidade'
 import { MOBILIDADE_CORRIDA_ATIVA, avisarLimparPesquisaMobilidade } from '@/lib/mobilidadeAtendimentoAtivoEventos'
+import {
+  MOBILIDADE_POLL_CONCLUSAO_ATIVA_MS,
+  MOBILIDADE_POLL_CONCLUSAO_IDLE_MS,
+} from '@/lib/mobilidadePoll'
 
 type ConclusaoPendente = {
   solicitacao_id: string
@@ -66,15 +70,16 @@ export default function ConclusaoAtendimentoMobilidadeListener() {
 
   useEffect(() => {
     if (!elegivel) return
+    const intervalo = conclusao ? MOBILIDADE_POLL_CONCLUSAO_ATIVA_MS : MOBILIDADE_POLL_CONCLUSAO_IDLE_MS
     void carregar()
-    const id = window.setInterval(() => void carregar(), 5_000)
+    const id = window.setInterval(() => void carregar(), intervalo)
     const onRefresh = () => void carregar()
     window.addEventListener(MOBILIDADE_CORRIDA_ATIVA, onRefresh)
     return () => {
       window.clearInterval(id)
       window.removeEventListener(MOBILIDADE_CORRIDA_ATIVA, onRefresh)
     }
-  }, [elegivel, carregar])
+  }, [elegivel, carregar, conclusao?.solicitacao_id])
 
   if (!conclusao) return null
 

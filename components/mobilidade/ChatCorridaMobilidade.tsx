@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Send } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { MOBILIDADE_POLL_CHAT_MS } from '@/lib/mobilidadePoll'
 
 type Msg = {
   id: string
@@ -87,7 +88,7 @@ export default function ChatCorridaMobilidade({
   useEffect(() => {
     void carregar()
     if (leitura) return
-    const id = setInterval(() => void carregar(), 2500)
+    const id = setInterval(() => void carregar(), MOBILIDADE_POLL_CHAT_MS)
     return () => clearInterval(id)
   }, [carregar, leitura])
 

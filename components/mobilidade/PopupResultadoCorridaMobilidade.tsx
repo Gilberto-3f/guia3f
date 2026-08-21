@@ -7,6 +7,7 @@ import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import { ofertaWarnAmarelo } from '@/lib/mobilidadeMatching'
 import { avisarCorridaAtivaAtualizada } from '@/lib/mobilidadeAtendimentoAtivoEventos'
 import AvaliacaoCorridaMobilidade from '@/components/mobilidade/AvaliacaoCorridaMobilidade'
+import { MOBILIDADE_POLL_MATCHING_MS } from '@/lib/mobilidadePoll'
 
 export type OfertaResultadoUi = {
   profissionalId: string
@@ -118,7 +119,7 @@ export default function PopupResultadoCorridaMobilidade({
     }
 
     void poll()
-    const id = setInterval(() => void poll(), 2500)
+    const id = setInterval(() => void poll(), MOBILIDADE_POLL_MATCHING_MS)
     return () => {
       cancelled = true
       clearInterval(id)

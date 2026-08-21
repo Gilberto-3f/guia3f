@@ -8,11 +8,16 @@ import DrawerAtendimentoAtivoMobilidade, {
 } from '@/components/mobilidade/DrawerAtendimentoAtivoMobilidade'
 import PopupChegadaTuristaMobilidade from '@/components/mobilidade/PopupChegadaTuristaMobilidade'
 import {
+  avisarCorridaTuristaPoll,
   ehAtendimentoImediatoAtivo,
   MOBILIDADE_ABRIR_DRAWER_ATIVO,
   MOBILIDADE_CORRIDA_ATIVA,
 } from '@/lib/mobilidadeAtendimentoAtivoEventos'
 import { modalidadeUsaDeslocamentoProprio } from '@/lib/mobilidadeOfertaAtendimento'
+import {
+  MOBILIDADE_POLL_CORRIDA_ATIVA_MS,
+  MOBILIDADE_POLL_CORRIDA_IDLE_MS,
+} from '@/lib/mobilidadePoll'
 
 type ProfissionalCorrida = {
   usuario_id: string
@@ -106,6 +111,24 @@ export default function ChegadaTuristaMobilidadeListener({ onCorridaChange }: Pr
         solicitacaoAnteriorRef.current = null
       }
       setCorrida(next)
+      avisarCorridaTuristaPoll(
+        next
+          ? {
+              solicitacao_id: next.solicitacao_id,
+              status: next.status,
+              data_agendada: next.data_agendada,
+              profissional: next.profissional
+                ? {
+                    nome: next.profissional.nome,
+                    username: next.profissional.username,
+                    foto_url: next.profissional.foto_url,
+                    verificado: next.profissional.verificado,
+                    nota_media: next.profissional.nota_media,
+                  }
+                : null,
+            }
+          : null,
+      )
     } catch {
       /* ignore */
     }
@@ -121,21 +144,16 @@ export default function ChegadaTuristaMobilidadeListener({ onCorridaChange }: Pr
 
   useEffect(() => {
     if (!elegivel) return
-    let ativo = true
-    const boot = window.setTimeout(() => {
-      if (!ativo) return
-      void carregar()
-    }, 400)
-    const id = setInterval(() => void carregar(), 4_000)
+    const intervalo = corrida ? MOBILIDADE_POLL_CORRIDA_ATIVA_MS : MOBILIDADE_POLL_CORRIDA_IDLE_MS
+    void carregar()
+    const id = setInterval(() => void carregar(), intervalo)
     const onRefresh = () => void carregar()
     window.addEventListener(MOBILIDADE_CORRIDA_ATIVA, onRefresh)
     return () => {
-      ativo = false
-      window.clearTimeout(boot)
       clearInterval(id)
       window.removeEventListener(MOBILIDADE_CORRIDA_ATIVA, onRefresh)
     }
-  }, [elegivel, carregar])
+  }, [elegivel, carregar, corrida?.solicitacao_id])
 
   useEffect(() => {
     if (!corrida) return

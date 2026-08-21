@@ -9,8 +9,9 @@ import CardParteAtendimentoFlutuante from '@/components/mobilidade/CardParteAten
 import type { MobilidadeStatusId } from '@/lib/mobilidadeStatusProfissional'
 import {
   ehAtendimentoImediatoAtivo,
-  MOBILIDADE_CORRIDA_ATIVA,
+  MOBILIDADE_CORRIDA_PRO,
   pedirAbrirDrawerAtendimentoAtivo,
+  type CorridaProFlutuante,
 } from '@/lib/mobilidadeAtendimentoAtivoEventos'
 
 const COR = '#0097b2'
@@ -72,18 +73,13 @@ export default function CardStatusProfissionalMobilidade({
   const [espacoAberto, setEspacoAberto] = useState(false)
   const [corrida, setCorrida] = useState<CorridaAtivaResumo | null>(null)
 
-  const carregarCorrida = useCallback(async () => {
-    try {
-      const res = await fetch('/api/mobilidade/corrida-ativa')
-      if (!res.ok) {
-        setCorrida(null)
-        return
-      }
-      const json = (await res.json()) as { corrida?: CorridaAtivaResumo | null }
-      setCorrida(json.corrida ?? null)
-    } catch {
-      /* ignore */
+  useEffect(() => {
+    const onPoll = (ev: Event) => {
+      const detail = (ev as CustomEvent<CorridaProFlutuante | null>).detail
+      setCorrida(detail ?? null)
     }
+    window.addEventListener(MOBILIDADE_CORRIDA_PRO, onPoll)
+    return () => window.removeEventListener(MOBILIDADE_CORRIDA_PRO, onPoll)
   }, [])
 
   useEffect(() => {
@@ -95,17 +91,6 @@ export default function CardStatusProfissionalMobilidade({
     const id = window.setTimeout(() => setToastOffline(false), 5000)
     return () => window.clearTimeout(id)
   }, [toastOffline])
-
-  useEffect(() => {
-    void carregarCorrida()
-    const id = window.setInterval(() => void carregarCorrida(), 4_000)
-    const onRefresh = () => void carregarCorrida()
-    window.addEventListener(MOBILIDADE_CORRIDA_ATIVA, onRefresh)
-    return () => {
-      window.clearInterval(id)
-      window.removeEventListener(MOBILIDADE_CORRIDA_ATIVA, onRefresh)
-    }
-  }, [carregarCorrida])
 
   const onStatusChange = useCallback((prev: MobilidadeStatusId, next: MobilidadeStatusId) => {
     setStatus(next)

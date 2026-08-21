@@ -1,15 +1,12 @@
 import { NextResponse } from 'next/server'
-import { assertUserSession } from '@/lib/apiUserSession'
+import { assertUserSessionLight } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { mediaNotaAlvo } from '@/lib/notaMediaAvaliacoes'
 
 /** Corrida ativa do turista (chegada / viagem / drawer de atendimento). */
 export async function GET() {
-  const auth = await assertUserSession()
+  const auth = await assertUserSessionLight()
   if (!auth.ok) return auth.error
-
-  if (auth.role !== 'turista' && auth.role !== 'admin' && auth.role !== 'empresa') {
-    return NextResponse.json({ error: 'Apenas contratantes.' }, { status: 403 })
-  }
 
   let admin
   try {
@@ -61,16 +58,10 @@ export async function GET() {
 
     if (p?.usuario_id) {
       const uid = String(p.usuario_id)
-      let notaMedia: number | null = null
-      const { data: avs } = await admin
-        .from('avaliacoes')
-        .select('nota')
-        .eq('alvo_tipo', 'profissional')
-        .in('alvo_id', [uid, String(row.profissional_id)])
-      if (avs && avs.length > 0) {
-        const soma = avs.reduce((acc, a) => acc + Number(a.nota || 0), 0)
-        notaMedia = Math.round((soma / avs.length) * 10) / 10
-      }
+      const notaMedia = await mediaNotaAlvo(admin, 'profissional', [
+        uid,
+        String(row.profissional_id),
+      ])
 
       const foto =
         p.foto_perfil_url != null && String(p.foto_perfil_url).trim()

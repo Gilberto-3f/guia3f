@@ -21,10 +21,17 @@ import DrawerAtendimentoAtivoMobilidade, {
 import PopupChegadaProfissionalMobilidade from '@/components/mobilidade/PopupChegadaProfissionalMobilidade'
 import {
   avisarCorridaAtivaAtualizada,
+  avisarCorridaProPoll,
   ehAtendimentoImediatoAtivo,
   MOBILIDADE_ABRIR_DRAWER_ATIVO,
 } from '@/lib/mobilidadeAtendimentoAtivoEventos'
 import { modalidadeUsaDeslocamentoProprio } from '@/lib/mobilidadeOfertaAtendimento'
+import {
+  MOBILIDADE_POLL_CHEGADA_GPS_MS,
+  MOBILIDADE_POLL_CORRIDA_ATIVA_MS,
+  MOBILIDADE_POLL_CORRIDA_IDLE_MS,
+  MOBILIDADE_POLL_OFERTA_IDLE_MS,
+} from '@/lib/mobilidadePoll'
 
 type Oferta = OfertaAtendimentoUi & {
   /** Marcador interno: confirmação de agendamento (API dedicada). */
@@ -113,6 +120,24 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
         }
         return next
       })
+      avisarCorridaProPoll(
+        next
+          ? {
+              solicitacao_id: next.solicitacao_id,
+              status: String(next.status ?? ''),
+              data_agendada: next.data_agendada ?? null,
+              turista: next.turista
+                ? {
+                    nome: next.turista.nome,
+                    username: next.turista.username,
+                    foto_url: next.turista.foto_url,
+                    verificado: next.turista.verificado,
+                    nota_media: next.turista.nota_media,
+                  }
+                : null,
+            }
+          : null,
+      )
     } catch {
       /* ignore */
     }
@@ -187,7 +212,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
     if (!elegivel) return
     let ativo = true
     let id: ReturnType<typeof setInterval> | null = null
-    const intervaloMs = corrida ? 5_000 : 25_000
+    const intervaloMs = corrida ? MOBILIDADE_POLL_CORRIDA_ATIVA_MS : MOBILIDADE_POLL_CORRIDA_IDLE_MS
     const boot = window.setTimeout(() => {
       if (!ativo) return
       void (async () => {
@@ -200,7 +225,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
           })()
         }, intervaloMs)
       })()
-    }, corrida ? 400 : 2000)
+    }, 400)
     return () => {
       ativo = false
       window.clearTimeout(boot)
@@ -222,7 +247,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
             const s = await carregarOferta()
             if (s === 'auth' && id) clearInterval(id)
           })()
-        }, 20_000)
+        }, MOBILIDADE_POLL_OFERTA_IDLE_MS)
       })()
     }, 2500)
     return () => {
@@ -312,7 +337,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
     }
 
     void tentar()
-    const id = setInterval(() => void tentar(), 12_000)
+    const id = setInterval(() => void tentar(), MOBILIDADE_POLL_CHEGADA_GPS_MS)
     return () => {
       cancelled = true
       clearInterval(id)
@@ -343,6 +368,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
       }
       if (!recebido) {
         setCorrida(null)
+        avisarCorridaProPoll(null)
         avisarCorridaAtivaAtualizada()
         void carregarOferta()
         return
@@ -501,6 +527,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
         return
       }
       setCorrida(null)
+      avisarCorridaProPoll(null)
       avisarCorridaAtivaAtualizada()
       setErroConcluir('')
       setRecebiDinheiro(false)
