@@ -9,6 +9,10 @@ import type { VisitanteParceriaMapa } from '@/lib/mobilidadeMapaVisitante'
 import { podeIndicarAtrativoMapa, type ContextoMapaMobilidade } from '@/lib/parceriaMapaMobilidade'
 import { buscarRotaMapboxDriving, peekRotaDirectionsCache } from '@/lib/mapboxDirections'
 import type { TipoIconeDeslocamento } from '@/lib/mobilidadeTrajetoMapa'
+import {
+  COR_STATUS_MOBILIDADE,
+  type ProfissionalOnlineMapa,
+} from '@/lib/mobilidadeStatusProfissional'
 
 const SOURCE_PROFS = 'profissionais-mobilidade'
 const LAYER_PROFS = 'profissionais-unclustered'
