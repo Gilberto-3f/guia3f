@@ -21,6 +21,10 @@ export type NovaRotaTabeladaInput = {
   horaFim?: string | null
   horaSaida?: string | null
   horaRetorno?: string | null
+  idaVolta?: boolean | null
+  duracaoEstimadaMin?: number | null
+  usarEtaMapbox?: boolean | null
+  duracaoHoras?: number | null
 }
 
 export function useServicosTabeladosAdm() {
@@ -60,13 +64,20 @@ export function useServicosTabeladosAdm() {
       }
 
       if (input.categoria === 'guia') {
-        if (!input.tipoPeriodoGuia || !input.horaInicio || !input.horaFim) {
+        if (input.tipoPeriodoGuia === 'horas') {
+          if (input.duracaoHoras == null || input.duracaoHoras <= 0) {
+            return { success: false, error: new Error('Informe a duração em horas do guia') }
+          }
+        } else if (!input.tipoPeriodoGuia || !input.horaInicio || !input.horaFim) {
           return { success: false, error: new Error('Informe o tipo de período e os horários do guia') }
         }
       }
       if (input.categoria === 'van') {
-        if (!input.horaSaida || !input.horaRetorno) {
-          return { success: false, error: new Error('Informe horário de saída e retorno da van') }
+        if (!input.horaSaida) {
+          return { success: false, error: new Error('Informe o horário de saída da van') }
+        }
+        if (input.idaVolta !== false && !input.horaRetorno) {
+          return { success: false, error: new Error('Informe o horário de retorno da van') }
         }
       }
 
@@ -85,11 +96,23 @@ export function useServicosTabeladosAdm() {
 
         if (input.categoria === 'guia') {
           payload.tipo_periodo_guia = input.tipoPeriodoGuia
-          payload.hora_inicio = input.horaInicio
-          payload.hora_fim = input.horaFim
+          if (input.tipoPeriodoGuia === 'horas') {
+            payload.duracao_horas = input.duracaoHoras
+          } else {
+            payload.hora_inicio = input.horaInicio
+            payload.hora_fim = input.horaFim
+          }
         } else if (input.categoria === 'van') {
           payload.hora_saida = input.horaSaida
-          payload.hora_retorno = input.horaRetorno
+          payload.ida_volta = input.idaVolta !== false
+          if (input.idaVolta !== false) {
+            payload.hora_retorno = input.horaRetorno
+          }
+        } else if (input.categoria === 'taxista') {
+          if (input.duracaoEstimadaMin != null && input.duracaoEstimadaMin > 0) {
+            payload.duracao_estimada_min = Math.round(input.duracaoEstimadaMin)
+          }
+          payload.usar_eta_mapbox = input.usarEtaMapbox !== false
         }
 
         const { error } = await supabase.from('servicos_tabelados_rotas').insert(payload)

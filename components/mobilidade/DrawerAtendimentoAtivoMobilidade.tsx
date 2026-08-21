@@ -22,6 +22,12 @@ import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import { modalidadeUsaManifesto, modalidadeUsaDeslocamentoProprio } from '@/lib/mobilidadeOfertaAtendimento'
 import { buscarRotaMapboxDriving, formatarDuracaoEta } from '@/lib/mapboxDirections'
 import { montarTrajetoEtaCorrida } from '@/lib/mobilidadeTrajetoMapa'
+import { supabase } from '@/lib/supabase'
+import {
+  descricaoPeriodoRota,
+  encontrarRotaTabeladaPorDestino,
+  mapRotaTabeladaRow,
+} from '@/lib/servicosTabeladosCatalogo'
 
 const COR = '#0097b2'
 const VERDE = '#00D443'
@@ -129,6 +135,7 @@ export default function DrawerAtendimentoAtivoMobilidade({
   const [manifestoAberto, setManifestoAberto] = useState(false)
   const [etaSec, setEtaSec] = useState<number | null>(null)
   const [etaFase, setEtaFase] = useState<'partida' | 'destino' | null>(null)
+  const [periodoRota, setPeriodoRota] = useState<string | null>(null)
 
   const st = String(atendimento.status ?? 'a_caminho')
   const headerVerde = st === 'em_viagem' || st === 'no_local'
@@ -228,6 +235,34 @@ export default function DrawerAtendimentoAtivoMobilidade({
     aberto,
     trajetoEta,
   ])
+
+  useEffect(() => {
+    if (!aberto) {
+      setPeriodoRota(null)
+      return
+    }
+    const cat = String(atendimento.modalidade ?? '').trim()
+    const dest = String(atendimento.destino_nome ?? '').trim()
+    if (!cat || !dest || cat === 'motorista_app') {
+      setPeriodoRota(null)
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      const { data } = await supabase
+        .from('servicos_tabelados_rotas')
+        .select('*')
+        .eq('ativo', true)
+        .eq('categoria', cat)
+      if (cancelled) return
+      const rotas = (data ?? []).map((r) => mapRotaTabeladaRow(r as Record<string, unknown>))
+      const match = encontrarRotaTabeladaPorDestino(rotas, cat, dest)
+      setPeriodoRota(match ? descricaoPeriodoRota(match) : null)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [aberto, atendimento.modalidade, atendimento.destino_nome])
 
   if (!aberto) return null
 
@@ -379,6 +414,12 @@ export default function DrawerAtendimentoAtivoMobilidade({
                 <span className="font-semibold text-gray-600">{t('resumoAgendamento')}: </span>
                 {agendado ? t('ecossistemaAtendimentoPre') : t('atendimentoImediato')}
               </li>
+              {periodoRota ? (
+                <li>
+                  <span className="font-semibold text-gray-600">{t('resumoPeriodoRota')}: </span>
+                  {periodoRota}
+                </li>
+              ) : null}
             </ul>
           ) : null}
         </div>

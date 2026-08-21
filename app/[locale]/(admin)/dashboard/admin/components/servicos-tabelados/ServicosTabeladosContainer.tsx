@@ -85,6 +85,10 @@ export function ServicosTabeladosConteudo() {
                 horaFim: dados.horaFim,
                 horaSaida: dados.horaSaida,
                 horaRetorno: dados.horaRetorno,
+                idaVolta: dados.idaVolta,
+                duracaoEstimadaMin: dados.duracaoEstimadaMin,
+                usarEtaMapbox: dados.usarEtaMapbox,
+                duracaoHoras: dados.duracaoHoras,
               },
               admin.id,
             )
