@@ -9,6 +9,7 @@ import { gravarPerfilBarraCache, lerPerfilBarraCache } from '@/lib/perfilBarraCa
 import { buscarUsuarioCached } from '@/lib/usuarioSessionCache'
 
 const ProfissionalGateContext = createContext(null)
+const GATE_BOOT_MS = 7000
 
 /** @param {{ foto_perfil_url?: unknown, foto_url?: unknown } | null | undefined} row */
 function pickFotoPerfilRow(row) {
@@ -101,6 +102,8 @@ export function ProfissionalGateProvider({ children }) {
     const run = async () => {
     lastGateAtRef.current = Date.now()
     if (!gateCarregadoUmaVez.current && !lerPerfilBarraCache()) setLoading(true)
+
+    const executar = async () => {
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -126,9 +129,6 @@ export function ProfissionalGateProvider({ children }) {
       setTuristaDocsRow(null)
       setFotoPerfilBarra(null)
       setEmpresaIdBarra(null)
-      gateCarregadoUmaVez.current = true
-      setBootConcluido(true)
-      setLoading(false)
       return
     }
 
@@ -145,9 +145,6 @@ export function ProfissionalGateProvider({ children }) {
           cached.role === 'profissional' ? cached.fotoProfSocialUrl ?? cached.fotoUrl : cached.fotoUrl
         if (fotoBarra) setFotoPerfilBarra(fotoBarra)
       }
-      gateCarregadoUmaVez.current = true
-      setBootConcluido(true)
-      setLoading(false)
       return
     }
 
@@ -304,15 +301,34 @@ export function ProfissionalGateProvider({ children }) {
       empresaHospedagemId: empresaHospedagemIdCache,
       empresaFotoUrl: empresaFotoCache,
     })
-    gateCarregadoUmaVez.current = true
-    setBootConcluido(true)
-    setLoading(false)
+    }
+
+    try {
+      await Promise.race([
+        executar(),
+        new Promise((_, reject) => {
+          setTimeout(() => {
+            reject(Object.assign(new Error('gate timeout'), { status: 504 }))
+          }, GATE_BOOT_MS)
+        }),
+      ])
+    } catch {
+      /* Auth/REST 504/503: splash e barra não esperam a rede */
+    } finally {
+      gateCarregadoUmaVez.current = true
+      setBootConcluido(true)
+      setLoading(false)
+    }
     }
 
     inflightGateRef.current = run().finally(() => {
       inflightGateRef.current = null
     })
     await inflightGateRef.current
+  }, [])
+
+  useEffect(() => {
+    if (lerPerfilBarraCache()) setBootConcluido(true)
   }, [])
 
   useEffect(() => {

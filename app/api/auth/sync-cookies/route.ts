@@ -1,19 +1,20 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { jwtAindaValido, userFromAccessToken } from '@/lib/serverAuthSession'
 
-function jwtAindaValido(accessToken: string, margemSec = 60): boolean {
-  try {
-    const payload = accessToken.split('.')[1]
-    if (!payload) return false
-    const pad = payload.length % 4 === 0 ? '' : '='.repeat(4 - (payload.length % 4))
-    const json = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/') + pad)) as {
-      exp?: number
+function fetchSemGetUserAuth(accessToken: string): typeof fetch {
+  const orig = fetch.bind(globalThis)
+  return async (input, init) => {
+    const url = typeof input === 'string' ? input : String((input as Request)?.url ?? '')
+    if (url.includes('/auth/v1/user') && jwtAindaValido(accessToken)) {
+      const user = userFromAccessToken(accessToken)
+      return new Response(JSON.stringify(user), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
-    const exp = Number(json.exp)
-    return Number.isFinite(exp) && exp * 1000 > Date.now() + margemSec * 1000
-  } catch {
-    return false
+    return orig(input, init)
   }
 }
 
@@ -23,6 +24,7 @@ function jwtAindaValido(accessToken: string, margemSec = 60): boolean {
  *
  * Evita `setSession` (que pode bater em Auth `/token` ou `/user`) quando os cookies
  * já têm os mesmos tokens e o access JWT ainda é válido.
+ * Com JWT válido, `setSession` não chama GoTrue — o GET /user é respondido localmente.
  */
 export async function POST(request: Request) {
   let body: unknown
@@ -56,6 +58,9 @@ export async function POST(request: Request) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      global: {
+        fetch: fetchSemGetUserAuth(access_token),
+      },
       cookies: {
         encode: 'tokens-only',
         getAll() {
@@ -74,7 +79,6 @@ export async function POST(request: Request) {
     },
   )
 
-  // Leitura local dos cookies — sem rede Auth.
   const {
     data: { session: existing },
   } = await supabase.auth.getSession()

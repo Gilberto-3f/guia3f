@@ -5,6 +5,8 @@ import Image from 'next/image'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 
 const SPLASH_MIN_MS = 3000
+/** Se Auth/Postgres timeoutar, não trava a home/bottom bar para sempre. */
+const SPLASH_MAX_MS = 6000
 const SESSION_SPLASH_DONE = 'guia_app_splash_done'
 
 /**
@@ -26,8 +28,20 @@ export default function AppSplash() {
     } catch {
       /* ignore */
     }
-    const id = window.setTimeout(() => setMinOk(true), SPLASH_MIN_MS)
-    return () => window.clearTimeout(id)
+    const minId = window.setTimeout(() => setMinOk(true), SPLASH_MIN_MS)
+    const maxId = window.setTimeout(() => {
+      try {
+        sessionStorage.setItem(SESSION_SPLASH_DONE, '1')
+      } catch {
+        /* ignore */
+      }
+      setMinOk(true)
+      setVisivel(false)
+    }, SPLASH_MAX_MS)
+    return () => {
+      window.clearTimeout(minId)
+      window.clearTimeout(maxId)
+    }
   }, [])
 
   useEffect(() => {
