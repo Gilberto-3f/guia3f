@@ -959,7 +959,7 @@ export default function VisaoTuristaMobilidade({
 
       {drawerAberto && pesquisaDrawer ? (
         <DrawerPesquisaMobilidade
-          key={`pesquisa-drawer-${drawerKey}-${pesquisaDrawer.modo}-${pesquisaDrawer.profissionalUsuarioId ?? 'livre'}-${pesquisaDrawer.destinoEmpresaId ?? 'geo'}`}
+          key={`pesquisa-drawer-${drawerKey}-${pesquisaDrawer.modo}-${pesquisaDrawer.profissionalUsuarioId ?? 'livre'}-${pesquisaDrawer.modo === 'particular' ? 'dir' : pesquisaDrawer.destinoEmpresaId ?? 'geo'}`}
           aberto
           onFechar={fecharDrawerPesquisa}
           pesquisa={pesquisaDrawer}
@@ -967,6 +967,7 @@ export default function VisaoTuristaMobilidade({
           destinoNomeEmpresa={destinoNomeEmpresa}
           destinoLabelCurto={destinoLabelCurtoEmpresa}
           destinoLabelCompleto={destinoLabelCompletoEmpresa}
+          empresas={empresas}
           onResultado={(r) => {
             setResultadoCorrida(r)
             setResultadoAberto(true)

@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import {
   ArrowLeft,
+  Building2,
   CalendarDays,
   Car,
   Check,
@@ -16,6 +17,7 @@ import {
   MapPin,
   Minus,
   Plus,
+  Route,
   Search,
   Send,
   Smartphone,
@@ -30,6 +32,8 @@ import { refreshAppViewportHeight } from '@/lib/useAppViewportHeight'
 import {
   buildMobilidadePesquisaHref,
   ehContratacaoDirigida,
+  pontoPreenchido,
+  resolverModoContratacaoMobilidade,
   type MobilidadePesquisaState,
   type MobilidadePonto,
 } from '@/lib/mobilidadePesquisaParams'
@@ -43,16 +47,18 @@ import {
   modalidadesDisponiveis,
   ordenarModalidadesPorPreco,
   peekRotasTabeladasCache,
+  sugerirDestinosMobilidade,
   sugerirRotaParaDestino,
   valorCorridaComLugares,
   type ModalidadeMobilidadeId,
   type MoedaMobilidadeId,
   type PagamentoMobilidadeId,
+  type SugestaoDestinoMobilidade,
   MOEDAS_MOBILIDADE,
   PAGAMENTOS_ORDEM,
 } from '@/lib/mobilidadePopupPesquisa'
 import type { RotaTabelada } from '@/lib/servicosTabeladosCatalogo'
-import { labelIdiomaGuia } from '@/lib/idiomasGuia'
+import { IDIOMAS_GUIA, labelIdiomaGuia, normalizarIdiomasGuia } from '@/lib/idiomasGuia'
 import { parseMobilidadeStatus } from '@/lib/mobilidadeStatusProfissional'
 import CotacaoValorMobilidade from '@/components/mobilidade/CotacaoValorMobilidade'
 import BlocoProfissionalDrawerParticular, {
@@ -76,6 +82,16 @@ type Props = {
   destinoLabelCurto?: string | null
   /** Drawers 2–3: nome + endereço (empresa). */
   destinoLabelCompleto?: string | null
+  /** Empresas do mapa — autocomplete do destino (particular). */
+  empresas?: {
+    id: string
+    nome_fantasia: string
+    cidade?: string | null
+    endereco?: string | null
+    foto_url?: string | null
+    latitude?: number | null
+    longitude?: number | null
+  }[]
   /** Após PROCURAR: fecha drawer e entrega resultado à página. */
   onResultado: (r: ResultadoCorridaMobilidade) => void
 }
@@ -264,6 +280,7 @@ export default function DrawerPesquisaMobilidade({
   destinoNomeEmpresa = null,
   destinoLabelCurto = null,
   destinoLabelCompleto = null,
+  empresas = [],
   onResultado,
 }: Props) {
   const t = useTranslations('Mobilidade')
@@ -313,11 +330,20 @@ export default function DrawerPesquisaMobilidade({
   const [editandoEndereco, setEditandoEndereco] = useState(false)
   const [origemDraft, setOrigemDraft] = useState<MobilidadePonto>({ nome: '', lat: null, lng: null })
   const [destinoDraft, setDestinoDraft] = useState<MobilidadePonto>({ nome: '', lat: null, lng: null })
+  const [destinoEmpresaDraft, setDestinoEmpresaDraft] = useState<string | null>(null)
+  const [sugestoesDestinoAbertas, setSugestoesDestinoAbertas] = useState(false)
+  const [rotaAplicada, setRotaAplicada] = useState<{
+    origem: MobilidadePonto
+    destino: MobilidadePonto
+    destinoEmpresaId: string | null
+  } | null>(null)
+  const listaSugestoesRef = useRef<HTMLUListElement | null>(null)
   const [chevIdioma, setChevIdioma] = useState(false)
   const [chevLugares, setChevLugares] = useState(false)
   const [chevAgendar, setChevAgendar] = useState(false)
   const [chevBeneficios, setChevBeneficios] = useState(false)
   const [dicaLugaresAberta, setDicaLugaresAberta] = useState(false)
+  const [dicaPagamentoAberta, setDicaPagamentoAberta] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [profParticular, setProfParticular] = useState<ProfissionalDrawerParticular | null>(null)
   const [profParticularLoading, setProfParticularLoading] = useState(false)
@@ -325,31 +351,50 @@ export default function DrawerPesquisaMobilidade({
   const [particularPermiteImediato, setParticularPermiteImediato] = useState(true)
 
   const modoParticular = ehContratacaoDirigida(pesquisa)
+  const modoCamposAbertos = resolverModoContratacaoMobilidade(pesquisa) === 'particular'
+
+  const origemEfetiva = rotaAplicada?.origem ?? pesquisa.origem
+  const destinoEfetiva =
+    rotaAplicada?.destino ??
+    (modoCamposAbertos ? { nome: '', lat: null, lng: null } : pesquisa.destino)
+  const destEmpresaEfetiva =
+    rotaAplicada?.destinoEmpresaId ?? (modoCamposAbertos ? null : pesquisa.destinoEmpresaId)
 
   const destinoLabelBase =
+    destinoEfetiva.nome.trim() ||
     destinoLabelCurto ||
     pesquisa.destino.nome ||
     destinoNomeEmpresa ||
-    (pesquisa.destinoEmpresaId ? t('destinoEmpresa') : '—')
+    (destEmpresaEfetiva ? t('destinoEmpresa') : '—')
 
-  // Snapshot do pai tem prioridade — texto completo no 1º paint.
-  const destinoLabelEtapa1 = destinoLabelCurto || destinoLabelBase
-  const destinoLabelEtapa23 = destinoLabelCompleto || destinoLabelCurto || destinoLabelBase
+  // Snapshot do pai tem prioridade — texto completo no 1º paint (algoritmo).
+  const destinoLabelEtapa1 = modoCamposAbertos
+    ? destinoLabelBase
+    : destinoLabelCurto || destinoLabelBase
+  const destinoLabelEtapa23 = modoCamposAbertos
+    ? destinoLabelBase
+    : destinoLabelCompleto || destinoLabelCurto || destinoLabelBase
   const destinoLabel = etapa === 1 ? destinoLabelEtapa1 : destinoLabelEtapa23
 
   const origemLabel =
-    pesquisa.origem.nome ||
-    (pesquisa.origem.lat != null
-      ? `${pesquisa.origem.lat.toFixed(4)}, ${pesquisa.origem.lng?.toFixed(4)}`
+    origemEfetiva.nome.trim() ||
+    (origemEfetiva.lat != null
+      ? `${origemEfetiva.lat.toFixed(4)}, ${origemEfetiva.lng?.toFixed(4)}`
       : '—')
 
-  const cidadeOrigem = useMemo(() => inferirCidadeDePonto(pesquisa.origem), [pesquisa.origem])
-  const cidadeDestino = useMemo(
-    () =>
-      inferirCidadeDePonto(pesquisa.destino, destinoCidadeEmpresa) ??
-      inferirCidadeDePonto({ nome: destinoLabelBase, lat: null, lng: null }, destinoCidadeEmpresa),
-    [pesquisa.destino, destinoCidadeEmpresa, destinoLabelBase],
-  )
+  const cidadeOrigem = useMemo(() => inferirCidadeDePonto(origemEfetiva), [origemEfetiva])
+  const cidadeDestino = useMemo(() => {
+    const emp = destEmpresaEfetiva
+      ? empresas.find((e) => e.id === destEmpresaEfetiva)
+      : null
+    return (
+      inferirCidadeDePonto(destinoEfetiva, emp?.cidade ?? destinoCidadeEmpresa) ??
+      inferirCidadeDePonto(
+        { nome: destinoLabelBase, lat: null, lng: null },
+        emp?.cidade ?? destinoCidadeEmpresa,
+      )
+    )
+  }, [destinoEfetiva, destEmpresaEfetiva, empresas, destinoCidadeEmpresa, destinoLabelBase])
   const cruzamento = ehCruzamentoFronteira(cidadeOrigem, cidadeDestino)
 
   const disponiveisBase = useMemo(() => modalidadesDisponiveis(cruzamento), [cruzamento])
@@ -372,18 +417,52 @@ export default function DrawerPesquisaMobilidade({
     setChevAgendar(false)
     setChevBeneficios(false)
     setDicaLugaresAberta(false)
+    setDicaPagamentoAberta(false)
     setEnviando(false)
     setProfParticular(null)
     setParticularPermiteImediato(true)
+    setSugestoesDestinoAbertas(false)
     setOrigemDraft({ ...pesquisa.origem })
-    setDestinoDraft({
-      nome: destinoLabelCurto || pesquisa.destino.nome || destinoNomeEmpresa || '',
-      lat: pesquisa.destino.lat,
-      lng: pesquisa.destino.lng,
-    })
+    if (modoCamposAbertos) {
+      setEditandoEndereco(true)
+      const destVazio: MobilidadePonto = { nome: '', lat: null, lng: null }
+      setDestinoDraft(destVazio)
+      setDestinoEmpresaDraft(null)
+      setRotaAplicada({
+        origem: { ...pesquisa.origem },
+        destino: destVazio,
+        destinoEmpresaId: null,
+      })
+    } else {
+      setEditandoEndereco(false)
+      setDestinoDraft({
+        nome: destinoLabelCurto || pesquisa.destino.nome || destinoNomeEmpresa || '',
+        lat: pesquisa.destino.lat,
+        lng: pesquisa.destino.lng,
+      })
+      setDestinoEmpresaDraft(pesquisa.destinoEmpresaId)
+      setRotaAplicada({
+        origem: { ...pesquisa.origem },
+        destino: { ...pesquisa.destino },
+        destinoEmpresaId: pesquisa.destinoEmpresaId,
+      })
+    }
     // Só no open / troca de pesquisa relevante — não a cada keystroke de draft.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aberto, pesquisa.destinoEmpresaId, pesquisa.destino.lat, pesquisa.destino.lng, pesquisa.profissionalUsuarioId, pesquisa.modo])
+  }, [aberto, pesquisa.profissionalUsuarioId, pesquisa.modo, pesquisa.recomendacaoId])
+
+  useEffect(() => {
+    if (!aberto || !modoCamposAbertos) return
+    if (origemDraft.nome.trim() && origemDraft.lat != null) return
+    if (!pesquisa.origem.nome.trim() && pesquisa.origem.lat == null) return
+    setOrigemDraft({ ...pesquisa.origem })
+    setRotaAplicada((prev) =>
+      prev
+        ? { ...prev, origem: { ...pesquisa.origem } }
+        : { origem: { ...pesquisa.origem }, destino: destinoDraft, destinoEmpresaId: destinoEmpresaDraft },
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aberto, modoCamposAbertos, pesquisa.origem.nome, pesquisa.origem.lat, pesquisa.origem.lng])
 
   useEffect(() => {
     if (!aberto || !modoParticular) {
@@ -400,7 +479,7 @@ export default function DrawerPesquisaMobilidade({
       const { data, error } = await supabase
         .from('profissionais')
         .select(
-          'nome_completo, nome_usuario, foto_url, foto_perfil_url, categorias, placa_vermelha, docs_verificado, docs_verificado_em, created_at, status, mobilidade_status',
+          'nome_completo, nome_usuario, foto_url, foto_perfil_url, categorias, placa_vermelha, docs_verificado, docs_verificado_em, created_at, status, mobilidade_status, idiomas',
         )
         .eq('usuario_id', uid)
         .maybeSingle()
@@ -414,6 +493,14 @@ export default function DrawerPesquisaMobilidade({
       const placa = Boolean(data.placa_vermelha)
       const mod = modalidadeDeCategoriasProfissional(cats, placa)
       if (mod) setModalidade(mod)
+      if (mod === 'guia') {
+        const lista = IDIOMAS_GUIA.filter((i) =>
+          normalizarIdiomasGuia(data.idiomas).includes(i.codigo),
+        ).map((i) => ({ codigo: i.codigo, label: i.label, bandeira: i.bandeira }))
+        setIdiomasFiltro(lista)
+        setIdiomaPreferido(lista[0]?.codigo ?? '')
+        setIdiomasFiltroLoading(false)
+      }
       const statusMob = parseMobilidadeStatus(data.mobilidade_status)
       const imediatoOk = statusMob === 'online'
       setParticularPermiteImediato(imediatoOk)
@@ -473,7 +560,7 @@ export default function DrawerPesquisaMobilidade({
   }, [aberto, cidadeOrigem])
 
   useEffect(() => {
-    if (!aberto || modalidade !== 'guia') return
+    if (!aberto || modalidade !== 'guia' || modoParticular) return
     let ativo = true
     setIdiomasFiltroLoading(true)
     void (async () => {
@@ -498,7 +585,7 @@ export default function DrawerPesquisaMobilidade({
     return () => {
       ativo = false
     }
-  }, [aberto, modalidade])
+  }, [aberto, modalidade, modoParticular])
 
   const valoresPorMod = useMemo(() => {
     const destTxt = destinoLabelBase
@@ -549,6 +636,17 @@ export default function DrawerPesquisaMobilidade({
     else if (disponiveis[0]) setModalidade(disponiveis[0])
     else setModalidade(null)
   }, [aberto, recomendada, disponiveis, modalidade, modoParticular])
+
+  const sugestoesDestino = useMemo(
+    () =>
+      sugerirDestinosMobilidade({
+        query: destinoDraft.nome,
+        rotas,
+        empresas,
+        limite: 12,
+      }),
+    [destinoDraft.nome, rotas, empresas],
+  )
 
   if (!aberto) return null
 
@@ -601,27 +699,54 @@ export default function DrawerPesquisaMobilidade({
       ? valorCorridaComLugares(modalidade, valorUnitarioAtual, lugares)
       : null
 
+  const aplicarRota = (
+    origem: MobilidadePonto,
+    destino: MobilidadePonto,
+    destinoEmpresaId: string | null,
+    fecharEdicao = false,
+  ) => {
+    const o: MobilidadePonto = {
+      nome: origem.nome.trim(),
+      lat: origem.lat,
+      lng: origem.lng,
+    }
+    const d: MobilidadePonto = {
+      nome: destino.nome.trim(),
+      lat: destino.lat,
+      lng: destino.lng,
+    }
+    setRotaAplicada({ origem: o, destino: d, destinoEmpresaId })
+    if (fecharEdicao) setEditandoEndereco(false)
+    // Particular: destino fica só no drawer — a URL permanece vazia (não herda busca anterior).
+    if (!modoCamposAbertos) {
+      router.replace(
+        buildMobilidadePesquisaHref({
+          origem: o,
+          destino: d,
+          destinoEmpresaId,
+          recomendacaoId: pesquisa.recomendacaoId,
+          profissionalUsuarioId: pesquisa.profissionalUsuarioId,
+          modo: pesquisa.modo,
+          abrirPesquisa: true,
+        }),
+      )
+      if (fecharEdicao) setEditandoEndereco(false)
+    }
+  }
+
   const aplicarEnderecoEditado = () => {
-    router.replace(
-      buildMobilidadePesquisaHref({
-        origem: {
-          nome: origemDraft.nome.trim(),
-          lat: origemDraft.lat,
-          lng: origemDraft.lng,
-        },
-        destino: {
-          nome: destinoDraft.nome.trim(),
-          lat: destinoDraft.lat,
-          lng: destinoDraft.lng,
-        },
-        destinoEmpresaId: pesquisa.destinoEmpresaId,
-        recomendacaoId: pesquisa.recomendacaoId,
-        profissionalUsuarioId: pesquisa.profissionalUsuarioId,
-        modo: pesquisa.modo,
-        abrirPesquisa: true,
-      }),
-    )
-    setEditandoEndereco(false)
+    aplicarRota(origemDraft, destinoDraft, destinoEmpresaDraft, true)
+  }
+
+  const mostrarSugestoesDestino =
+    modoCamposAbertos && etapa === 1 && sugestoesDestinoAbertas && sugestoesDestino.length > 0
+
+  const escolherSugestaoDestino = (s: SugestaoDestinoMobilidade) => {
+    const d: MobilidadePonto = { nome: s.label, lat: s.lat, lng: s.lng }
+    setDestinoDraft(d)
+    setDestinoEmpresaDraft(s.empresaId)
+    setSugestoesDestinoAbertas(false)
+    aplicarRota(origemDraft, d, s.empresaId)
   }
 
   const alterarAgendarOutraData = (checked: boolean) => {
@@ -657,11 +782,11 @@ export default function DrawerPesquisaMobilidade({
           modalidade,
           origem_nome: origemLabel,
           destino_nome: destinoLabelBase,
-          origem_lat: pesquisa.origem.lat,
-          origem_lng: pesquisa.origem.lng,
-          destino_lat: pesquisa.destino.lat,
-          destino_lng: pesquisa.destino.lng,
-          destino_empresa_id: pesquisa.destinoEmpresaId,
+          origem_lat: origemEfetiva.lat,
+          origem_lng: origemEfetiva.lng,
+          destino_lat: destinoEfetiva.lat,
+          destino_lng: destinoEfetiva.lng,
+          destino_empresa_id: destEmpresaEfetiva,
           destino_cidade: destinoCidadeEmpresa,
           cruzamento_fronteira: cruzamento,
           valor_estimado: valor,
@@ -767,7 +892,7 @@ export default function DrawerPesquisaMobilidade({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3" data-modal-scroll-lock-scrollable>
-        {etapa === 1 && modoParticular ? (
+        {modoParticular ? (
           <div className="mb-2">
             {profParticularLoading ? (
               <p className="py-6 text-center text-sm text-gray-500">…</p>
@@ -789,7 +914,179 @@ export default function DrawerPesquisaMobilidade({
 
         {/* Card rota */}
         <div className="rounded-xl px-3 py-2.5 text-sm text-white" style={{ backgroundColor: COR }}>
-          {etapa === 1 && editandoEndereco ? (
+          {etapa === 1 && modoCamposAbertos && editandoEndereco ? (
+            <div className="space-y-2">
+              <div className="space-y-2 text-center">
+                <label className="block text-[11px] font-bold uppercase tracking-wide text-white">
+                  {t('origemLabel')}
+                  <input
+                    type="text"
+                    value={origemDraft.nome}
+                    onChange={(e) => {
+                      const nome = e.target.value
+                      setOrigemDraft((p) =>
+                        nome === p.nome
+                          ? p
+                          : p.lat != null || p.lng != null
+                            ? { nome, lat: null, lng: null }
+                            : { ...p, nome },
+                      )
+                    }}
+                    className="mt-1 w-full rounded-lg border border-[#0097b2]/20 bg-white px-3 py-2 text-center text-sm font-medium outline-none placeholder:text-[#0097b2]/50"
+                    style={{ color: COR }}
+                    placeholder={t('origemManualPlaceholder')}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                  />
+                </label>
+                <div className="block text-[11px] font-bold uppercase tracking-wide text-white">
+                  {t('destinoLabel')}
+                  <span className="relative mt-1 block">
+                    <input
+                      type="text"
+                      value={destinoDraft.nome}
+                      onChange={(e) => {
+                        setDestinoDraft({ nome: e.target.value, lat: null, lng: null })
+                        setDestinoEmpresaDraft(null)
+                        setSugestoesDestinoAbertas(true)
+                      }}
+                      onFocus={() => setSugestoesDestinoAbertas(true)}
+                      onBlur={() => {
+                        window.setTimeout(() => setSugestoesDestinoAbertas(false), 200)
+                      }}
+                      className={`w-full rounded-lg border border-[#0097b2]/20 bg-white px-3 py-2 text-center text-sm font-medium outline-none placeholder:text-[#0097b2]/50${
+                        destinoDraft.nome.trim() ? ' pr-10' : ''
+                      }`}
+                      style={{ color: COR }}
+                      placeholder={t('destinoPlaceholder')}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck={false}
+                      role="combobox"
+                      aria-expanded={mostrarSugestoesDestino}
+                      aria-autocomplete="list"
+                    />
+                    {destinoDraft.nome.trim() ? (
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#0097b2] hover:bg-[#0097b2]/10"
+                        aria-label={t('limparDestino')}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          const vazio = { nome: '', lat: null, lng: null }
+                          setDestinoDraft(vazio)
+                          setDestinoEmpresaDraft(null)
+                          setSugestoesDestinoAbertas(false)
+                          aplicarRota(origemDraft, vazio, null)
+                        }}
+                      >
+                        <X className="h-4 w-4" aria-hidden strokeWidth={2.5} />
+                      </button>
+                    ) : null}
+                  </span>
+                  {mostrarSugestoesDestino ? (
+                    <ul
+                      ref={listaSugestoesRef}
+                      className="mt-2 max-h-[min(42vh,13.5rem)] min-h-[10.5rem] touch-pan-y overflow-y-auto overscroll-contain rounded-xl border border-white/30 bg-white py-1 text-left shadow-md normal-case tracking-normal font-normal"
+                      style={{ WebkitOverflowScrolling: 'touch' }}
+                      role="listbox"
+                      onTouchMove={(e) => e.stopPropagation()}
+                    >
+                      {sugestoesDestino.map((s) => (
+                        <li key={s.id} role="option">
+                          <button
+                            type="button"
+                            className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left hover:bg-[#0097b2]/8"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => escolherSugestaoDestino(s)}
+                          >
+                            {s.tipo === 'empresa' ? (
+                              s.fotoUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={s.fotoUrl}
+                                  alt=""
+                                  className="mt-0.5 h-9 w-9 shrink-0 rounded-lg bg-gray-100 object-cover"
+                                />
+                              ) : (
+                                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0097b2]/15">
+                                  <Building2 className="h-4 w-4 text-[#0097b2]" aria-hidden />
+                                </span>
+                              )
+                            ) : (
+                              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0097b2]/15">
+                                <Route className="h-4 w-4 text-[#0097b2]" aria-hidden />
+                              </span>
+                            )}
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm font-semibold text-gray-900">{s.label}</span>
+                              {s.tipo === 'empresa' ? (
+                                <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">
+                                  {[s.endereco, s.detalhe].filter(Boolean).join(' · ') ||
+                                    t('sugestaoEmpresa')}
+                                </span>
+                              ) : (
+                                <span className="mt-0.5 block text-[11px] text-gray-500">
+                                  {t('sugestaoRota')}
+                                </span>
+                              )}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={aplicarEnderecoEditado}
+                className="mx-auto block w-[55%] max-w-[12rem] rounded-lg py-2 text-xs font-bold uppercase text-white"
+                style={{ backgroundColor: VERDE }}
+              >
+                {t('aplicarEndereco')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  aplicarRota(origemDraft, destinoDraft, destinoEmpresaDraft)
+                  setEditandoEndereco(false)
+                }}
+                className="mx-auto flex items-center justify-center rounded-lg p-1 text-white hover:bg-white/15"
+                aria-label={t('editarEndereco')}
+                aria-expanded
+              >
+                <ChevronUp className="h-5 w-5 text-white" aria-hidden />
+              </button>
+            </div>
+          ) : etapa === 1 && modoCamposAbertos ? (
+            <div className="text-center text-white">
+              <p>
+                <span className="text-[11px] font-bold uppercase tracking-wide text-white">
+                  {t('origemLabel')}:{' '}
+                </span>
+                <span className="text-sm font-medium text-white">{origemLabel}</span>
+              </p>
+              <p className="mt-1">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-white">
+                  {t('destinoLabel')}:{' '}
+                </span>
+                <span className="text-sm font-medium text-white">{destinoLabel}</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => setEditandoEndereco(true)}
+                className="mx-auto mt-2 flex items-center justify-center rounded-lg p-1 text-white hover:bg-white/15"
+                aria-label={t('editarEndereco')}
+                aria-expanded={false}
+              >
+                <ChevronDown className="h-5 w-5 text-white" aria-hidden />
+              </button>
+            </div>
+          ) : etapa === 1 && editandoEndereco ? (
             <div className="space-y-2">
               <div className="space-y-2 text-center">
                 <label className="block text-[11px] font-bold uppercase tracking-wide text-white">
@@ -831,30 +1128,6 @@ export default function DrawerPesquisaMobilidade({
                 aria-expanded
               >
                 <ChevronUp className="h-5 w-5 text-white" aria-hidden />
-              </button>
-            </div>
-          ) : etapa === 1 && modoParticular ? (
-            <div className="text-center text-white">
-              <p>
-                <span className="text-[11px] font-bold uppercase tracking-wide text-white">
-                  {t('origemLabel')}:{' '}
-                </span>
-                <span className="text-sm font-medium text-white">{origemLabel}</span>
-              </p>
-              <p className="mt-1">
-                <span className="text-[11px] font-bold uppercase tracking-wide text-white">
-                  {t('destinoLabel')}:{' '}
-                </span>
-                <span className="text-sm font-medium text-white">{destinoLabel}</span>
-              </p>
-              <button
-                type="button"
-                onClick={() => setEditandoEndereco(true)}
-                className="mx-auto mt-2 flex items-center justify-center rounded-lg p-1 text-white hover:bg-white/15"
-                aria-label={t('editarEndereco')}
-                aria-expanded={false}
-              >
-                <ChevronDown className="h-5 w-5 text-white" aria-hidden />
               </button>
             </div>
           ) : etapa === 1 ? (
@@ -1037,7 +1310,9 @@ export default function DrawerPesquisaMobilidade({
                       </button>
                     ))}
                   </div>
-                  <p className="mt-2 text-[11px] text-gray-400">{t('idiomaHint')}</p>
+                  {modoParticular ? null : (
+                    <p className="mt-2 text-[11px] text-gray-400">{t('idiomaHint')}</p>
+                  )}
                 </>
               )}
             </ChevronSecao>
@@ -1313,14 +1588,25 @@ export default function DrawerPesquisaMobilidade({
             )}
 
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: COR }}>
-                {t('formaPagamento')}
-              </p>
-              {modalidade !== 'motorista_app' ? (
-                <div className="mb-3 flex gap-2 rounded-lg border border-[#0097b2]/30 bg-[#0097b2]/5 px-3 py-2.5 text-sm text-gray-700">
-                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#0097b2]" aria-hidden />
-                  <p>{t('pagamentoInicioHint')}</p>
-                </div>
+              <div className="mb-2 flex items-center gap-1.5">
+                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: COR }}>
+                  {t('formaPagamento')}
+                </p>
+                {modalidade !== 'motorista_app' ? (
+                  <button
+                    type="button"
+                    onClick={() => setDicaPagamentoAberta((v) => !v)}
+                    className="shrink-0 rounded-full p-0.5"
+                    style={{ color: COR }}
+                    aria-label={t('pagamentoInicioHint')}
+                    aria-expanded={dicaPagamentoAberta}
+                  >
+                    <Info className="h-4 w-4" aria-hidden />
+                  </button>
+                ) : null}
+              </div>
+              {dicaPagamentoAberta && modalidade !== 'motorista_app' ? (
+                <p className="mb-3 text-[11px] leading-snug text-gray-500">{t('pagamentoInicioHint')}</p>
               ) : null}
               <ul className="space-y-2">
                 {PAGAMENTOS_ORDEM.map((id) => (
@@ -1383,9 +1669,17 @@ export default function DrawerPesquisaMobilidade({
             type="button"
             disabled={
               !modalidade ||
-              (modoParticular && (profParticularLoading || !profParticular))
+              (modoCamposAbertos &&
+                (profParticularLoading ||
+                  !profParticular ||
+                  !pontoPreenchido(origemDraft) ||
+                  !pontoPreenchido(destinoDraft))) ||
+              (modoParticular && !modoCamposAbertos && (profParticularLoading || !profParticular))
             }
-            onClick={() => setEtapa(2)}
+            onClick={() => {
+              if (modoCamposAbertos) aplicarEnderecoEditado()
+              setEtapa(2)
+            }}
             className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold uppercase text-white disabled:opacity-50"
             style={{ backgroundColor: VERDE }}
           >
