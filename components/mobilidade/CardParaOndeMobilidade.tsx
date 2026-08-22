@@ -44,6 +44,7 @@ type CorridaTuristaResumo = {
   solicitacao_id: string
   status: string
   data_agendada?: string | null
+  modalidade?: string | null
   profissional?: ProfissionalCorrida | null
 }
 
@@ -385,6 +386,11 @@ export default function CardParaOndeMobilidade({
           : st === 'a_caminho'
             ? t('drawerAtivoMotoristaACaminho')
             : t('drawerAtivoEmAndamento')
+    const mod = String(corridaAtiva?.modalidade ?? '')
+    const categoriaLabel =
+      mod === 'guia' || mod === 'van' || mod === 'taxista' || mod === 'motorista_app'
+        ? t(`mod.${mod}.label`)
+        : null
 
     return (
       <div className={`w-full max-w-lg ${className}`}>
@@ -434,6 +440,7 @@ export default function CardParaOndeMobilidade({
                 fallbackNome={t('atendimentoProfissionalFallback')}
                 onAbrir={pedirAbrirDrawerAtendimentoAtivo}
                 ariaLabel={t('drawerAtivoAbrirDetalhe')}
+                categoriaLabel={categoriaLabel}
               />
             </div>
           ) : null}

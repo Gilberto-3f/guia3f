@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { assertUserSession } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
-import { inserirParadasItinerario } from '@/lib/itinerarioParadas'
+import { inserirParadasItinerario, listarParadasManifesto } from '@/lib/itinerarioParadas'
 
 /** Turista adiciona atrativos ao manifesto ativo do profissional contratado. */
 export async function POST(req: Request) {
@@ -62,4 +62,51 @@ export async function POST(req: Request) {
   })
 
   return NextResponse.json({ ok: true, manifesto_id: md.id })
+}
+
+/** Lista as paradas que este turista marcou no manifesto elegível. */
+export async function GET() {
+  const auth = await assertUserSession()
+  if (!auth.ok) return auth.error
+
+  const hoje = new Date().toISOString().slice(0, 10)
+  const { data: rows } = await auth.supabase
+    .from('manifesto_passageiros')
+    .select(
+      `
+      manifesto_id,
+      manifesto:manifesto_id (id, data_manifesto, status)
+    `,
+    )
+    .eq('turista_id', auth.userId)
+
+  type Cand = { manifestoId: string; data: string }
+  const cands: Cand[] = []
+  for (const r of rows ?? []) {
+    const m = r.manifesto as
+      | { id?: string; data_manifesto?: string; status?: string }
+      | { id?: string; data_manifesto?: string; status?: string }[]
+      | null
+    const md = Array.isArray(m) ? m[0] : m
+    if (!md?.id) continue
+    const st = String(md.status ?? '')
+    if (st === 'cancelado' || st === 'concluido') continue
+    const data = String(md.data_manifesto ?? '').slice(0, 10)
+    if (data < hoje) continue
+    cands.push({ manifestoId: String(md.id), data })
+  }
+  if (cands.length === 0) {
+    return NextResponse.json({ ok: true, paradas: [] as unknown[], manifesto_id: null })
+  }
+  cands.sort((a, b) => a.data.localeCompare(b.data))
+  const escolhido = cands.find((c) => c.data === hoje) ?? cands[0]
+
+  const todas = await listarParadasManifesto(auth.supabase, escolhido.manifestoId)
+  const paradas = todas.filter((p) => p.turista_id === auth.userId)
+
+  return NextResponse.json({
+    ok: true,
+    manifesto_id: escolhido.manifestoId,
+    paradas,
+  })
 }

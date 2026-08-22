@@ -34,6 +34,8 @@ type CorridaTurista = {
   status: string
   origem_nome: string | null
   destino_nome: string | null
+  destino_empresa_id?: string | null
+  manifesto_id?: string | null
   modalidade: string | null
   valor_estimado: number | null
   pagamento: string | null
@@ -117,6 +119,7 @@ export default function ChegadaTuristaMobilidadeListener({ onCorridaChange }: Pr
               solicitacao_id: next.solicitacao_id,
               status: next.status,
               data_agendada: next.data_agendada,
+              modalidade: next.modalidade,
               profissional: next.profissional
                 ? {
                     nome: next.profissional.nome,
@@ -177,6 +180,8 @@ export default function ChegadaTuristaMobilidadeListener({ onCorridaChange }: Pr
     data_agendada: corrida.data_agendada,
     modalidade: corrida.modalidade,
     conversa_id: corrida.conversa_id,
+    manifesto_id: corrida.manifesto_id ?? null,
+    destino_empresa_id: corrida.destino_empresa_id ?? null,
     lat_origem: corrida.lat_origem ?? null,
     lng_origem: corrida.lng_origem ?? null,
     lat_destino: corrida.lat_destino ?? null,

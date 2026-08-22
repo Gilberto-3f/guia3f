@@ -18,7 +18,7 @@ export async function GET() {
   const { data: row } = await admin
     .from('solicitacao_mobilidade')
     .select(
-      'id, status, origem_nome, destino_nome, modalidade, valor_estimado, pagamento, lugares, data_agendada, profissional_id, metadata, lat_origem, lng_origem, lat_destino, lng_destino',
+      'id, status, origem_nome, destino_nome, modalidade, valor_estimado, pagamento, lugares, data_agendada, profissional_id, metadata, destino_empresa_id, lat_origem, lng_origem, lat_destino, lng_destino',
     )
     .eq('turista_id', auth.userId)
     .in('status', ['aceita', 'a_caminho', 'no_local', 'em_viagem'])
@@ -91,6 +91,11 @@ export async function GET() {
     .eq('solicitacao_id', row.id)
     .maybeSingle()
 
+  const meta =
+    row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
+      ? (row.metadata as Record<string, unknown>)
+      : {}
+
   return NextResponse.json({
     ok: true,
     corrida: {
@@ -98,6 +103,9 @@ export async function GET() {
       status: String(row.status),
       origem_nome: row.origem_nome != null ? String(row.origem_nome) : null,
       destino_nome: row.destino_nome != null ? String(row.destino_nome) : null,
+      destino_empresa_id:
+        row.destino_empresa_id != null ? String(row.destino_empresa_id) : null,
+      manifesto_id: meta.manifesto_id != null ? String(meta.manifesto_id) : null,
       modalidade: row.modalidade != null ? String(row.modalidade) : null,
       valor_estimado: row.valor_estimado != null ? Number(row.valor_estimado) : null,
       pagamento: row.pagamento != null ? String(row.pagamento) : null,

@@ -17,6 +17,7 @@ type Props = {
   fallbackNome: string
   onAbrir: () => void
   ariaLabel: string
+  categoriaLabel?: string | null
 }
 
 /** Mini card da outra parte no floating (header verde) — toque abre o drawer. */
@@ -25,6 +26,7 @@ export default function CardParteAtendimentoFlutuante({
   fallbackNome,
   onAbrir,
   ariaLabel,
+  categoriaLabel,
 }: Props) {
   const username = String(parte?.username ?? '').replace(/^@+/, '') || 'usuario'
 
@@ -59,6 +61,9 @@ export default function CardParteAtendimentoFlutuante({
           asButton={false}
           className="text-xs font-normal leading-tight text-gray-600"
         />
+        {categoriaLabel ? (
+          <p className="mt-0.5 truncate text-xs font-medium text-[#0097b2]">{categoriaLabel}</p>
+        ) : null}
       </div>
     </button>
   )

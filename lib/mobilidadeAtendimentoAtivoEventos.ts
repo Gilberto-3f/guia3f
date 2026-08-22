@@ -21,6 +21,7 @@ export type CorridaTuristaFlutuante = {
   solicitacao_id: string
   status: string
   data_agendada?: string | null
+  modalidade?: string | null
   profissional?: ParteCorridaFlutuante | null
 }
 

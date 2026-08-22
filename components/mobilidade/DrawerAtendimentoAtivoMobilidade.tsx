@@ -6,13 +6,13 @@ import { useTranslations } from 'next-intl'
 import {
   Car,
   Check,
-  ChevronDown,
   ClipboardList,
   Clock,
   Info,
   MapPin,
   MessageCircle,
   Navigation,
+  Plus,
   UserRound,
   X,
 } from 'lucide-react'
@@ -20,6 +20,7 @@ import AvatarImage from '@/components/AvatarImage'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import DrawerChatCorridaMobilidade from '@/components/mobilidade/DrawerChatCorridaMobilidade'
 import DrawerManifestoEspaco from '@/components/mobilidade/DrawerManifestoEspaco'
+import { useRouter } from '@/i18n/navigation'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import { modalidadeUsaManifesto, modalidadeUsaDeslocamentoProprio } from '@/lib/mobilidadeOfertaAtendimento'
 import { buscarRotaMapboxDriving, formatarDuracaoEta } from '@/lib/mapboxDirections'
@@ -54,6 +55,7 @@ export type AtendimentoAtivoUi = {
   modalidade: string | null
   conversa_id: string | null
   manifesto_id?: string | null
+  destino_empresa_id?: string | null
   lat_origem?: number | null
   lng_origem?: number | null
   lat_destino?: number | null
@@ -103,6 +105,20 @@ function labelPagamento(pagamento: string, t: (key: string) => string): string {
   }
 }
 
+function abaCls(ativo: boolean) {
+  return `flex min-w-0 flex-1 items-center justify-center border-b-[3px] py-2.5 text-center text-sm font-semibold tracking-wide uppercase transition-colors ${
+    ativo ? 'border-[#0097b2] text-[#0097b2]' : 'border-transparent text-gray-500'
+  }`
+}
+
+type ParadaTuristaUi = {
+  id: string
+  empresa_id: string
+  empresa_nome: string
+  empresa_foto: string | null
+  categoria: string
+}
+
 function tituloPorStatus(
   status: string,
   papel: 'profissional' | 'turista',
@@ -136,9 +152,12 @@ export default function DrawerAtendimentoAtivoMobilidade({
   erroChegada = null,
 }: Props) {
   const t = useTranslations('Mobilidade')
+  const router = useRouter()
   useModalScrollLock(aberto)
 
-  const [resumoAberto, setResumoAberto] = useState(false)
+  const [aba, setAba] = useState<'info' | 'itinerario'>('info')
+  const [dicaPag, setDicaPag] = useState(false)
+  const [paradas, setParadas] = useState<ParadaTuristaUi[]>([])
   const [chatAberto, setChatAberto] = useState(false)
   const [chatUnread, setChatUnread] = useState(0)
   const [chatLastReadIso, setChatLastReadIso] = useState<string | null>(null)
@@ -170,7 +189,8 @@ export default function DrawerAtendimentoAtivoMobilidade({
 
   useEffect(() => {
     if (!aberto) {
-      setResumoAberto(false)
+      setAba('info')
+      setDicaPag(false)
       setChatAberto(false)
       setChatUnread(0)
       setChatLastReadIso(null)
@@ -185,6 +205,12 @@ export default function DrawerAtendimentoAtivoMobilidade({
   const username = String(parte?.username ?? '').replace(/^@+/, '') || 'usuario'
 
   const agendado = Boolean(atendimento.data_agendada)
+  const mostrarAbasItinerario =
+    papel === 'turista' && modalidadeUsaManifesto(atendimento.modalidade)
+  const destEmpresaId = atendimento.destino_empresa_id
+    ? String(atendimento.destino_empresa_id)
+    : null
+  const paradasExtras = paradas.filter((p) => !destEmpresaId || p.empresa_id !== destEmpresaId)
 
   const onMensagensChange = useMemo(
     () => (msgs: { remetente_id: string; created_at: string }[], meuId: string | null) => {
@@ -280,6 +306,27 @@ export default function DrawerAtendimentoAtivoMobilidade({
     }
   }, [aberto, atendimento.modalidade, atendimento.destino_nome])
 
+  useEffect(() => {
+    if (!aberto || !mostrarAbasItinerario) {
+      setParadas([])
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch('/api/turista/manifesto/atrativos')
+        const json = (await res.json()) as { paradas?: ParadaTuristaUi[] }
+        if (cancelled || !res.ok) return
+        setParadas(Array.isArray(json.paradas) ? json.paradas : [])
+      } catch {
+        if (!cancelled) setParadas([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+              }, [aberto, mostrarAbasItinerario, atendimento.solicitacao_id])
+
   if (!aberto) return null
 
   return (
@@ -369,22 +416,42 @@ export default function DrawerAtendimentoAtivoMobilidade({
           </div>
         )}
 
+        {mostrarAbasItinerario ? (
+          <div className="mt-4 flex w-full border-b border-gray-200">
+            <button type="button" onClick={() => setAba('info')} className={abaCls(aba === 'info')}>
+              {t('abaInformacoes')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setAba('itinerario')}
+              className={abaCls(aba === 'itinerario')}
+            >
+              {t('abaItinerario')}
+            </button>
+          </div>
+        ) : null}
+
+        {(!mostrarAbasItinerario || aba === 'info') ? (
+          <>
         {/* Rota */}
-        <div className="mt-5 rounded-xl border border-gray-200 bg-[#f5f5f5] px-4 py-3">
-          <div className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-[#0097b2]">
+        <div
+          className="mt-4 rounded-xl px-4 py-3 text-white"
+          style={{ backgroundColor: COR }}
+        >
+          <div className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-white">
             <MapPin className="h-3.5 w-3.5" aria-hidden />
             {t('drawerAtivoRota')}
           </div>
-          <p className="text-sm text-gray-800">
-            <span className="font-semibold text-gray-600">{t('origemLabel')}: </span>
+          <p className="text-sm text-white">
+            <span className="font-semibold text-white/80">{t('origemLabel')}: </span>
             {atendimento.origem_nome || '—'}
           </p>
-          <p className="mt-1 text-sm text-gray-800">
-            <span className="font-semibold text-gray-600">{t('destinoLabel')}: </span>
+          <p className="mt-1 text-sm text-white">
+            <span className="font-semibold text-white/80">{t('destinoLabel')}: </span>
             {atendimento.destino_nome || '—'}
           </p>
           {etaSec != null && etaFase ? (
-            <p className="mt-2.5 flex items-center gap-1.5 text-sm font-semibold text-[#0097b2]">
+            <p className="mt-2.5 flex items-center gap-1.5 text-sm font-semibold text-white">
               <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />
               {etaFase === 'destino'
                 ? t('etaChegadaDestino', { eta: formatarDuracaoEta(etaSec) })
@@ -393,61 +460,56 @@ export default function DrawerAtendimentoAtivoMobilidade({
           ) : null}
         </div>
 
-        {/* Resumo (chevron) */}
-        <div className="mt-3 overflow-hidden rounded-xl border border-gray-200 bg-white">
-          <button
-            type="button"
-            onClick={() => setResumoAberto((v) => !v)}
-            className="flex w-full items-center gap-2 px-3 py-3 text-left"
-          >
-            <span className="min-w-0 flex-1 text-sm font-bold uppercase tracking-wide text-[#0097b2]">
+        {/* Resumo estático — dica de pagamento no ícone i */}
+        <div className="mt-3 overflow-hidden rounded-xl border border-gray-200 bg-white px-3 py-3">
+          <div className="flex items-center gap-2">
+            {papel === 'turista' && atendimento.modalidade !== 'motorista_app' ? (
+              <button
+                type="button"
+                onClick={() => setDicaPag((v) => !v)}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#0097b2]/10 text-[#0097b2]"
+                aria-label={t('itinerarioPagamentoAria')}
+                aria-expanded={dicaPag}
+              >
+                <Info className="h-4 w-4" aria-hidden />
+              </button>
+            ) : null}
+            <p className="min-w-0 flex-1 text-sm font-bold uppercase tracking-wide text-[#0097b2]">
               {t('resumoCorrida')}
-            </span>
-            <ChevronDown
-              className={`h-4 w-4 shrink-0 text-gray-500 transition-transform ${
-                resumoAberto ? 'rotate-180' : ''
-              }`}
-              aria-hidden
-            />
-          </button>
-          {resumoAberto ? (
-            <ul className="space-y-1.5 border-t border-gray-100 px-4 pb-3 pt-2 text-sm text-gray-800">
-              <li>
-                <span className="font-semibold text-gray-600">{t('valorCorrida')}: </span>
-                {atendimento.valor_estimado != null
-                  ? formatBrl(atendimento.valor_estimado)
-                  : t('valorIndisponivel')}
-              </li>
-              {atendimento.pagamento ? (
-                <li>
-                  <span className="font-semibold text-gray-600">{t('formaPagamento')}: </span>
-                  {labelPagamento(atendimento.pagamento, t)}
-                </li>
-              ) : null}
-              <li>
-                <span className="font-semibold text-gray-600">{t('resumoPassageiros')}: </span>
-                {atendimento.lugares ?? 1}
-              </li>
-              <li>
-                <span className="font-semibold text-gray-600">{t('resumoAgendamento')}: </span>
-                {agendado ? t('ecossistemaAtendimentoPre') : t('atendimentoImediato')}
-              </li>
-              {periodoRota ? (
-                <li>
-                  <span className="font-semibold text-gray-600">{t('resumoPeriodoRota')}: </span>
-                  {periodoRota}
-                </li>
-              ) : null}
-            </ul>
-          ) : null}
-        </div>
-
-        {papel === 'turista' && atendimento.modalidade !== 'motorista_app' ? (
-          <div className="mt-3 flex gap-2 rounded-xl border border-[#0097b2]/30 bg-[#0097b2]/5 px-3 py-2.5 text-sm text-gray-700">
-            <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#0097b2]" aria-hidden />
-            <p>{t('pagamentoInicioHint')}</p>
+            </p>
           </div>
-        ) : null}
+          {dicaPag ? (
+            <p className="mt-2 text-xs leading-relaxed text-gray-600">{t('pagamentoInicioHint')}</p>
+          ) : null}
+          <ul className="mt-2 space-y-1.5 text-sm text-gray-800">
+            <li>
+              <span className="font-semibold text-gray-600">{t('valorCorrida')}: </span>
+              {atendimento.valor_estimado != null
+                ? formatBrl(atendimento.valor_estimado)
+                : t('valorIndisponivel')}
+            </li>
+            {atendimento.pagamento ? (
+              <li>
+                <span className="font-semibold text-gray-600">{t('formaPagamento')}: </span>
+                {labelPagamento(atendimento.pagamento, t)}
+              </li>
+            ) : null}
+            <li>
+              <span className="font-semibold text-gray-600">{t('resumoPassageiros')}: </span>
+              {atendimento.lugares ?? 1}
+            </li>
+            <li>
+              <span className="font-semibold text-gray-600">{t('resumoAgendamento')}: </span>
+              {agendado ? t('ecossistemaAtendimentoPre') : t('atendimentoImediato')}
+            </li>
+            {periodoRota ? (
+              <li>
+                <span className="font-semibold text-gray-600">{t('resumoPeriodoRota')}: </span>
+                {periodoRota}
+              </li>
+            ) : null}
+          </ul>
+        </div>
 
         {mostrarChegadaDrawer ? (
           <div className="mt-3 rounded-xl px-4 py-3 text-white" style={{ backgroundColor: VERDE }}>
@@ -497,6 +559,74 @@ export default function DrawerAtendimentoAtivoMobilidade({
               </span>
             ) : null}
           </button>
+        ) : null}
+          </>
+        ) : null}
+
+        {mostrarAbasItinerario && aba === 'itinerario' ? (
+          <div className="mt-4 space-y-3">
+            <p className="text-sm leading-relaxed text-gray-700">{t('itinerarioHint')}</p>
+
+            <div>
+              <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-[#0097b2]">
+                {t('itinerarioDestinoFinal')}
+              </p>
+              <div className="flex items-center gap-3 rounded-xl border border-[#0097b2]/30 bg-[#0097b2]/5 px-3 py-2.5">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-[#0097b2]">
+                  <MapPin className="h-5 w-5" aria-hidden />
+                </div>
+                <p className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900">
+                  {atendimento.destino_nome || '—'}
+                </p>
+              </div>
+            </div>
+
+            {paradasExtras.length > 0 ? (
+              <ul className="space-y-2">
+                {paradasExtras.map((p) => (
+                  <li
+                    key={p.id}
+                    className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2.5"
+                  >
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-gray-100">
+                      {p.empresa_foto ? (
+                        <AvatarImage
+                          src={p.empresa_foto}
+                          alt=""
+                          fill
+                          className="object-cover"
+                          sizes="48px"
+                        />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center text-[#0097b2]">
+                          <MapPin className="h-5 w-5" aria-hidden />
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-gray-900">{p.empresa_nome}</p>
+                      {p.categoria ? (
+                        <p className="truncate text-xs text-gray-500">{p.categoria}</p>
+                      ) : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => {
+                onFechar()
+                router.push('/guia')
+              }}
+              className="mx-auto mt-2 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-md"
+              style={{ backgroundColor: COR }}
+              aria-label={t('itinerarioAdicionar')}
+            >
+              <Plus className="h-7 w-7" aria-hidden strokeWidth={2.5} />
+            </button>
+          </div>
         ) : null}
       </div>
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { MapPin } from 'lucide-react'
+import { Check, Plus } from 'lucide-react'
 
 type Props = {
   empresaId: string
@@ -10,9 +10,9 @@ type Props = {
 }
 
 /**
- * Alfinete azul: turista no manifesto (hoje ou agendado) marca a empresa no itinerário.
+ * Círculo + : turista no manifesto (hoje ou agendado) marca a empresa no itinerário.
  */
-export default function BotaoAlfineteItinerario({ empresaId, size = 22, className = '' }: Props) {
+export default function BotaoAlfineteItinerario({ empresaId, size = 18, className = '' }: Props) {
   const [elegivel, setElegivel] = useState(false)
   const [fixado, setFixado] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -72,18 +72,16 @@ export default function BotaoAlfineteItinerario({ empresaId, size = 22, classNam
       type="button"
       onClick={() => void toggle()}
       disabled={busy}
-      className={`flex items-center justify-center rounded-lg p-1.5 transition-opacity hover:bg-[#0097b2]/10 disabled:opacity-50 ${className}`}
+      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0097b2] text-white transition-opacity hover:opacity-90 disabled:opacity-50 ${className}`}
       aria-pressed={fixado}
       aria-label={fixado ? 'Remover do itinerário' : 'Marcar no itinerário do manifesto'}
       title={fixado ? 'No itinerário' : 'Marcar no itinerário'}
     >
-      <MapPin
-        className={fixado ? 'text-[#0097b2]' : 'text-gray-400'}
-        size={size}
-        strokeWidth={fixado ? 2.5 : 2}
-        fill={fixado ? '#0097b2' : 'none'}
-        aria-hidden
-      />
+      {fixado ? (
+        <Check size={size} strokeWidth={2.5} aria-hidden />
+      ) : (
+        <Plus size={size} strokeWidth={2.5} aria-hidden />
+      )}
     </button>
   )
 }

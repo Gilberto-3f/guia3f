@@ -583,11 +583,7 @@ export default function EmpresaPage() {
           <div className="flex shrink-0 items-center justify-end gap-1">
             {authCarregado && meuRole === 'turista' ? (
               <>
-                <BotaoAlfineteItinerario
-                  empresaId={empresaId}
-                  size={22}
-                  className="bg-white/95 hover:bg-white"
-                />
+                <BotaoAlfineteItinerario empresaId={empresaId} />
                 <BotaoEstrelaFavorito
                   usuarioId={usuarioId}
                   alvoId={empresaId}
