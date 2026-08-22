@@ -26,6 +26,7 @@ import {
 import { labelIdiomaGuia, normalizarIdiomasGuia } from '@/lib/idiomasGuia'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import { useRouter } from '@/i18n/navigation'
+import BotaoMobilidadeUrbanaCartao from '@/components/perfil/BotaoMobilidadeUrbanaCartao'
 import { supabase } from '@/lib/supabase'
 
 function formatMesAno(iso) {
@@ -306,7 +307,8 @@ export default function PopupCartaoVisitaProfissional({
     acoes.mostrarContratar ||
     acoes.mostrarRecomendar ||
     acoes.mostrarRecomendarMobilidade ||
-    acoes.mostrarAvaliar
+    acoes.mostrarAvaliar ||
+    acoes.mostrarMobilidadeUrbana
 
   const botoesAcaoCartao = mostrarAcoes ? (
     <div className="mx-auto mt-8 flex w-full max-w-sm flex-col items-stretch gap-2">
@@ -356,6 +358,7 @@ export default function PopupCartaoVisitaProfissional({
           AVALIAR PROFISSIONAL
         </button>
       ) : null}
+      {acoes.mostrarMobilidadeUrbana ? <BotaoMobilidadeUrbanaCartao /> : null}
     </div>
   ) : null
 

@@ -15,6 +15,8 @@ export type AcoesCartaoVisitaProfissional = {
   mostrarRecomendarMobilidade: boolean
   mostrarAvaliar: boolean
   avaliarHabilitado: boolean
+  /** Motorista de app: atalho de mobilidade urbana (ação ainda indefinida). */
+  mostrarMobilidadeUrbana: boolean
 }
 
 /** Normaliza categorias do banco para slugs comparáveis. */
@@ -82,10 +84,11 @@ export function resolverAvaliarVisaoTurista(
     visitadoPlacaVermelha,
     visitadoCategorias,
   )
-  if (!elegivel || !turistaPodeAvaliarProfissional) {
+  if (!elegivel) {
     return { mostrar: false, habilitado: false }
   }
-  return { mostrar: true, habilitado: true }
+  // Sempre visível (personal shopper). Desabilita só se já avaliou.
+  return { mostrar: true, habilitado: Boolean(turistaPodeAvaliarProfissional) }
 }
 
 /**
@@ -107,6 +110,7 @@ export function resolverAcoesCartaoVisitaProfissional(params: {
     mostrarRecomendarMobilidade: false,
     mostrarAvaliar: false,
     avaliarHabilitado: false,
+    mostrarMobilidadeUrbana: false,
   }
 
   if (!params.profissionalVerificado) return base
@@ -134,10 +138,21 @@ export function resolverAcoesCartaoVisitaProfissional(params: {
       mostrarRecomendarMobilidade: false,
       mostrarAvaliar: avaliar.mostrar,
       avaliarHabilitado: avaliar.habilitado,
+      mostrarMobilidadeUrbana: visitadoTipo === 'motorista_app',
     }
   }
 
-  if (params.visao !== 'profissional_visitante') return base
+  if (params.visao !== 'profissional_visitante') {
+    if (params.visao === 'visitante_anonimo' && visitadoTipo === 'motorista_app') {
+      return {
+        ...base,
+        mostrarAvaliar: true,
+        avaliarHabilitado: false,
+        mostrarMobilidadeUrbana: true,
+      }
+    }
+    return base
+  }
 
   const visitanteTipo = classificarTipoProfissionalCartao(
     params.visitantePlacaVermelha,
@@ -167,9 +182,9 @@ export function resolverAcoesCartaoVisitaProfissional(params: {
     mostrarContratar: false,
     mostrarRecomendar,
     mostrarRecomendarMobilidade,
-    // Profissional visitando outro: só recomendar (sem avaliar).
     mostrarAvaliar: false,
     avaliarHabilitado: false,
+    mostrarMobilidadeUrbana: false,
   }
 }
 

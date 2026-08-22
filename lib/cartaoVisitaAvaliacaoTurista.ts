@@ -169,6 +169,7 @@ export async function turistaPodeAvaliarAnfitriaoPosCheckout(
 
 /**
  * Motorista de app: avaliação sempre disponível (personal shopper), exceto se já avaliou.
+ * Não usa corrida de mobilidade urbana — a plataforma parceira avalia o trabalho de motorista.
  */
 export async function turistaPodeAvaliarMotoristaApp(
   supabase: SupabaseClient,
