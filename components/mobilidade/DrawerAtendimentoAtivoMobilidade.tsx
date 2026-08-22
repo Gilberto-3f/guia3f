@@ -631,6 +631,7 @@ export default function DrawerAtendimentoAtivoMobilidade({
       </div>
 
       {papel === 'profissional' &&
+      !modalidadeUsaManifesto(atendimento.modalidade) &&
       modalidadeUsaDeslocamentoProprio(atendimento.modalidade) &&
       st === 'em_viagem' ? (
         <div className="shrink-0 border-t border-gray-100 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { assertUserSessionLight } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { buscarCorridaAtivaProfissional } from '@/lib/mobilidadeCorrida'
+import { peekListaManifestoHoje } from '@/lib/manifestoLista'
 
 /** Corrida aceita do profissional logado (chat + concluir). */
 export async function GET() {
@@ -25,9 +26,16 @@ export async function GET() {
     return NextResponse.json({ error: 'Profissional não encontrado.' }, { status: 404 })
   }
 
-  const ativa = await buscarCorridaAtivaProfissional(admin, String(prof.id))
+  const lista = await peekListaManifestoHoje(admin, String(prof.id))
+  const ativa = await buscarCorridaAtivaProfissional(
+    admin,
+    String(prof.id),
+    lista?.daVezSolicitacaoId,
+  )
   return NextResponse.json({
     ok: true,
+    lista_iniciada: Boolean(lista?.iniciada),
+    manifesto_id: lista?.manifestoId ?? null,
     corrida: ativa
       ? {
           solicitacao_id: ativa.solicitacaoId,

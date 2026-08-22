@@ -84,6 +84,7 @@ export async function registrarManifestoAposAceiteCorrida(
     dataManifesto,
     paradasEmpresaIds: paradas.length ? paradas : undefined,
     dadosPax,
+    solicitacaoId: params.solicitacaoId,
   })
 
   if ('error' in reg) {
@@ -131,6 +132,10 @@ export async function concluirCorridaMobilidade(
     exigirManifestoOk?: boolean
     pagamentoConfirmadoDinheiro?: boolean
     bonusVoluntario?: number
+    /** Guia/van: liquidar corridas uma a uma e concluir o manifesto no fim. */
+    pularManifesto?: boolean
+    /** false = mantém o profissional em atendimento (lote do manifesto). */
+    liberarProfissional?: boolean
   },
 ): Promise<ConcluirCorridaResult> {
   const { data: prof } = await admin
@@ -171,7 +176,7 @@ export async function concluirCorridaMobilidade(
   let manifestoConcluido = false
   let manifestoPendenteCheckin = false
 
-  if (manifestoId && Boolean(prof.placa_vermelha)) {
+  if (manifestoId && Boolean(prof.placa_vermelha) && params.pularManifesto !== true) {
     const man = await concluirManifestoDiario(admin, manifestoId, prof.id)
     if (!man.ok) {
       const msg = String(man.error ?? '')
@@ -213,13 +218,15 @@ export async function concluirCorridaMobilidade(
     })
     .eq('id', params.solicitacaoId)
 
-  await admin
-    .from('profissionais')
-    .update({
-      mobilidade_status: 'online',
-      mobilidade_status_em: agora,
-    })
-    .eq('id', prof.id)
+  if (params.liberarProfissional !== false) {
+    await admin
+      .from('profissionais')
+      .update({
+        mobilidade_status: 'online',
+        mobilidade_status_em: agora,
+      })
+      .eq('id', prof.id)
+  }
 
   await encerrarConversaCorrida(admin, params.solicitacaoId)
 
@@ -276,6 +283,7 @@ export async function concluirCorridaMobilidade(
 export async function buscarCorridaAtivaProfissional(
   admin: SupabaseClient,
   profissionalId: string,
+  preferSolicitacaoId?: string | null,
 ): Promise<{
   solicitacaoId: string
   status: string
@@ -303,16 +311,34 @@ export async function buscarCorridaAtivaProfissional(
     notaMedia: number | null
   } | null
 } | null> {
-  const { data: row } = await admin
-    .from('solicitacao_mobilidade')
-    .select(
-      'id, status, turista_id, origem_nome, destino_nome, modalidade, valor_estimado, pagamento, lugares, data_agendada, metadata, lat_origem, lng_origem, lat_destino, lng_destino',
-    )
-    .eq('profissional_id', profissionalId)
-    .in('status', ['aceita', 'a_caminho', 'no_local', 'em_viagem'])
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  let row: Record<string, unknown> | null = null
+  const prefer = String(preferSolicitacaoId ?? '').trim()
+  if (prefer) {
+    const { data } = await admin
+      .from('solicitacao_mobilidade')
+      .select(
+        'id, status, turista_id, origem_nome, destino_nome, modalidade, valor_estimado, pagamento, lugares, data_agendada, metadata, lat_origem, lng_origem, lat_destino, lng_destino',
+      )
+      .eq('id', prefer)
+      .eq('profissional_id', profissionalId)
+      .in('status', ['aceita', 'a_caminho', 'no_local', 'em_viagem'])
+      .maybeSingle()
+    if (data?.id) row = data as Record<string, unknown>
+  }
+
+  if (!row) {
+    const { data } = await admin
+      .from('solicitacao_mobilidade')
+      .select(
+        'id, status, turista_id, origem_nome, destino_nome, modalidade, valor_estimado, pagamento, lugares, data_agendada, metadata, lat_origem, lng_origem, lat_destino, lng_destino',
+      )
+      .eq('profissional_id', profissionalId)
+      .in('status', ['aceita', 'a_caminho', 'no_local', 'em_viagem'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    row = data ? (data as Record<string, unknown>) : null
+  }
 
   if (!row?.id) return null
 

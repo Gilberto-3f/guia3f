@@ -1,15 +1,18 @@
 'use client'
 
 import { useCallback, useEffect, useState, type SVGProps } from 'react'
-import { Briefcase, ChevronDown, ChevronUp, Navigation, Smile } from 'lucide-react'
+import { Briefcase, ChevronDown, ChevronUp, ClipboardList, Navigation, Smile } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import ToggleStatusMobilidade from '@/components/mobilidade/ToggleStatusMobilidade'
 import DrawerEspacoProfissionalMobilidade from '@/components/mobilidade/DrawerEspacoProfissionalMobilidade'
+import DrawerManifestoEspaco from '@/components/mobilidade/DrawerManifestoEspaco'
 import CardParteAtendimentoFlutuante from '@/components/mobilidade/CardParteAtendimentoFlutuante'
 import type { MobilidadeStatusId } from '@/lib/mobilidadeStatusProfissional'
 import {
   ehAtendimentoImediatoAtivo,
+  MOBILIDADE_ABRIR_MANIFESTO,
   MOBILIDADE_CORRIDA_PRO,
+  MOBILIDADE_LISTA_INICIADA,
   pedirAbrirDrawerAtendimentoAtivo,
   type CorridaProFlutuante,
 } from '@/lib/mobilidadeAtendimentoAtivoEventos'
@@ -50,6 +53,7 @@ type CorridaAtivaResumo = {
   status: string
   data_agendada?: string | null
   turista?: TuristaCorrida | null
+  lista_iniciada?: boolean
 }
 
 type Props = {
@@ -72,14 +76,33 @@ export default function CardStatusProfissionalMobilidade({
   const [toastOffline, setToastOffline] = useState(false)
   const [espacoAberto, setEspacoAberto] = useState(false)
   const [corrida, setCorrida] = useState<CorridaAtivaResumo | null>(null)
+  const [manifestoAberto, setManifestoAberto] = useState(false)
+  const [listaIniciadaLocal, setListaIniciadaLocal] = useState(false)
 
   useEffect(() => {
     const onPoll = (ev: Event) => {
       const detail = (ev as CustomEvent<CorridaProFlutuante | null>).detail
       setCorrida(detail ?? null)
+      if (detail?.lista_iniciada) setListaIniciadaLocal(true)
+      if (!detail) setListaIniciadaLocal(false)
+    }
+    const onLista = () => {
+      setListaIniciadaLocal(true)
+      setEspacoAberto(false)
+      setAberto(true)
+    }
+    const onAbrirManifesto = () => {
+      setManifestoAberto(true)
+      setEspacoAberto(false)
     }
     window.addEventListener(MOBILIDADE_CORRIDA_PRO, onPoll)
-    return () => window.removeEventListener(MOBILIDADE_CORRIDA_PRO, onPoll)
+    window.addEventListener(MOBILIDADE_LISTA_INICIADA, onLista)
+    window.addEventListener(MOBILIDADE_ABRIR_MANIFESTO, onAbrirManifesto)
+    return () => {
+      window.removeEventListener(MOBILIDADE_CORRIDA_PRO, onPoll)
+      window.removeEventListener(MOBILIDADE_LISTA_INICIADA, onLista)
+      window.removeEventListener(MOBILIDADE_ABRIR_MANIFESTO, onAbrirManifesto)
+    }
   }, [])
 
   useEffect(() => {
@@ -98,12 +121,14 @@ export default function CardStatusProfissionalMobilidade({
     if (next === 'online' || next === 'em_atendimento') setToastOffline(false)
   }, [])
 
+  const listaIniciada = Boolean(corrida?.lista_iniciada || listaIniciadaLocal)
   const emAtendimento = Boolean(
-    corrida &&
+    (corrida &&
       ehAtendimentoImediatoAtivo({
         status: corrida.status,
         data_agendada: corrida.data_agendada,
-      }),
+      })) ||
+      listaIniciada,
   )
 
   useEffect(() => {
@@ -167,22 +192,44 @@ export default function CardStatusProfissionalMobilidade({
             aria-hidden={!painelAberto}
           >
             {emAtendimento ? (
-              <CardParteAtendimentoFlutuante
-                parte={
-                  corrida?.turista
-                    ? {
-                        nome: corrida.turista.nome,
-                        username: corrida.turista.username,
-                        foto_url: corrida.turista.foto_url,
-                        verificado: corrida.turista.verificado,
-                        nota_media: corrida.turista.nota_media,
-                      }
-                    : null
-                }
-                fallbackNome={t('atendimentoTuristaFallback')}
-                onAbrir={pedirAbrirDrawerAtendimentoAtivo}
-                ariaLabel={t('drawerAtivoAbrirDetalhe')}
-              />
+              <>
+                {listaIniciada ? (
+                  <button
+                    type="button"
+                    onClick={() => setManifestoAberto(true)}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold uppercase tracking-wide text-white shadow-sm"
+                    style={{ backgroundColor: COR }}
+                  >
+                    <ClipboardList className="h-4 w-4 shrink-0" aria-hidden strokeWidth={2.25} />
+                    {t('manifestoAtalhoLista')}
+                  </button>
+                ) : null}
+                {listaIniciada ? (
+                  <ToggleStatusMobilidade
+                    variant="card"
+                    corOffline={COR}
+                    onStatusChange={onStatusChange}
+                  />
+                ) : null}
+                {corrida?.solicitacao_id ? (
+                <CardParteAtendimentoFlutuante
+                  parte={
+                    corrida?.turista
+                      ? {
+                          nome: corrida.turista.nome,
+                          username: corrida.turista.username,
+                          foto_url: corrida.turista.foto_url,
+                          verificado: corrida.turista.verificado,
+                          nota_media: corrida.turista.nota_media,
+                        }
+                      : null
+                  }
+                  fallbackNome={t('atendimentoTuristaFallback')}
+                  onAbrir={pedirAbrirDrawerAtendimentoAtivo}
+                  ariaLabel={t('drawerAtivoAbrirDetalhe')}
+                />
+                ) : null}
+              </>
             ) : (
               <>
                 <ToggleStatusMobilidade
@@ -218,6 +265,10 @@ export default function CardStatusProfissionalMobilidade({
       <DrawerEspacoProfissionalMobilidade
         aberto={espacoAberto}
         onFechar={() => setEspacoAberto(false)}
+      />
+      <DrawerManifestoEspaco
+        aberto={manifestoAberto}
+        onFechar={() => setManifestoAberto(false)}
       />
     </>
   )

@@ -30,6 +30,7 @@ export type CorridaProFlutuante = {
   status: string
   data_agendada?: string | null
   turista?: ParteCorridaFlutuante | null
+  lista_iniciada?: boolean
 }
 
 export function pedirAbrirDrawerAtendimentoAtivo(): void {
@@ -67,6 +68,7 @@ export type CorridaProMapaDetalhe = {
   prof_lat?: number | null
   prof_lng?: number | null
   modalidade?: string | null
+  lista_iniciada?: boolean
 }
 
 let ultimoCorridaProMapa: CorridaProMapaDetalhe | null = null
@@ -84,6 +86,19 @@ export function avisarCorridaProMapa(corrida: CorridaProMapaDetalhe | null): voi
 export function avisarLimparPesquisaMobilidade(): void {
   if (typeof window === 'undefined') return
   window.dispatchEvent(new Event(MOBILIDADE_LIMPAR_PESQUISA))
+}
+
+export const MOBILIDADE_LISTA_INICIADA = 'mobilidade:lista-iniciada'
+export const MOBILIDADE_ABRIR_MANIFESTO = 'mobilidade:abrir-manifesto'
+
+export function avisarListaIniciada(): void {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new Event(MOBILIDADE_LISTA_INICIADA))
+}
+
+export function pedirAbrirManifestoEspaco(): void {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new Event(MOBILIDADE_ABRIR_MANIFESTO))
 }
 
 /** Atendimento imediato (sem data_agendada) — escopo do floating pós-aceite. */

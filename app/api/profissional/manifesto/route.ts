@@ -27,6 +27,8 @@ export type ManifestoPassageiroRow = {
   profissional_indireto_nome: string | null
   entrou_em: string
   qtd_paradas: number
+  status_fila: 'pendente' | 'recebido' | 'cancelado'
+  solicitacao_id: string | null
 }
 
 export type ManifestoDiarioRow = {
@@ -36,6 +38,7 @@ export type ManifestoDiarioRow = {
   criado_em: string
   confirmado_em: string | null
   concluido_em: string | null
+  lista_iniciada_em: string | null
   eh_guia: boolean
   qtd_passageiros: number
   qtd_paradas: number
@@ -70,7 +73,7 @@ async function montarManifestoRow(
       .select(
         `
         id, ordem, turista_id, nome, nome_social, username, documento, data_nascimento, foto_url,
-        contratacao_tipo, entrou_em, contratacao_validada_em,
+        contratacao_tipo, entrou_em, contratacao_validada_em, status, solicitacao_id,
         profissional_indireto:profissional_indireto_id (nome_completo)
       `,
       )
@@ -92,6 +95,7 @@ async function montarManifestoRow(
     criado_em: String(row.criado_em),
     confirmado_em: row.confirmado_em != null ? String(row.confirmado_em) : null,
     concluido_em: row.concluido_em != null ? String(row.concluido_em) : null,
+    lista_iniciada_em: row.lista_iniciada_em != null ? String(row.lista_iniciada_em) : null,
     eh_guia: profissionalEhGuia(categorias),
     qtd_passageiros: passageiros?.length ?? 0,
     qtd_paradas: itinerario.length,
@@ -114,6 +118,11 @@ async function montarManifestoRow(
         profissional_indireto_nome: ind?.nome_completo != null ? String(ind.nome_completo) : null,
         entrou_em: String(p.entrou_em),
         qtd_paradas: tid ? (paradasPorTurista.get(tid) ?? 0) : 0,
+        status_fila:
+          String(p.status) === 'recebido' || String(p.status) === 'cancelado'
+            ? (String(p.status) as 'recebido' | 'cancelado')
+            : 'pendente',
+        solicitacao_id: p.solicitacao_id != null ? String(p.solicitacao_id) : null,
       }
     }),
     itinerario,
@@ -135,7 +144,7 @@ export async function GET(req: Request) {
 
   let q = auth.supabase
     .from('manifesto_diario')
-    .select('id, data_manifesto, status, criado_em, confirmado_em, concluido_em')
+    .select('id, data_manifesto, status, criado_em, confirmado_em, concluido_em, lista_iniciada_em')
     .eq('profissional_id', profId)
     .order('data_manifesto', { ascending: false })
     .limit(50)

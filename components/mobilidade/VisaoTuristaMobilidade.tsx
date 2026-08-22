@@ -863,10 +863,11 @@ export default function VisaoTuristaMobilidade({
   const corridaOverlay = perfilEhProfissional ? corridaMapaPro : corridaMapaTurista
   const imediatoMapa = Boolean(
     corridaOverlay &&
-      ehAtendimentoImediatoAtivo({
+      (ehAtendimentoImediatoAtivo({
         status: corridaOverlay.status,
         data_agendada: corridaOverlay.data_agendada,
-      }),
+      }) ||
+        corridaOverlay.lista_iniciada),
   )
   const trajetoEfetivo = trajeto ?? (imediatoMapa ? montarTrajetoCorridaAtiva(corridaOverlay) : null)
   const origemEfetiva =

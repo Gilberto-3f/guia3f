@@ -26,8 +26,9 @@ import {
   avisarCorridaProPoll,
   ehAtendimentoImediatoAtivo,
   MOBILIDADE_ABRIR_DRAWER_ATIVO,
+  MOBILIDADE_CORRIDA_ATIVA,
 } from '@/lib/mobilidadeAtendimentoAtivoEventos'
-import { modalidadeUsaDeslocamentoProprio } from '@/lib/mobilidadeOfertaAtendimento'
+import { modalidadeUsaDeslocamentoProprio, modalidadeUsaManifesto } from '@/lib/mobilidadeOfertaAtendimento'
 import {
   MOBILIDADE_POLL_CHEGADA_GPS_MS,
   MOBILIDADE_POLL_CORRIDA_ATIVA_MS,
@@ -110,15 +111,20 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
     try {
       const res = await fetch('/api/mobilidade/corrida-ativa')
       if (res.status === 401 || res.status === 403) return 'auth' as const
-      const json = (await res.json()) as { corrida?: CorridaAtivaMobilidade | null }
+      const json = (await res.json()) as {
+        corrida?: CorridaAtivaMobilidade | null
+        lista_iniciada?: boolean
+      }
       if (!res.ok) return 'ok' as const
       const next = json.corrida ?? null
+      const listaIniciada = Boolean(json.lista_iniciada)
       setCorrida((prev) => {
         if (next?.solicitacao_id && next.solicitacao_id !== prev?.solicitacao_id) {
-          const imediato = ehAtendimentoImediatoAtivo({
-            status: next.status,
-            data_agendada: next.data_agendada,
-          })
+          const imediato =
+            ehAtendimentoImediatoAtivo({
+              status: next.status,
+              data_agendada: next.data_agendada,
+            }) || listaIniciada
           queueMicrotask(() => setDrawerAtivoAberto(!imediato))
         }
         return next
@@ -129,6 +135,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
               solicitacao_id: next.solicitacao_id,
               status: String(next.status ?? ''),
               data_agendada: next.data_agendada ?? null,
+              lista_iniciada: listaIniciada,
               turista: next.turista
                 ? {
                     nome: next.turista.nome,
@@ -139,13 +146,20 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
                   }
                 : null,
             }
-          : null,
+          : listaIniciada
+            ? {
+                solicitacao_id: '',
+                status: 'em_viagem',
+                lista_iniciada: true,
+                turista: null,
+              }
+            : null,
       )
       avisarCorridaProMapa(
         next
           ? {
               status: next.status,
-              data_agendada: next.data_agendada ?? null,
+              data_agendada: listaIniciada ? null : next.data_agendada ?? null,
               origem_nome: next.origem_nome,
               destino_nome: next.destino_nome,
               lat_origem: next.lat_origem ?? null,
@@ -155,6 +169,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
               prof_lat: next.prof_lat ?? null,
               prof_lng: next.prof_lng ?? null,
               modalidade: next.modalidade,
+              lista_iniciada: listaIniciada,
             }
           : null,
       )
@@ -252,6 +267,14 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
       if (id) clearInterval(id)
     }
   }, [elegivel, carregarCorrida, corrida?.solicitacao_id])
+
+  useEffect(() => {
+    const onRefresh = () => {
+      void carregarCorrida()
+    }
+    window.addEventListener(MOBILIDADE_CORRIDA_ATIVA, onRefresh)
+    return () => window.removeEventListener(MOBILIDADE_CORRIDA_ATIVA, onRefresh)
+  }, [carregarCorrida])
 
   useEffect(() => {
     if (!elegivel || corrida) return
@@ -617,7 +640,8 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
         : null,
     }
 
-    const rodapePagamento = (
+    const usaManifesto = modalidadeUsaManifesto(corrida.modalidade)
+    const rodapePagamento = usaManifesto ? null : (
       <div className="mb-3 space-y-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
         <label className="flex items-start gap-2 text-xs text-gray-700">
           <input
@@ -639,11 +663,11 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
           atendimento={atendimentoAtivo}
           busy={busy}
           erroConcluir={erroConcluir || null}
-          pagamentoConfirmado={recebiDinheiro}
+          pagamentoConfirmado={usaManifesto ? false : recebiDinheiro}
           rodapeExtra={rodapePagamento}
           onFechar={() => setDrawerAtivoAberto(false)}
-          onConcluir={() => void concluir(false)}
-          onConcluirSemManifesto={() => void concluir(true)}
+          onConcluir={usaManifesto ? undefined : () => void concluir(false)}
+          onConcluirSemManifesto={usaManifesto ? undefined : () => void concluir(true)}
           onConfirmarChegada={(recebido) => void confirmarEmbarque(recebido)}
           erroChegada={erroChegada || null}
         />

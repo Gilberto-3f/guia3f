@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronDown, ChevronUp, MapPin, Users, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, MapPin, Users, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import AvatarImage from '@/components/AvatarImage'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
@@ -10,8 +10,13 @@ import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import type { ManifestoDiarioRow } from '@/app/api/profissional/manifesto/route'
 import type { ParadaItinerarioRow } from '@/lib/itinerarioParadas'
 import { MANIFESTO_CAPACIDADE_PADRAO } from '@/lib/mobilidadePainelProfissional'
+import {
+  avisarCorridaAtivaAtualizada,
+  avisarListaIniciada,
+} from '@/lib/mobilidadeAtendimentoAtivoEventos'
 
 const COR = '#0097b2'
+const VERDE = '#00D443'
 
 type Props = {
   aberto: boolean
@@ -51,6 +56,7 @@ export default function DrawerManifestoEspaco({ aberto, onFechar }: Props) {
   const [erro, setErro] = useState('')
   const [manifestos, setManifestos] = useState<ManifestoDiarioRow[]>([])
   const [selecionado, setSelecionado] = useState<ManifestoDiarioRow | null>(null)
+  const [busyIniciar, setBusyIniciar] = useState(false)
 
   const carregar = useCallback(async () => {
     setLoading(true)
@@ -63,7 +69,12 @@ export default function DrawerManifestoEspaco({ aberto, onFechar }: Props) {
         setManifestos([])
         return
       }
-      setManifestos(Array.isArray(json.manifestos) ? json.manifestos : [])
+      const lista = Array.isArray(json.manifestos) ? json.manifestos : []
+      setManifestos(lista)
+      setSelecionado((prev) => {
+        if (!prev) return null
+        return lista.find((m) => m.id === prev.id) ?? prev
+      })
     } catch {
       setErro(t('manifestoErro'))
       setManifestos([])
@@ -89,6 +100,34 @@ export default function DrawerManifestoEspaco({ aberto, onFechar }: Props) {
     () => manifestos.filter((m) => String(m.data_manifesto).slice(0, 10) !== hoje),
     [manifestos, hoje],
   )
+
+  const iniciarLista = async (e: MouseEvent) => {
+    e.stopPropagation()
+    if (!doDia || busyIniciar) return
+    if (doDia.qtd_passageiros < 1) {
+      setErro(t('manifestoSemPassageirosIniciar'))
+      return
+    }
+    setBusyIniciar(true)
+    setErro('')
+    try {
+      const res = await fetch('/api/profissional/manifesto/iniciar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ manifesto_id: doDia.id }),
+      })
+      const json = (await res.json()) as { error?: string }
+      if (!res.ok) {
+        setErro(String(json.error ?? t('manifestoIniciarErro')))
+        return
+      }
+      avisarListaIniciada()
+      avisarCorridaAtivaAtualizada()
+      onFechar()
+    } finally {
+      setBusyIniciar(false)
+    }
+  }
 
   if (!aberto) return null
 
@@ -128,7 +167,7 @@ export default function DrawerManifestoEspaco({ aberto, onFechar }: Props) {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4" data-modal-scroll-lock-scrollable>
         {selecionado ? (
-          <DetalheManifesto manifesto={selecionado} />
+          <DetalheManifesto manifesto={selecionado} onAtualizar={() => void carregar()} />
         ) : (
           <>
             {loading ? (
@@ -138,29 +177,50 @@ export default function DrawerManifestoEspaco({ aberto, onFechar }: Props) {
               <p className="rounded-xl bg-rose-50 px-3 py-2 text-center text-sm text-rose-700">{erro}</p>
             ) : null}
 
-            {!loading && !erro ? (
+            {!loading ? (
               <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (doDia) setSelecionado(doDia)
-                  }}
-                  disabled={!doDia}
-                  className="w-full rounded-2xl px-4 py-4 text-left text-white shadow-md disabled:opacity-70"
+                <div
+                  className="w-full overflow-hidden rounded-2xl text-white shadow-md"
                   style={{ backgroundColor: COR }}
                 >
-                  <p className="text-lg font-extrabold uppercase leading-tight tracking-wide">
-                    {t('manifestoDeHoje')}
-                  </p>
-                  <p className="mt-1 text-sm font-normal text-white/90">
-                    {doDia
-                      ? `${doDia.qtd_passageiros} PAX — ${formatarDataBr(doDia.data_manifesto)}`
-                      : `0 PAX — ${formatarDataBr(hoje)}`}
-                    {doDia
-                      ? ` · ${doDia.qtd_passageiros}/${MANIFESTO_CAPACIDADE_PADRAO}`
-                      : ` · 0/${MANIFESTO_CAPACIDADE_PADRAO}`}
-                  </p>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (doDia) setSelecionado(doDia)
+                    }}
+                    disabled={!doDia}
+                    className="w-full px-4 py-4 text-left disabled:opacity-70"
+                  >
+                    <p className="text-lg font-extrabold uppercase leading-tight tracking-wide">
+                      {t('manifestoDeHoje')}
+                    </p>
+                    <p className="mt-1 text-sm font-normal text-white/90">
+                      {doDia
+                        ? `${doDia.qtd_passageiros} PAX — ${formatarDataBr(doDia.data_manifesto)}`
+                        : `0 PAX — ${formatarDataBr(hoje)}`}
+                      {doDia
+                        ? ` · ${doDia.qtd_passageiros}/${MANIFESTO_CAPACIDADE_PADRAO}`
+                        : ` · 0/${MANIFESTO_CAPACIDADE_PADRAO}`}
+                    </p>
+                  </button>
+                  {doDia && !doDia.lista_iniciada_em ? (
+                    <div className="px-4 pb-4">
+                      <button
+                        type="button"
+                        disabled={busyIniciar}
+                        onClick={(e) => void iniciarLista(e)}
+                        className="w-full rounded-xl bg-white py-3 text-sm font-extrabold uppercase tracking-wide disabled:opacity-50"
+                        style={{ color: COR }}
+                      >
+                        {t('manifestoIniciarLista')}
+                      </button>
+                    </div>
+                  ) : doDia?.lista_iniciada_em ? (
+                    <p className="px-4 pb-4 text-sm font-semibold uppercase tracking-wide text-white/90">
+                      {t('manifestoListaIniciada')}
+                    </p>
+                  ) : null}
+                </div>
 
                 <p className="pt-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">
                   {t('manifestoOutrasListas')}
@@ -195,9 +255,24 @@ export default function DrawerManifestoEspaco({ aberto, onFechar }: Props) {
   )
 }
 
-function DetalheManifesto({ manifesto }: { manifesto: ManifestoDiarioRow }) {
+function DetalheManifesto({
+  manifesto,
+  onAtualizar,
+}: {
+  manifesto: ManifestoDiarioRow
+  onAtualizar: () => void
+}) {
   const t = useTranslations('Mobilidade')
   const [aba, setAba] = useState<'lista' | 'itinerario'>('lista')
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [pagConfirmado, setPagConfirmado] = useState(false)
+  const [erroAcao, setErroAcao] = useState('')
+  const [cancelando, setCancelando] = useState<ManifestoDiarioRow['passageiros'][number] | null>(null)
+  const [justificativa, setJustificativa] = useState('')
+
+  const listaIniciada = Boolean(manifesto.lista_iniciada_em)
+  const ehHoje = String(manifesto.data_manifesto).slice(0, 10) === hojeIsoLocal()
+  const mostrarAcoes = listaIniciada && ehHoje && String(manifesto.status) !== 'concluido'
 
   const empresasUnicas = useMemo(() => {
     const map = new Map<string, ParadaItinerarioRow & { turistas: { id: string; nome: string; username: string | null; foto: string | null }[] }>()
@@ -220,6 +295,80 @@ function DetalheManifesto({ manifesto }: { manifesto: ManifestoDiarioRow }) {
     }
     return [...map.values()]
   }, [manifesto, t])
+
+  const receber = async (passageiroId: string) => {
+    setBusyId(passageiroId)
+    setErroAcao('')
+    try {
+      const res = await fetch('/api/profissional/manifesto/passageiro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passageiro_id: passageiroId, acao: 'receber' }),
+      })
+      const json = (await res.json()) as { error?: string }
+      if (!res.ok) {
+        setErroAcao(String(json.error ?? t('manifestoErro')))
+        return
+      }
+      avisarCorridaAtivaAtualizada()
+      onAtualizar()
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const confirmarCancelamento = async () => {
+    if (!cancelando) return
+    setBusyId(cancelando.id)
+    setErroAcao('')
+    try {
+      const res = await fetch('/api/profissional/manifesto/passageiro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          passageiro_id: cancelando.id,
+          acao: 'cancelar',
+          justificativa,
+        }),
+      })
+      const json = (await res.json()) as { error?: string }
+      if (!res.ok) {
+        setErroAcao(String(json.error ?? t('manifestoErro')))
+        return
+      }
+      setCancelando(null)
+      setJustificativa('')
+      avisarCorridaAtivaAtualizada()
+      onAtualizar()
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const concluir = async () => {
+    if (!pagConfirmado) return
+    setBusyId('concluir')
+    setErroAcao('')
+    try {
+      const res = await fetch('/api/profissional/manifesto/concluir-atendimento', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          manifesto_id: manifesto.id,
+          pagamento_confirmado: true,
+        }),
+      })
+      const json = (await res.json()) as { error?: string }
+      if (!res.ok) {
+        setErroAcao(String(json.error ?? t('concluirErro')))
+        return
+      }
+      avisarCorridaAtivaAtualizada()
+      onAtualizar()
+    } finally {
+      setBusyId(null)
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -252,14 +401,55 @@ function DetalheManifesto({ manifesto }: { manifesto: ManifestoDiarioRow }) {
         </button>
       </div>
 
+      {erroAcao ? (
+        <p className="rounded-xl bg-rose-50 px-3 py-2 text-center text-sm text-rose-700">{erroAcao}</p>
+      ) : null}
+
       {aba === 'lista' ? (
-        <ul className="space-y-2">
-          {manifesto.passageiros.length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-400">{t('manifestoSemPassageiros')}</p>
-          ) : (
-            manifesto.passageiros.map((p) => <CardPassageiroManifesto key={p.id} passageiro={p} />)
-          )}
-        </ul>
+        <>
+          <ul className="space-y-2">
+            {manifesto.passageiros.length === 0 ? (
+              <p className="py-6 text-center text-sm text-gray-400">{t('manifestoSemPassageiros')}</p>
+            ) : (
+              manifesto.passageiros.map((p) => (
+                <CardPassageiroManifesto
+                  key={p.id}
+                  passageiro={p}
+                  mostrarAcoes={mostrarAcoes}
+                  busy={busyId === p.id}
+                  onReceber={() => void receber(p.id)}
+                  onCancelar={() => {
+                    setJustificativa('')
+                    setCancelando(p)
+                  }}
+                />
+              ))
+            )}
+          </ul>
+
+          {mostrarAcoes ? (
+            <div className="space-y-3 border-t border-gray-100 pt-4">
+              <label className="flex items-start gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={pagConfirmado}
+                  onChange={(e) => setPagConfirmado(e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>{t('pagRecebiDinheiro')}</span>
+              </label>
+              <button
+                type="button"
+                disabled={!pagConfirmado || busyId != null}
+                onClick={() => void concluir()}
+                className="w-full rounded-xl py-3.5 text-sm font-bold uppercase tracking-wide text-white disabled:opacity-50"
+                style={{ backgroundColor: COR }}
+              >
+                {t('concluirAtendimento')}
+              </button>
+            </div>
+          ) : null}
+        </>
       ) : (
         <ul className="space-y-2">
           {empresasUnicas.length === 0 ? (
@@ -269,6 +459,41 @@ function DetalheManifesto({ manifesto }: { manifesto: ManifestoDiarioRow }) {
           )}
         </ul>
       )}
+
+      {cancelando ? (
+        <div className="fixed inset-0 z-[96] flex items-end justify-center bg-black/40 p-4 sm:items-center">
+          <div className="w-full max-w-md rounded-2xl bg-white p-4 shadow-xl">
+            <p className="text-sm font-bold text-gray-900">{t('manifestoJustificativaTitulo')}</p>
+            <textarea
+              value={justificativa}
+              onChange={(e) => setJustificativa(e.target.value)}
+              rows={4}
+              className="mt-3 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+              placeholder={t('manifestoJustificativaPlaceholder')}
+            />
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setCancelando(null)
+                  setJustificativa('')
+                }}
+                className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-600"
+              >
+                {t('fechar')}
+              </button>
+              <button
+                type="button"
+                disabled={justificativa.trim().length < 3 || busyId === cancelando.id}
+                onClick={() => void confirmarCancelamento()}
+                className="flex-1 rounded-xl bg-rose-600 py-2.5 text-sm font-bold uppercase text-white disabled:opacity-50"
+              >
+                {t('manifestoJustificativaEnviar')}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -283,49 +508,99 @@ function formatarDataNasc(iso: string | null | undefined): string {
 
 function CardPassageiroManifesto({
   passageiro: p,
+  mostrarAcoes,
+  busy,
+  onReceber,
+  onCancelar,
 }: {
   passageiro: ManifestoDiarioRow['passageiros'][number]
+  mostrarAcoes: boolean
+  busy: boolean
+  onReceber: () => void
+  onCancelar: () => void
 }) {
+  const t = useTranslations('Mobilidade')
   const [aberto, setAberto] = useState(false)
   const handle = String(p.username ?? '')
     .replace(/^@+/, '')
     .trim()
   const nome = p.nome_social || p.nome
+  const fila = p.status_fila ?? 'pendente'
 
   return (
-    <li className="overflow-hidden rounded-xl border border-gray-100 bg-[#f5f5f5]">
-      <button
-        type="button"
-        onClick={() => setAberto((v) => !v)}
-        className="flex w-full items-center gap-3 p-3 text-left"
-        aria-expanded={aberto}
-      >
-        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-gray-200">
-          {p.foto_url ? (
-            <AvatarImage src={p.foto_url} alt="" fill className="object-cover" sizes="48px" />
+    <li
+      className={`overflow-hidden rounded-xl border bg-[#f5f5f5] ${
+        fila === 'cancelado' ? 'border-rose-200 opacity-70' : 'border-gray-100'
+      }`}
+    >
+      <div className="flex items-center gap-2 p-3">
+        <button
+          type="button"
+          onClick={() => setAberto((v) => !v)}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+          aria-expanded={aberto}
+        >
+          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-gray-200">
+            {p.foto_url ? (
+              <AvatarImage src={p.foto_url} alt="" fill className="object-cover" sizes="48px" />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center text-sm font-bold text-[#0097b2]">
+                {(nome || 'T').charAt(0).toUpperCase()}
+              </span>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-gray-900">{p.nome}</p>
+            {handle ? (
+              <UsuarioHandleVerificado
+                username={handle}
+                verificado={false}
+                asButton={false}
+                className="text-xs text-gray-500"
+              />
+            ) : null}
+          </div>
+          {aberto ? (
+            <ChevronUp className="h-5 w-5 shrink-0 text-gray-400" aria-hidden />
           ) : (
-            <span className="flex h-full w-full items-center justify-center text-sm font-bold text-[#0097b2]">
-              {(nome || 'T').charAt(0).toUpperCase()}
-            </span>
+            <ChevronDown className="h-5 w-5 shrink-0 text-gray-400" aria-hidden />
           )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-gray-900">{p.nome}</p>
-          {handle ? (
-            <UsuarioHandleVerificado
-              username={handle}
-              verificado={false}
-              asButton={false}
-              className="text-xs text-gray-500"
-            />
-          ) : null}
-        </div>
-        {aberto ? (
-          <ChevronUp className="h-5 w-5 shrink-0 text-gray-400" aria-hidden />
-        ) : (
-          <ChevronDown className="h-5 w-5 shrink-0 text-gray-400" aria-hidden />
-        )}
-      </button>
+        </button>
+        {mostrarAcoes && fila === 'pendente' ? (
+          <div className="flex shrink-0 gap-1">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onReceber}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-white disabled:opacity-50"
+              style={{ backgroundColor: VERDE }}
+              aria-label={t('manifestoCheckAria')}
+            >
+              <Check className="h-4 w-4" aria-hidden strokeWidth={2.5} />
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onCancelar}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-600 text-white disabled:opacity-50"
+              aria-label={t('manifestoCancelarAria')}
+            >
+              <X className="h-4 w-4" aria-hidden strokeWidth={2.5} />
+            </button>
+          </div>
+        ) : mostrarAcoes && fila === 'recebido' ? (
+          <span
+            className="flex h-9 w-9 items-center justify-center rounded-full text-white"
+            style={{ backgroundColor: VERDE }}
+          >
+            <Check className="h-4 w-4" aria-hidden />
+          </span>
+        ) : mostrarAcoes && fila === 'cancelado' ? (
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-600 text-white">
+            <X className="h-4 w-4" aria-hidden />
+          </span>
+        ) : null}
+      </div>
       {aberto ? (
         <div className="space-y-1 border-t border-gray-200/80 px-3 py-2.5 text-xs text-gray-600">
           <p>

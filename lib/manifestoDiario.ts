@@ -105,6 +105,7 @@ export type InserirPassageiroParams = {
   profissionalIndiretoId?: string | null
   legacyManifestoId?: string | null
   contratacaoValidada?: boolean
+  solicitacaoId?: string | null
 }
 
 export async function inserirPassageiroManifesto(
@@ -119,15 +120,20 @@ export async function inserirPassageiroManifesto(
     .maybeSingle()
 
   if (dup?.id) {
-    if (params.contratacaoValidada) {
+    if (params.contratacaoValidada || params.solicitacaoId) {
       await supabase
         .from('manifesto_passageiros')
         .update({
-          nome: params.nome,
-          documento: params.documento ?? null,
-          data_nascimento: params.data_nascimento ?? null,
-          nome_social: params.nome_social ?? null,
-          contratacao_validada_em: new Date().toISOString(),
+          ...(params.contratacaoValidada
+            ? {
+                nome: params.nome,
+                documento: params.documento ?? null,
+                data_nascimento: params.data_nascimento ?? null,
+                nome_social: params.nome_social ?? null,
+                contratacao_validada_em: new Date().toISOString(),
+              }
+            : {}),
+          ...(params.solicitacaoId ? { solicitacao_id: params.solicitacaoId } : {}),
         })
         .eq('id', dup.id)
     }
@@ -157,6 +163,7 @@ export async function inserirPassageiroManifesto(
       profissional_indireto_id: params.profissionalIndiretoId ?? null,
       legacy_manifesto_id: params.legacyManifestoId ?? null,
       contratacao_validada_em: agora,
+      solicitacao_id: params.solicitacaoId ?? null,
     })
     .select('id')
     .maybeSingle()
@@ -177,6 +184,7 @@ export async function registrarTuristaNoManifesto(
     paradasEmpresaIds?: string[]
     legacyManifestoId?: string | null
     dadosPax?: DadosPaxManifesto
+    solicitacaoId?: string | null
   },
 ): Promise<{ manifestoId: string; passageiroId: string } | { error: string }> {
   const dataManifesto = params.dataManifesto ?? new Date().toISOString().slice(0, 10)
@@ -238,6 +246,7 @@ export async function registrarTuristaNoManifesto(
     profissionalIndiretoId: params.profissionalIndiretoId ?? null,
     legacyManifestoId: params.legacyManifestoId ?? null,
     contratacaoValidada: validada,
+    solicitacaoId: params.solicitacaoId ?? null,
   })
 
   if ('error' in passageiro) return { error: passageiro.error }
