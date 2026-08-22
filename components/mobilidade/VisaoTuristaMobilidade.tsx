@@ -752,49 +752,9 @@ export default function VisaoTuristaMobilidade({
     setCarregandoEmpresas(true)
     void carregar(0)
 
-    // Contas antigas: reparo de coords + refresh (presença legado CDE / dual).
-    let reparoTimer: ReturnType<typeof setTimeout> | null = null
-    let reparoTimer2: ReturnType<typeof setTimeout> | null = null
-    reparoTimer = setTimeout(() => {
-      if (!ativo) return
-      void (async () => {
-        try {
-          const res = await fetch('/api/mobilidade/reparar-coords', {
-            method: 'POST',
-            credentials: 'include',
-          })
-          if (!ativo || !res.ok) return
-          const json = (await res.json()) as { repaired?: number; remaining?: number }
-          if (!ativo) return
-          // Sempre refresca: contas com coords já ok (legado CDE) entram via presença atualizada.
-          await carregar(0)
-          if (Number(json.remaining) > 0) {
-            reparoTimer2 = setTimeout(() => {
-              if (!ativo) return
-              void fetch('/api/mobilidade/reparar-coords', {
-                method: 'POST',
-                credentials: 'include',
-              })
-                .then(async (r2) => {
-                  if (!ativo || !r2.ok) return
-                  await carregar(0)
-                })
-                .catch(() => {
-                  /* ignore */
-                })
-            }, 4000)
-          }
-        } catch {
-          /* ignore */
-        }
-      })()
-    }, 2500)
-
     return () => {
       ativo = false
       if (retryTimer) clearTimeout(retryTimer)
-      if (reparoTimer) clearTimeout(reparoTimer)
-      if (reparoTimer2) clearTimeout(reparoTimer2)
     }
   }, [])
 

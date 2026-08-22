@@ -18,8 +18,9 @@ export type ConfigApisMobilidadeParceiro = {
   app_parceiro_link_cde?: string | null
 }
 
+/** Colunas públicas de redirect/loja. Nunca incluir `api_mobilidade_key*` (só ADM / service role). */
 export const CONFIG_APIS_MOBILIDADE_SELECT =
-  'api_mobilidade_url, api_mobilidade_key, app_parceiro_link, api_mobilidade_url_foz, api_mobilidade_key_foz, app_parceiro_link_foz, api_mobilidade_url_cde, api_mobilidade_key_cde, app_parceiro_link_cde'
+  'api_mobilidade_url, app_parceiro_link, api_mobilidade_url_foz, app_parceiro_link_foz, api_mobilidade_url_cde, app_parceiro_link_cde'
 
 function trimOrNull(v: string | null | undefined): string | null {
   const s = String(v ?? '').trim()

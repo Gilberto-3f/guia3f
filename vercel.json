@@ -26,6 +26,10 @@
     {
       "path": "/api/mobilidade/agendamento/processar",
       "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/reparar-coords",
+      "schedule": "30 13 * * *"
     }
   ]
 }

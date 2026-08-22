@@ -42,11 +42,7 @@ import {
   ordenarStoriesPorCreatedAsc,
   visualizadoPorConsolidadoParaAnel,
 } from '@/lib/story-open-order'
-import {
-  canalParceiroPorCidade,
-  CONFIG_APIS_MOBILIDADE_SELECT,
-  resolverUrlApiMobilidadeParceiro,
-} from '@/lib/mobilidadeParceiroApi'
+import { carregarUrlApiMobilidadeParceiro } from '@/lib/appParceiroLink'
 import { buscarUsuarioCached } from '@/lib/usuarioSessionCache'
 
 type PostRepostFeed = ReturnType<typeof mapPostComAutoresRow>
@@ -1142,13 +1138,9 @@ export default function PerfilSocialPage() {
           let apiMobilidadeUrl: string | null = null
           const cats = normalizarCategoriasProfissional(profMeta.categorias)
           if (cats.includes('motorista_app')) {
-            const { data: cfg } = await supabase
-              .from('config_apis')
-              .select(CONFIG_APIS_MOBILIDADE_SELECT)
-              .limit(1)
-              .maybeSingle()
-            const canal = canalParceiroPorCidade(profMeta.cidadeAtuacaoLabel)
-            apiMobilidadeUrl = resolverUrlApiMobilidadeParceiro(cfg, canal)
+            apiMobilidadeUrl = await carregarUrlApiMobilidadeParceiro({
+              cidade: profMeta.cidadeAtuacaoLabel,
+            })
           }
 
           const { href, externo } = resolverHrefContratarCartaoVisita({
