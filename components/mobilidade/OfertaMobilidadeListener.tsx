@@ -18,7 +18,6 @@ import DrawerAtendimentoMobilidade, {
 import DrawerAtendimentoAtivoMobilidade, {
   type AtendimentoAtivoUi,
 } from '@/components/mobilidade/DrawerAtendimentoAtivoMobilidade'
-import PopupChegadaProfissionalMobilidade from '@/components/mobilidade/PopupChegadaProfissionalMobilidade'
 import {
   avisarCorridaAtivaAtualizada,
   avisarCorridaProPoll,
@@ -86,7 +85,6 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
   const [corrida, setCorrida] = useState<CorridaAtivaMobilidade | null>(null)
   const [erroConcluir, setErroConcluir] = useState('')
   const [recebiDinheiro, setRecebiDinheiro] = useState(false)
-  const [bonus, setBonus] = useState('')
   const [erroChegada, setErroChegada] = useState('')
   const [drawerAtivoAberto, setDrawerAtivoAberto] = useState(false)
   const detectandoChegadaRef = useRef(false)
@@ -285,6 +283,11 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
     window.addEventListener(MOBILIDADE_ABRIR_DRAWER_ATIVO, onAbrir)
     return () => window.removeEventListener(MOBILIDADE_ABRIR_DRAWER_ATIVO, onAbrir)
   }, [corrida])
+
+  /** Chegada no ponto: abre o drawer para SIM/NÃO + chat (sem popup bloqueante). */
+  useEffect(() => {
+    if (String(corrida?.status ?? '') === 'no_local') setDrawerAtivoAberto(true)
+  }, [corrida?.solicitacao_id, corrida?.status])
 
   /** GPS automático: a_caminho → detectar proximidade da partida. */
   useEffect(() => {
@@ -496,7 +499,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
 
   const concluir = async (forcar = false) => {
     if (!corrida || busy) return
-    if (!recebiDinheiro && (corrida.pagamento == null || corrida.pagamento === 'dinheiro')) {
+    if (!recebiDinheiro) {
       setErroConcluir(t('pagConfirmeDinheiro'))
       return
     }
@@ -509,7 +512,6 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
         body: JSON.stringify({
           forcar: forcar || undefined,
           pagamento_confirmado: recebiDinheiro,
-          bonus_voluntario: bonus.trim() ? Number(bonus.replace(',', '.')) || 0 : 0,
         }),
       })
       const json = (await res.json()) as {
@@ -531,7 +533,6 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
       avisarCorridaAtivaAtualizada()
       setErroConcluir('')
       setRecebiDinheiro(false)
-      setBonus('')
       setDrawerAtivoAberto(false)
     } finally {
       setBusy(false)
@@ -582,18 +583,6 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
           />
           <span>{t('pagRecebiDinheiro')}</span>
         </label>
-        <label className="block text-xs text-gray-600">
-          {t('bonusLabel')}
-          <input
-            type="number"
-            min={0}
-            step="0.01"
-            value={bonus}
-            onChange={(e) => setBonus(e.target.value)}
-            placeholder="0,00"
-            className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
-          />
-        </label>
       </div>
     )
 
@@ -605,10 +594,13 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
           atendimento={atendimentoAtivo}
           busy={busy}
           erroConcluir={erroConcluir || null}
+          pagamentoConfirmado={recebiDinheiro}
           rodapeExtra={rodapePagamento}
           onFechar={() => setDrawerAtivoAberto(false)}
           onConcluir={() => void concluir(false)}
           onConcluirSemManifesto={() => void concluir(true)}
+          onConfirmarChegada={(recebido) => void confirmarEmbarque(recebido)}
+          erroChegada={erroChegada || null}
         />
         {!drawerAtivoAberto &&
         !ehAtendimentoImediatoAtivo({
@@ -624,13 +616,6 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
             {t('drawerAtivoReabrir')}
           </button>
         ) : null}
-        <PopupChegadaProfissionalMobilidade
-          aberto={st === 'no_local' && modalidadeUsaDeslocamentoProprio(corrida.modalidade)}
-          busy={busy}
-          erro={erroChegada}
-          onSim={() => void confirmarEmbarque(true)}
-          onNao={() => void confirmarEmbarque(false)}
-        />
       </>
     )
   }

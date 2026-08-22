@@ -20,6 +20,8 @@ type Props = {
   visivel?: boolean
   /** Notifica mensagens (para contador de não lidas com chevron fechado). */
   onMensagensChange?: (msgs: Msg[], meuId: string | null) => void
+  /** `folha`: preenche o drawer (sem caixa/título internos). */
+  variante?: 'caixa' | 'folha'
   /** Só leitura (chat arquivado). */
   somenteLeitura?: boolean
   /** Título/hint customizados (ex.: item esquecido). */
@@ -35,6 +37,7 @@ export default function ChatCorridaMobilidade({
   conversaId,
   compact = false,
   visivel = true,
+  variante = 'caixa',
   onMensagensChange,
   somenteLeitura = false,
   titulo,
@@ -145,12 +148,19 @@ export default function ChatCorridaMobilidade({
 
   if (!visivel) return null
 
+  const folha = variante === 'folha'
+
   return (
     <div
-      className={`flex flex-col rounded-xl border border-gray-200 bg-white ${
-        compact ? 'h-56' : 'h-72'
-      }`}
+      className={
+        folha
+          ? 'flex min-h-0 flex-1 flex-col bg-white'
+          : `flex flex-col rounded-xl border border-gray-200 bg-white ${
+              compact ? 'h-56' : 'h-72'
+            }`
+      }
     >
+      {folha ? null : (
       <div className="border-b border-gray-100 px-3 py-2">
         <p className="text-xs font-bold uppercase tracking-wide text-[#0097b2]">
           {titulo ?? t('chatTitulo')}
@@ -159,7 +169,11 @@ export default function ChatCorridaMobilidade({
           {leitura ? 'Arquivado — somente leitura' : hint ?? t('chatHint')}
         </p>
       </div>
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-2">
+      )}
+      <div
+        className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-2"
+        data-modal-scroll-lock-scrollable
+      >
         {msgs.length === 0 ? (
           <p className="py-6 text-center text-xs text-gray-400">{t('chatVazio')}</p>
         ) : (
@@ -182,7 +196,11 @@ export default function ChatCorridaMobilidade({
       </div>
       {erro ? <p className="px-3 text-xs text-rose-600">{erro}</p> : null}
       {!leitura ? (
-        <div className="flex gap-2 border-t border-gray-100 p-2">
+        <div
+          className={`flex gap-2 border-t border-gray-100 p-2 ${
+            folha ? 'pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]' : ''
+          }`}
+        >
           <input
             type="text"
             value={texto}

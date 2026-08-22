@@ -5,18 +5,20 @@ import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import {
   Car,
+  Check,
   ChevronDown,
   ClipboardList,
   Clock,
   Info,
   MapPin,
+  MessageCircle,
   Navigation,
   UserRound,
   X,
 } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
-import ChatCorridaMobilidade from '@/components/mobilidade/ChatCorridaMobilidade'
+import DrawerChatCorridaMobilidade from '@/components/mobilidade/DrawerChatCorridaMobilidade'
 import DrawerManifestoEspaco from '@/components/mobilidade/DrawerManifestoEspaco'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import { modalidadeUsaManifesto, modalidadeUsaDeslocamentoProprio } from '@/lib/mobilidadeOfertaAtendimento'
@@ -70,9 +72,14 @@ type Props = {
   erroConcluir?: string | null
   onFechar: () => void
   onConcluir?: () => void
-  /** Conteúdo extra no rodapé (ex.: checkbox dinheiro / bônus). */
+  /** Checkbox de pagamento confirmado — destrava Concluir. */
+  pagamentoConfirmado?: boolean
+  /** Conteúdo extra no rodapé (ex.: checkbox de pagamento). */
   rodapeExtra?: ReactNode
   onConcluirSemManifesto?: () => void
+  /** Chegada no local: SIM/NÃO no drawer (profissional, status no_local). */
+  onConfirmarChegada?: (recebido: boolean) => void
+  erroChegada?: string | null
 }
 
 function formatBrl(n: number): string {
@@ -122,8 +129,11 @@ export default function DrawerAtendimentoAtivoMobilidade({
   erroConcluir = null,
   onFechar,
   onConcluir,
+  pagamentoConfirmado = false,
   rodapeExtra = null,
   onConcluirSemManifesto,
+  onConfirmarChegada,
+  erroChegada = null,
 }: Props) {
   const t = useTranslations('Mobilidade')
   useModalScrollLock(aberto)
@@ -147,6 +157,12 @@ export default function DrawerAtendimentoAtivoMobilidade({
     papel === 'profissional' &&
     st === 'em_viagem' &&
     Boolean(onConcluir) &&
+    modalidadeUsaDeslocamentoProprio(atendimento.modalidade) &&
+    pagamentoConfirmado
+  const mostrarChegadaDrawer =
+    papel === 'profissional' &&
+    st === 'no_local' &&
+    Boolean(onConfirmarChegada) &&
     modalidadeUsaDeslocamentoProprio(atendimento.modalidade)
   /** INÍCIO (guia/van): botão MANIFESTO no lugar do card do turista. */
   const faseInicioManifesto =
@@ -433,53 +449,60 @@ export default function DrawerAtendimentoAtivoMobilidade({
           </div>
         ) : null}
 
-        {/* Chat (chevron + badge) */}
-        {atendimento.conversa_id ? (
-          <div className="mt-3 overflow-hidden rounded-xl border border-gray-200 bg-white">
-            <button
-              type="button"
-              onClick={() => {
-                setChatAberto((v) => {
-                  const next = !v
-                  if (next) {
-                    setChatUnread(0)
-                    setChatLastReadIso(new Date().toISOString())
-                  } else {
-                    setChatLastReadIso(new Date().toISOString())
-                  }
-                  return next
-                })
-              }}
-              className="flex w-full items-center gap-2 px-3 py-3 text-left"
-            >
-              <span className="min-w-0 flex-1 text-sm font-bold uppercase tracking-wide text-[#0097b2]">
-                {t('chatTitulo')}
-              </span>
-              {!chatAberto && chatUnread > 0 ? (
-                <span className="rounded-full bg-rose-600 px-2 py-0.5 text-[11px] font-bold text-white">
-                  {chatUnread > 99 ? '99+' : chatUnread}
-                </span>
-              ) : null}
-              <ChevronDown
-                className={`h-4 w-4 shrink-0 text-gray-500 transition-transform ${
-                  chatAberto ? 'rotate-180' : ''
-                }`}
-                aria-hidden
-              />
-            </button>
-            {/* Sempre montado para poll + badge; conteúdo só se aberto */}
-            <div className={chatAberto ? 'border-t border-gray-100 px-2 pb-2 pt-1' : ''}>
-              <ChatCorridaMobilidade
-                conversaId={atendimento.conversa_id}
-                visivel={chatAberto}
-                onMensagensChange={onMensagensChange}
-              />
+        {mostrarChegadaDrawer ? (
+          <div className="mt-3 rounded-xl px-4 py-3 text-white" style={{ backgroundColor: VERDE }}>
+            <p className="text-sm font-bold uppercase tracking-wide">{t('chegadaVoceTitulo')}</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-white/95">{t('chegadaVoceTexto')}</p>
+            {erroChegada ? <p className="mt-2 text-xs text-white">{erroChegada}</p> : null}
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onConfirmarChegada?.(false)}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-rose-600 py-3 text-sm font-bold uppercase text-white disabled:opacity-50"
+              >
+                <X className="h-4 w-4" aria-hidden />
+                {t('chegadaNao')}
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onConfirmarChegada?.(true)}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white py-3 text-sm font-bold uppercase disabled:opacity-50"
+                style={{ color: VERDE }}
+              >
+                <Check className="h-4 w-4" aria-hidden />
+                {t('chegadaSim')}
+              </button>
             </div>
           </div>
         ) : null}
+
+        {atendimento.conversa_id ? (
+          <button
+            type="button"
+            onClick={() => {
+              setChatAberto(true)
+              setChatUnread(0)
+              setChatLastReadIso(new Date().toISOString())
+            }}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold uppercase tracking-wide text-white"
+            style={{ backgroundColor: COR }}
+          >
+            <MessageCircle className="h-5 w-5 shrink-0" aria-hidden strokeWidth={2.25} />
+            {t('chatTitulo')}
+            {chatUnread > 0 ? (
+              <span className="rounded-full bg-rose-600 px-2 py-0.5 text-[11px] font-bold text-white">
+                {chatUnread > 99 ? '99+' : chatUnread}
+              </span>
+            ) : null}
+          </button>
+        ) : null}
       </div>
 
-      {papel === 'profissional' && modalidadeUsaDeslocamentoProprio(atendimento.modalidade) ? (
+      {papel === 'profissional' &&
+      modalidadeUsaDeslocamentoProprio(atendimento.modalidade) &&
+      st === 'em_viagem' ? (
         <div className="shrink-0 border-t border-gray-100 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
           {rodapeExtra}
           {erroConcluir ? (
@@ -514,6 +537,18 @@ export default function DrawerAtendimentoAtivoMobilidade({
         <DrawerManifestoEspaco
           aberto={manifestoAberto}
           onFechar={() => setManifestoAberto(false)}
+        />
+      ) : null}
+      {atendimento.conversa_id ? (
+        <DrawerChatCorridaMobilidade
+          aberto={chatAberto}
+          conversaId={atendimento.conversa_id}
+          onFechar={() => {
+            setChatAberto(false)
+            setChatLastReadIso(new Date().toISOString())
+          }}
+          onMensagensChange={onMensagensChange}
+          headerCor={headerCor}
         />
       ) : null}
     </>
