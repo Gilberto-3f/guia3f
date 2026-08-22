@@ -26,6 +26,7 @@ import { modalidadeUsaManifesto, modalidadeUsaDeslocamentoProprio } from '@/lib/
 import { buscarRotaMapboxDriving, formatarDuracaoEta } from '@/lib/mapboxDirections'
 import { montarTrajetoEtaCorrida } from '@/lib/mobilidadeTrajetoMapa'
 import { supabase } from '@/lib/supabase'
+import LinhaEnderecoDestinoRota from '@/components/mobilidade/LinhaEnderecoDestinoRota'
 import {
   descricaoPeriodoRota,
   encontrarRotaTabeladaPorDestino,
@@ -450,6 +451,10 @@ export default function DrawerAtendimentoAtivoMobilidade({
             <span className="font-semibold text-white/80">{t('destinoLabel')}: </span>
             {atendimento.destino_nome || '—'}
           </p>
+          <LinhaEnderecoDestinoRota
+            empresaId={atendimento.destino_empresa_id}
+            destinoNome={atendimento.destino_nome}
+          />
           {etaSec != null && etaFase ? (
             <p className="mt-2.5 flex items-center gap-1.5 text-sm font-semibold text-white">
               <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />

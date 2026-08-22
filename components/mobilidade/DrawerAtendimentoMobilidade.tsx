@@ -14,6 +14,7 @@ import {
   modalidadeUsaManifesto,
   type ParceiroRecomendacaoOferta,
 } from '@/lib/mobilidadeOfertaAtendimento'
+import LinhaEnderecoDestinoRota from '@/components/mobilidade/LinhaEnderecoDestinoRota'
 
 const RODAPE_PB = 'p-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]'
 
@@ -43,6 +44,7 @@ export type OfertaAtendimentoUi = {
   contratacao_direcionada: boolean
   turista: TuristaOfertaAtendimento | null
   recomendacao?: ParceiroRecomendacaoOferta | null
+  destino_empresa_id?: string | null
 }
 
 type Props = {
@@ -206,6 +208,10 @@ export default function DrawerAtendimentoMobilidade({
             <span className="font-semibold text-white">{t('destinoLabel')}: </span>
             {oferta.destino_nome || '—'}
           </p>
+          <LinhaEnderecoDestinoRota
+            empresaId={oferta.destino_empresa_id}
+            destinoNome={oferta.destino_nome}
+          />
         </div>
 
         {/* Informações do atendimento */}

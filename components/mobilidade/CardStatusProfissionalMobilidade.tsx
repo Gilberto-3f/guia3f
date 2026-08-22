@@ -269,6 +269,7 @@ export default function CardStatusProfissionalMobilidade({
       <DrawerManifestoEspaco
         aberto={manifestoAberto}
         onFechar={() => setManifestoAberto(false)}
+        abrirListaDoDia
       />
     </>
   )

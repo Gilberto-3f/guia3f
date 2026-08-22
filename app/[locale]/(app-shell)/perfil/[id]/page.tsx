@@ -36,6 +36,7 @@ import PerfilRecomendacaoContratarGate from '@/components/perfil/PerfilRecomenda
 import { normalizarCategoriasProfissional } from '@/lib/cartaoVisitaProfissional'
 import { resolverHrefContratarCartaoVisita } from '@/lib/recomendacaoContratacaoDestino'
 import { seedProfissionalDrawerSnap, carregarProfissionalDrawerParticular } from '@/lib/profissionalDrawerParticular'
+import { labelModalidadeMobilidade } from '@/lib/mobilidadePopupPesquisa'
 import { isPostOcultoDoFeed } from '@/lib/feedFiltroSeguidos'
 import {
   escolherIdStoryInicialPorEmail,
@@ -1158,6 +1159,11 @@ export default function PerfilSocialPage() {
             verificado:
               profMeta.statusProfissional === 'aprovado' || Boolean(profMeta.docsVerificado),
             verificado_em: profMeta.verificadoEm ?? profMeta.cadastradoEm,
+            categoria_label: labelModalidadeMobilidade(
+              profMeta.categorias,
+              profMeta.placaVermelha,
+            ),
+            nota_media: profMeta.notaMedia ?? null,
           })
           void carregarProfissionalDrawerParticular(supabase, profileId)
 

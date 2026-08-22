@@ -23,6 +23,7 @@ import {
   Smartphone,
   Sparkles,
   Users,
+  UserRound,
   X,
 } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
@@ -349,7 +350,7 @@ export default function DrawerPesquisaMobilidade({
   } | null>(null)
   const listaSugestoesRef = useRef<HTMLUListElement | null>(null)
   const [chevIdioma, setChevIdioma] = useState(false)
-  const [chevLugares, setChevLugares] = useState(false)
+  const [chevLugares, setChevLugares] = useState(true)
   const [chevAgendar, setChevAgendar] = useState(false)
   const [chevBeneficios, setChevBeneficios] = useState(false)
   const [dicaLugaresAberta, setDicaLugaresAberta] = useState(false)
@@ -429,7 +430,7 @@ export default function DrawerPesquisaMobilidade({
     setIdiomaPreferido('')
     setIdiomasFiltro([])
     setChevIdioma(false)
-    setChevLugares(false)
+    setChevLugares(true)
     setChevAgendar(false)
     setChevBeneficios(false)
     setDicaLugaresAberta(false)
@@ -671,8 +672,9 @@ export default function DrawerPesquisaMobilidade({
     return Array.from({ length: Number.isFinite(n) ? n : 0 }, (_, i) => `mod.${id}.e${i + 1}`)
   }
 
-  const IconHeader =
-    etapa === 1
+  const IconHeader = modoParticular
+    ? UserRound
+    : etapa === 1
       ? modalidade && modoParticular
         ? ICONES[modalidade]
         : Car
@@ -682,11 +684,10 @@ export default function DrawerPesquisaMobilidade({
           ? ICONES[modalidade]
           : Car
 
-  const tituloHeader =
-    etapa === 1
-      ? modoParticular && modalidade
-        ? TITULOS_MOD[modalidade]
-        : t('drawerModalidades')
+  const tituloHeader = modoParticular
+    ? t('drawerParticular')
+    : etapa === 1
+      ? t('drawerModalidades')
       : etapa === 3
         ? t('drawerFormaPagamento')
         : modalidade
@@ -860,7 +861,7 @@ export default function DrawerPesquisaMobilidade({
           acompanhamento_guia: modalidade === 'guia',
           data_agendada: dataAgendada,
           idioma_preferido:
-            modalidade === 'guia' && idiomaPreferido ? idiomaPreferido : null,
+            !modoParticular && modalidade === 'guia' && idiomaPreferido ? idiomaPreferido : null,
           recomendacao_id: pesquisa.recomendacaoId,
           profissional_usuario_id: pesquisa.profissionalUsuarioId,
         }),
@@ -882,6 +883,7 @@ export default function DrawerPesquisaMobilidade({
           matchErro: String(json.error ?? t('matchErro')),
           dataHoraAgendada: dataAgendada || undefined,
           contratacaoDirigida: modoParticular,
+          profissionalParticular: modoParticular ? profParticular : null,
         })
         onFechar()
         return
@@ -898,6 +900,7 @@ export default function DrawerPesquisaMobilidade({
         backupsOcultos: Number(json.backupsOcultos ?? 0),
         dataHoraAgendada: dataAgendada || undefined,
         contratacaoDirigida: modoParticular,
+        profissionalParticular: modoParticular ? profParticular : null,
       })
       onFechar()
     } catch {
@@ -908,6 +911,7 @@ export default function DrawerPesquisaMobilidade({
         backupsOcultos: 0,
         matchErro: t('matchErro'),
         contratacaoDirigida: modoParticular,
+        profissionalParticular: modoParticular ? profParticular : null,
       })
       onFechar()
     } finally {
@@ -961,7 +965,7 @@ export default function DrawerPesquisaMobilidade({
             {profParticular ? (
               <BlocoProfissionalDrawerParticular
                 prof={profParticular}
-                labelVerificadoDesde={(mesAno) => t('particularVerificadoDesde', { mesAno })}
+                labelVerificadoPrefixo={t('particularVerificadoPrefixo')}
               />
             ) : profParticularLoading ? (
               <p className="py-6 text-center text-sm text-gray-500">…</p>
@@ -1627,7 +1631,7 @@ export default function DrawerPesquisaMobilidade({
                     {t('resumoCorrida')}
                   </p>
                   <ul className="mt-1 space-y-0.5 text-sm text-gray-700">
-                    {modalidade === 'guia' && idiomaPreferido ? (
+                    {modalidade === 'guia' && idiomaPreferido && !modoParticular ? (
                       <li>
                         {t('resumoIdioma')}:{' '}
                         {idiomasFiltro.find((i) => i.codigo === idiomaPreferido)?.label ??

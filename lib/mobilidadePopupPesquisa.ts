@@ -94,6 +94,21 @@ export function modalidadeDeCategoriasProfissional(
   return null
 }
 
+const LABEL_MODALIDADE: Record<ModalidadeMobilidadeId, string> = {
+  motorista_app: 'Motorista de app',
+  van: 'Motorista de van',
+  taxista: 'Taxista',
+  guia: 'Guia de turismo',
+}
+
+export function labelModalidadeMobilidade(
+  categorias: string[] | null | undefined,
+  placaVermelha = false,
+): string | null {
+  const mod = modalidadeDeCategoriasProfissional(categorias, placaVermelha)
+  return mod ? LABEL_MODALIDADE[mod] : null
+}
+
 /**
  * App sempre no topo (quando disponível); demais por preço menor→maior.
  * Sem preço → vai para o fim do grupo.

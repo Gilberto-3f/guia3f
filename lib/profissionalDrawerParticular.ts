@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { IDIOMAS_GUIA, normalizarIdiomasGuia } from '@/lib/idiomasGuia'
 import {
   modalidadeDeCategoriasProfissional,
+  labelModalidadeMobilidade,
   type ModalidadeMobilidadeId,
 } from '@/lib/mobilidadePopupPesquisa'
 import { parseMobilidadeStatus } from '@/lib/mobilidadeStatusProfissional'
@@ -12,6 +13,8 @@ export type ProfissionalDrawerParticular = {
   foto_url: string | null
   verificado: boolean
   verificado_em: string | null
+  categoria_label?: string | null
+  nota_media?: number | null
 }
 
 export type ProfissionalDrawerCache = {
@@ -50,7 +53,10 @@ export function seedProfissionalDrawerSnap(
   })
 }
 
-function mapRow(data: Record<string, unknown>): ProfissionalDrawerCache {
+function mapRow(
+  data: Record<string, unknown>,
+  prev?: ProfissionalDrawerCache | null,
+): ProfissionalDrawerCache {
   const cats = Array.isArray(data.categorias) ? data.categorias.map(String) : []
   const placa = Boolean(data.placa_vermelha)
   const modalidade = modalidadeDeCategoriasProfissional(cats, placa)
@@ -77,6 +83,9 @@ function mapRow(data: Record<string, unknown>): ProfissionalDrawerCache {
           : data.created_at != null
             ? String(data.created_at)
             : null,
+      categoria_label:
+        labelModalidadeMobilidade(cats, placa) ?? prev?.snap.categoria_label ?? null,
+      nota_media: prev?.snap.nota_media ?? null,
     },
     modalidade,
     idiomas,
@@ -106,7 +115,7 @@ export async function carregarProfissionalDrawerParticular(
       .eq('usuario_id', uid)
       .maybeSingle()
     if (error || !data) return hit ?? null
-    const next = mapRow(data as Record<string, unknown>)
+    const next = mapRow(data as Record<string, unknown>, hit)
     cache.set(uid, next)
     return next
   })()

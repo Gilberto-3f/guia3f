@@ -408,12 +408,9 @@ export async function concluirAtendimentoManifesto(
     manifestoId: string
     profissionalId: string
     profissionalUsuarioId: string
-    pagamentoConfirmado: boolean
+    pularCheckin?: boolean
   },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  if (!params.pagamentoConfirmado) {
-    return { ok: false, error: 'Confirme que recebeu o pagamento para concluir.' }
-  }
 
   const { data: md } = await supabase
     .from('manifesto_diario')
@@ -452,7 +449,9 @@ export async function concluirAtendimentoManifesto(
     }
   }
 
-  const man = await concluirManifestoDiario(supabase, params.manifestoId, params.profissionalId)
+  const man = await concluirManifestoDiario(supabase, params.manifestoId, params.profissionalId, {
+    pularCheckin: params.pularCheckin === true,
+  })
   if (!man.ok) return { ok: false, error: man.error ?? 'Não foi possível concluir o manifesto.' }
 
   await supabase

@@ -46,6 +46,7 @@ export type CorridaAtivaMobilidade = {
   status?: string | null
   origem_nome: string | null
   destino_nome: string | null
+  destino_empresa_id?: string | null
   modalidade: string | null
   valor_estimado: number | null
   pagamento: string | null
@@ -90,7 +91,6 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
   const [erroRecusa, setErroRecusa] = useState('')
   const [corrida, setCorrida] = useState<CorridaAtivaMobilidade | null>(null)
   const [erroConcluir, setErroConcluir] = useState('')
-  const [recebiDinheiro, setRecebiDinheiro] = useState(false)
   const [erroChegada, setErroChegada] = useState('')
   const [drawerAtivoAberto, setDrawerAtivoAberto] = useState(false)
   const detectandoChegadaRef = useRef(false)
@@ -202,6 +202,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
           modalidade: string | null
           origem_nome: string | null
           destino_nome: string | null
+          destino_empresa_id?: string | null
           valor_estimado: number | null
           lugares: number | null
           pagamento: string | null
@@ -219,6 +220,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
             modalidade: conf.modalidade ?? 'agendamento',
             origem_nome: conf.origem_nome,
             destino_nome: conf.destino_nome,
+            destino_empresa_id: conf.destino_empresa_id ?? null,
             valor_estimado: conf.valor_estimado,
             lugares: conf.lugares,
             pagamento: conf.pagamento ?? null,
@@ -567,10 +569,6 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
 
   const concluir = async (forcar = false) => {
     if (!corrida || busy) return
-    if (!recebiDinheiro) {
-      setErroConcluir(t('pagConfirmeDinheiro'))
-      return
-    }
     setBusy(true)
     setErroConcluir('')
     try {
@@ -579,7 +577,6 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           forcar: forcar || undefined,
-          pagamento_confirmado: recebiDinheiro,
         }),
       })
       const json = (await res.json()) as {
@@ -600,7 +597,6 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
       avisarCorridaProPoll(null)
       avisarCorridaAtivaAtualizada()
       setErroConcluir('')
-      setRecebiDinheiro(false)
       setDrawerAtivoAberto(false)
     } finally {
       setBusy(false)
@@ -616,6 +612,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
       status: st,
       origem_nome: corrida.origem_nome,
       destino_nome: corrida.destino_nome,
+      destino_empresa_id: corrida.destino_empresa_id ?? null,
       valor_estimado: corrida.valor_estimado,
       pagamento: corrida.pagamento,
       lugares: corrida.lugares ?? null,
@@ -641,19 +638,6 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
     }
 
     const usaManifesto = modalidadeUsaManifesto(corrida.modalidade)
-    const rodapePagamento = usaManifesto ? null : (
-      <div className="mb-3 space-y-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
-        <label className="flex items-start gap-2 text-xs text-gray-700">
-          <input
-            type="checkbox"
-            checked={recebiDinheiro}
-            onChange={(e) => setRecebiDinheiro(e.target.checked)}
-            className="mt-0.5"
-          />
-          <span>{t('pagRecebiDinheiro')}</span>
-        </label>
-      </div>
-    )
 
     return (
       <>
@@ -663,8 +647,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
           atendimento={atendimentoAtivo}
           busy={busy}
           erroConcluir={erroConcluir || null}
-          pagamentoConfirmado={usaManifesto ? false : recebiDinheiro}
-          rodapeExtra={rodapePagamento}
+          pagamentoConfirmado
           onFechar={() => setDrawerAtivoAberto(false)}
           onConcluir={usaManifesto ? undefined : () => void concluir(false)}
           onConcluirSemManifesto={usaManifesto ? undefined : () => void concluir(true)}

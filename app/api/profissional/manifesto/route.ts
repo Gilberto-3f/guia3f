@@ -10,6 +10,8 @@ import {
 import { listarParadasManifesto, type ParadaItinerarioRow } from '@/lib/itinerarioParadas'
 import { profissionalEhGuia } from '@/lib/profissionalCategoriaManifesto'
 import { joinSupabaseRow } from '@/lib/supabaseJoinRow'
+import { lerFinalizacaoSemCheckin } from '@/lib/manifestoFinalizacaoSemCheckin'
+import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 
 export type ManifestoPassageiroRow = {
   id: string
@@ -46,6 +48,10 @@ export type ManifestoDiarioRow = {
   itinerario: ParadaItinerarioRow[]
   /** @deprecated use itinerario */
   atrativos: ParadaItinerarioRow[]
+  finalizacao_sem_checkin: {
+    pendente: boolean
+    motivo_profissional: string
+  } | null
 }
 
 async function assertPlacaVermelha(auth: Awaited<ReturnType<typeof assertUserSession>> & { ok: true }) {
@@ -88,6 +94,33 @@ async function montarManifestoRow(
     paradasPorTurista.set(p.turista_id, (paradasPorTurista.get(p.turista_id) ?? 0) + 1)
   }
 
+  const sids = (passageiros ?? [])
+    .filter((p) => String(p.status) === 'recebido' && p.solicitacao_id)
+    .map((p) => String(p.solicitacao_id))
+  let finalizacao_sem_checkin: ManifestoDiarioRow['finalizacao_sem_checkin'] = null
+  if (sids.length > 0) {
+    let db = supabase
+    try {
+      db = createSupabaseAdmin()
+    } catch {
+      db = supabase
+    }
+    const { data: sols } = await db
+      .from('solicitacao_mobilidade')
+      .select('id, metadata')
+      .in('id', sids)
+    for (const s of sols ?? []) {
+      const fin = lerFinalizacaoSemCheckin(s.metadata)
+      if (fin?.pendente) {
+        finalizacao_sem_checkin = {
+          pendente: true,
+          motivo_profissional: fin.motivo_profissional,
+        }
+        if (!fin.confirmado_turista_em) break
+      }
+    }
+  }
+
   return {
     id,
     data_manifesto: String(row.data_manifesto),
@@ -127,6 +160,7 @@ async function montarManifestoRow(
     }),
     itinerario,
     atrativos: itinerario,
+    finalizacao_sem_checkin,
   }
 }
 

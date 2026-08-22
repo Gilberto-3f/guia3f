@@ -902,13 +902,13 @@ export default function VisaoTuristaMobilidade({
       </div>
 
       {/* Overlay: card flutuante (não empurra o mapa ao abrir). */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-3 pt-2">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col items-center px-3 pt-2">
         {empresasErro ? (
-          <p className="pointer-events-auto mb-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
+          <p className="pointer-events-auto mb-2 w-full max-w-lg rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
             {empresasErro}
           </p>
         ) : null}
-        <div className="pointer-events-auto mx-auto w-full max-w-lg">
+        <div className="pointer-events-auto w-full max-w-lg">
           {perfilEhProfissional && temToggleMobilidade ? (
             <CardStatusProfissionalMobilidade forcarRecolhido={drawerAberto} />
           ) : cardMotoristaApp ? (

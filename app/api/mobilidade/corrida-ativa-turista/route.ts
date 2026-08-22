@@ -106,6 +106,17 @@ export async function GET() {
       destino_empresa_id:
         row.destino_empresa_id != null ? String(row.destino_empresa_id) : null,
       manifesto_id: meta.manifesto_id != null ? String(meta.manifesto_id) : null,
+      finalizacao_sem_checkin: (() => {
+        const raw = meta.finalizacao_sem_checkin
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+        const o = raw as Record<string, unknown>
+        if (o.pendente !== true) return null
+        return {
+          pendente: true,
+          motivo_profissional: String(o.motivo_profissional ?? ''),
+          confirmado_turista: Boolean(o.confirmado_turista_em),
+        }
+      })(),
       modalidade: row.modalidade != null ? String(row.modalidade) : null,
       valor_estimado: row.valor_estimado != null ? Number(row.valor_estimado) : null,
       pagamento: row.pagamento != null ? String(row.pagamento) : null,

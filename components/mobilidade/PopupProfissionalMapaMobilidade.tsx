@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabase'
 import { normalizarCategoriasProfissional } from '@/lib/cartaoVisitaProfissional'
 import { turistaPodeAvaliarProfissionalCartao } from '@/lib/cartaoVisitaAvaliacaoTurista'
 import { carregarUrlApiMobilidadeParceiro } from '@/lib/appParceiroLink'
+import { labelModalidadeMobilidade } from '@/lib/mobilidadePopupPesquisa'
 
 type Props = {
   prof: ProfissionalOnlineMapa | null
@@ -93,6 +94,7 @@ export default function PopupProfissionalMapaMobilidade({
       foto_url: prof.foto_url,
       verificado: true,
       verificado_em: null,
+      categoria_label: labelModalidadeMobilidade(prof.categorias, prof.placa_vermelha),
     })
     void carregarProfissionalDrawerParticular(supabase, prof.usuario_id)
     onFechar()

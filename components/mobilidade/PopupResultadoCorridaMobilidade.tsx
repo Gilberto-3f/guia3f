@@ -8,6 +8,8 @@ import { ofertaWarnAmarelo } from '@/lib/mobilidadeMatching'
 import { avisarCorridaAtivaAtualizada } from '@/lib/mobilidadeAtendimentoAtivoEventos'
 import AvaliacaoCorridaMobilidade from '@/components/mobilidade/AvaliacaoCorridaMobilidade'
 import { MOBILIDADE_POLL_MATCHING_MS } from '@/lib/mobilidadePoll'
+import BlocoProfissionalDrawerParticular from '@/components/mobilidade/BlocoProfissionalDrawerParticular'
+import type { ProfissionalDrawerParticular } from '@/lib/profissionalDrawerParticular'
 
 export type OfertaResultadoUi = {
   profissionalId: string
@@ -28,6 +30,7 @@ export type ResultadoCorridaMobilidade = {
   dataHoraAgendada?: string
   /** Cartão / indicação: espera o profissional escolhido (5 min). */
   contratacaoDirigida?: boolean
+  profissionalParticular?: ProfissionalDrawerParticular | null
 }
 
 type Props = {
@@ -244,15 +247,41 @@ export default function PopupResultadoCorridaMobilidade({
                     </span>
                   ) : null}
                 </div>
+                {resultado.contratacaoDirigida && resultado.profissionalParticular ? (
+                  <div className="mt-3">
+                    <BlocoProfissionalDrawerParticular
+                      prof={resultado.profissionalParticular}
+                      labelVerificadoPrefixo={t('particularVerificadoPrefixo')}
+                    />
+                  </div>
+                ) : null}
                 <p className="mt-2 text-xs text-gray-400">{t('matchAguardandoAceite')}</p>
               </div>
             ) : null}
 
             {buscando && !oferta && matchStatus !== 'sem_profissional' ? (
-              <>
-                <div className="mx-auto h-10 w-10 animate-pulse rounded-full bg-[#0097b2]/30" />
-                <p className="font-semibold text-gray-800">{t('procurandoProfissional')}</p>
-              </>
+              resultado.contratacaoDirigida && resultado.profissionalParticular ? (
+                <div className="rounded-xl border border-gray-200 px-3 py-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-bold text-gray-800">{t('matchOfertaTitulo')}</p>
+                    {segRestantes != null ? (
+                      <span className="rounded-full bg-[#0097b2] px-2.5 py-1 text-xs font-bold tabular-nums text-white">
+                        {relogioTxt}
+                      </span>
+                    ) : null}
+                  </div>
+                  <BlocoProfissionalDrawerParticular
+                    prof={resultado.profissionalParticular}
+                    labelVerificadoPrefixo={t('particularVerificadoPrefixo')}
+                  />
+                  <p className="mt-2 text-xs text-gray-400">{t('matchAguardandoAceite')}</p>
+                </div>
+              ) : (
+                <>
+                  <div className="mx-auto h-10 w-10 animate-pulse rounded-full bg-[#0097b2]/30" />
+                  <p className="font-semibold text-gray-800">{t('procurandoProfissional')}</p>
+                </>
+              )
             ) : null}
 
             {matchStatus === 'sem_profissional' && !oferta ? (

@@ -7,11 +7,13 @@ import DrawerAtendimentoAtivoMobilidade, {
   type AtendimentoAtivoUi,
 } from '@/components/mobilidade/DrawerAtendimentoAtivoMobilidade'
 import PopupChegadaTuristaMobilidade from '@/components/mobilidade/PopupChegadaTuristaMobilidade'
+import PopupFinalizacaoSemCheckinTurista from '@/components/mobilidade/PopupFinalizacaoSemCheckinTurista'
 import {
   avisarCorridaTuristaPoll,
   ehAtendimentoImediatoAtivo,
   MOBILIDADE_ABRIR_DRAWER_ATIVO,
   MOBILIDADE_CORRIDA_ATIVA,
+  avisarCorridaAtivaAtualizada,
 } from '@/lib/mobilidadeAtendimentoAtivoEventos'
 import { modalidadeUsaDeslocamentoProprio } from '@/lib/mobilidadeOfertaAtendimento'
 import {
@@ -51,6 +53,11 @@ type CorridaTurista = {
   profissional_username: string | null
   profissional_whatsapp: string | null
   profissional: ProfissionalCorrida | null
+  finalizacao_sem_checkin?: {
+    pendente: boolean
+    motivo_profissional: string
+    confirmado_turista?: boolean
+  } | null
 }
 
 const STATUS_ATIVO = new Set(['aceita', 'a_caminho', 'no_local', 'em_viagem'])
@@ -70,6 +77,8 @@ export default function ChegadaTuristaMobilidadeListener({ onCorridaChange }: Pr
   const [corrida, setCorrida] = useState<CorridaTurista | null>(null)
   const [drawerAberto, setDrawerAberto] = useState(false)
   const [chegadaDismissedId, setChegadaDismissedId] = useState<string | null>(null)
+  const [busyFinalizacao, setBusyFinalizacao] = useState(false)
+  const [erroFinalizacao, setErroFinalizacao] = useState('')
   const solicitacaoAnteriorRef = useRef<string | null>(null)
 
   const elegivel =
@@ -200,10 +209,44 @@ export default function ChegadaTuristaMobilidadeListener({ onCorridaChange }: Pr
   }
 
   const st = String(corrida.status)
+  const fin = corrida.finalizacao_sem_checkin
+  const mostrarFinalizacao =
+    Boolean(fin?.pendente) && !fin?.confirmado_turista
   const mostrarChegada =
     st === 'no_local' &&
     chegadaDismissedId !== corrida.solicitacao_id &&
-    modalidadeUsaDeslocamentoProprio(corrida.modalidade)
+    modalidadeUsaDeslocamentoProprio(corrida.modalidade) &&
+    !mostrarFinalizacao
+
+  const responderFinalizacao = async (opts: { confirma: boolean; outro?: string }) => {
+    if (busyFinalizacao) return
+    setBusyFinalizacao(true)
+    setErroFinalizacao('')
+    try {
+      const res = await fetch(
+        `/api/mobilidade/solicitar/${corrida.solicitacao_id}/confirmar-finalizacao`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            confirma: opts.confirma,
+            outro: opts.outro ?? null,
+          }),
+        },
+      )
+      const json = (await res.json()) as { error?: string }
+      if (!res.ok) {
+        setErroFinalizacao(String(json.error ?? t('finalizarSemCheckinErro')))
+        return
+      }
+      avisarCorridaAtivaAtualizada()
+      await carregar()
+    } catch {
+      setErroFinalizacao(t('finalizarSemCheckinErro'))
+    } finally {
+      setBusyFinalizacao(false)
+    }
+  }
   const imediato = ehAtendimentoImediatoAtivo({
     status: st,
     data_agendada: corrida.data_agendada,
@@ -232,6 +275,14 @@ export default function ChegadaTuristaMobilidadeListener({ onCorridaChange }: Pr
         usernameProfissional={corrida.profissional_username ?? pro?.username ?? null}
         onFechar={() => setChegadaDismissedId(corrida.solicitacao_id)}
         onOk={() => setChegadaDismissedId(corrida.solicitacao_id)}
+      />
+      <PopupFinalizacaoSemCheckinTurista
+        aberto={mostrarFinalizacao}
+        motivoProfissional={fin?.motivo_profissional ?? ''}
+        busy={busyFinalizacao}
+        erro={erroFinalizacao || null}
+        onConfirmar={() => void responderFinalizacao({ confirma: true })}
+        onOutro={(texto) => void responderFinalizacao({ confirma: false, outro: texto })}
       />
     </>
   )

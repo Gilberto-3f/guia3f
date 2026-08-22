@@ -13,7 +13,12 @@ import { MANIFESTO_CAPACIDADE_PADRAO } from '@/lib/mobilidadePainelProfissional'
 import {
   avisarCorridaAtivaAtualizada,
   avisarListaIniciada,
+  MOBILIDADE_CORRIDA_ATIVA,
 } from '@/lib/mobilidadeAtendimentoAtivoEventos'
+import {
+  FINALIZACAO_OUTRO_MAX,
+  type MotivoFinalizacaoSemCheckinId,
+} from '@/lib/manifestoFinalizacaoSemCheckin'
 
 const COR = '#0097b2'
 const VERDE = '#00D443'
@@ -21,6 +26,8 @@ const VERDE = '#00D443'
 type Props = {
   aberto: boolean
   onFechar: () => void
+  /** Abre direto na LISTA do manifesto de hoje (atalho flutuante). */
+  abrirListaDoDia?: boolean
 }
 
 function hojeIsoLocal(): string {
@@ -49,7 +56,7 @@ function formatarDataBrCompleta(iso: string): string {
  * Drawer Manifesto no Espaço Profissional: lista do dia em destaque + demais datas.
  * Clique → detalhe com abas LISTA e ITINERÁRIO.
  */
-export default function DrawerManifestoEspaco({ aberto, onFechar }: Props) {
+export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDia = false }: Props) {
   const t = useTranslations('Mobilidade')
   useModalScrollLock(aberto)
   const [loading, setLoading] = useState(true)
@@ -72,8 +79,12 @@ export default function DrawerManifestoEspaco({ aberto, onFechar }: Props) {
       const lista = Array.isArray(json.manifestos) ? json.manifestos : []
       setManifestos(lista)
       setSelecionado((prev) => {
-        if (!prev) return null
-        return lista.find((m) => m.id === prev.id) ?? prev
+        if (prev) return lista.find((m) => m.id === prev.id) ?? prev
+        if (abrirListaDoDia) {
+          const hoje = hojeIsoLocal()
+          return lista.find((m) => String(m.data_manifesto).slice(0, 10) === hoje) ?? null
+        }
+        return null
       })
     } catch {
       setErro(t('manifestoErro'))
@@ -81,7 +92,7 @@ export default function DrawerManifestoEspaco({ aberto, onFechar }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [t])
+  }, [t, abrirListaDoDia])
 
   useEffect(() => {
     if (!aberto) {
@@ -89,6 +100,9 @@ export default function DrawerManifestoEspaco({ aberto, onFechar }: Props) {
       return
     }
     void carregar()
+    const onRefresh = () => void carregar()
+    window.addEventListener(MOBILIDADE_CORRIDA_ATIVA, onRefresh)
+    return () => window.removeEventListener(MOBILIDADE_CORRIDA_ATIVA, onRefresh)
   }, [aberto, carregar])
 
   const hoje = hojeIsoLocal()
@@ -266,6 +280,9 @@ function DetalheManifesto({
   const [aba, setAba] = useState<'lista' | 'itinerario'>('lista')
   const [busyId, setBusyId] = useState<string | null>(null)
   const [pagConfirmado, setPagConfirmado] = useState(false)
+  const [mostrarMotivo, setMostrarMotivo] = useState(false)
+  const [motivoId, setMotivoId] = useState<MotivoFinalizacaoSemCheckinId | null>(null)
+  const [motivoDetalhe, setMotivoDetalhe] = useState('')
   const [erroAcao, setErroAcao] = useState('')
   const [cancelando, setCancelando] = useState<ManifestoDiarioRow['passageiros'][number] | null>(null)
   const [justificativa, setJustificativa] = useState('')
@@ -273,6 +290,7 @@ function DetalheManifesto({
   const listaIniciada = Boolean(manifesto.lista_iniciada_em)
   const ehHoje = String(manifesto.data_manifesto).slice(0, 10) === hojeIsoLocal()
   const mostrarAcoes = listaIniciada && ehHoje && String(manifesto.status) !== 'concluido'
+  const aguardandoTurista = Boolean(manifesto.finalizacao_sem_checkin?.pendente)
 
   const empresasUnicas = useMemo(() => {
     const map = new Map<string, ParadaItinerarioRow & { turistas: { id: string; nome: string; username: string | null; foto: string | null }[] }>()
@@ -346,7 +364,12 @@ function DetalheManifesto({
   }
 
   const concluir = async () => {
-    if (!pagConfirmado) return
+    if (aguardandoTurista) return
+    if (pagConfirmado) {
+      setMostrarMotivo(true)
+      setErroAcao('')
+      return
+    }
     setBusyId('concluir')
     setErroAcao('')
     try {
@@ -355,7 +378,6 @@ function DetalheManifesto({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           manifesto_id: manifesto.id,
-          pagamento_confirmado: true,
         }),
       })
       const json = (await res.json()) as { error?: string }
@@ -363,6 +385,42 @@ function DetalheManifesto({
         setErroAcao(String(json.error ?? t('concluirErro')))
         return
       }
+      avisarCorridaAtivaAtualizada()
+      onAtualizar()
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const confirmarMotivo = async () => {
+    if (!motivoId) {
+      setErroAcao(t('finalizarSemCheckinEscolha'))
+      return
+    }
+    if (motivoId === 'outro' && !motivoDetalhe.trim()) {
+      setErroAcao(t('finalizarSemCheckinOutroObrigatorio'))
+      return
+    }
+    setBusyId('concluir')
+    setErroAcao('')
+    try {
+      const res = await fetch('/api/profissional/manifesto/propor-finalizacao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          manifesto_id: manifesto.id,
+          motivo: motivoId,
+          detalhe: motivoDetalhe.trim() || null,
+        }),
+      })
+      const json = (await res.json()) as { error?: string }
+      if (!res.ok) {
+        setErroAcao(String(json.error ?? t('finalizarSemCheckinErro')))
+        return
+      }
+      setMostrarMotivo(false)
+      setMotivoId(null)
+      setMotivoDetalhe('')
       avisarCorridaAtivaAtualizada()
       onAtualizar()
     } finally {
@@ -429,24 +487,32 @@ function DetalheManifesto({
 
           {mostrarAcoes ? (
             <div className="space-y-3 border-t border-gray-100 pt-4">
-              <label className="flex items-start gap-2 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={pagConfirmado}
-                  onChange={(e) => setPagConfirmado(e.target.checked)}
-                  className="mt-0.5"
-                />
-                <span>{t('pagRecebiDinheiro')}</span>
-              </label>
-              <button
-                type="button"
-                disabled={!pagConfirmado || busyId != null}
-                onClick={() => void concluir()}
-                className="w-full rounded-xl py-3.5 text-sm font-bold uppercase tracking-wide text-white disabled:opacity-50"
-                style={{ backgroundColor: COR }}
-              >
-                {t('concluirAtendimento')}
-              </button>
+              {aguardandoTurista ? (
+                <p className="rounded-xl bg-[#0097b2]/10 px-3 py-2.5 text-center text-sm font-semibold text-[#0097b2]">
+                  {t('finalizarSemCheckinAguardandoTurista')}
+                </p>
+              ) : (
+                <>
+                  <label className="flex items-start gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={pagConfirmado}
+                      onChange={(e) => setPagConfirmado(e.target.checked)}
+                      className="mt-0.5"
+                    />
+                    <span>{t('finalizarSemCheckin')}</span>
+                  </label>
+                  <button
+                    type="button"
+                    disabled={busyId != null}
+                    onClick={() => void concluir()}
+                    className="w-full rounded-xl py-3.5 text-sm font-bold uppercase tracking-wide text-white disabled:opacity-50"
+                    style={{ backgroundColor: COR }}
+                  >
+                    {t('concluirAtendimento')}
+                  </button>
+                </>
+              )}
             </div>
           ) : null}
         </>
@@ -489,6 +555,75 @@ function DetalheManifesto({
                 className="flex-1 rounded-xl bg-rose-600 py-2.5 text-sm font-bold uppercase text-white disabled:opacity-50"
               >
                 {t('manifestoJustificativaEnviar')}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {mostrarMotivo ? (
+        <div className="fixed inset-0 z-[96] flex items-end justify-center bg-black/40 p-4 sm:items-center">
+          <div
+            className="w-full max-w-md space-y-3 rounded-2xl px-3 py-3 text-white shadow-xl"
+            style={{ backgroundColor: COR }}
+          >
+            <p className="text-sm font-semibold text-white">{t('finalizarSemCheckinMotivoTitulo')}</p>
+            <ul className="space-y-1.5">
+              {(['cliente_pediu', 'outro'] as const).map((id) => (
+                <li key={id}>
+                  <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-white/30 bg-white/10 px-2.5 py-2 text-xs text-white">
+                    <input
+                      type="radio"
+                      name="motivo-sem-checkin"
+                      checked={motivoId === id}
+                      onChange={() => {
+                        setMotivoId(id)
+                        if (id !== 'outro') setMotivoDetalhe('')
+                      }}
+                      className="mt-0.5 accent-white"
+                    />
+                    <span>
+                      {id === 'cliente_pediu'
+                        ? t('finalizarSemCheckinClientePediu')
+                        : t('finalizarSemCheckinOutro')}
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            {motivoId === 'outro' ? (
+              <label className="block text-xs text-white/90">
+                {t('finalizarSemCheckinOutroLabel')}
+                <textarea
+                  value={motivoDetalhe}
+                  onChange={(e) => setMotivoDetalhe(e.target.value.slice(0, FINALIZACAO_OUTRO_MAX))}
+                  rows={3}
+                  maxLength={FINALIZACAO_OUTRO_MAX}
+                  placeholder={t('finalizarSemCheckinOutroPlaceholder')}
+                  className="mt-1 w-full rounded-lg border border-white/40 bg-white px-2.5 py-2 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-white/50"
+                />
+              </label>
+            ) : null}
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                disabled={busyId != null}
+                onClick={() => {
+                  setMostrarMotivo(false)
+                  setMotivoId(null)
+                  setMotivoDetalhe('')
+                }}
+                className="flex-1 rounded-xl bg-white py-2.5 text-sm font-semibold text-[#0097b2] disabled:opacity-50"
+              >
+                {t('voltar')}
+              </button>
+              <button
+                type="button"
+                disabled={busyId != null}
+                onClick={() => void confirmarMotivo()}
+                className="flex-1 rounded-xl bg-white py-2.5 text-sm font-bold uppercase text-[#0097b2] disabled:opacity-50"
+              >
+                {t('finalizarSemCheckinConfirmar')}
               </button>
             </div>
           </div>

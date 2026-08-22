@@ -42,6 +42,7 @@ export async function GET() {
           status: ativa.status,
           origem_nome: ativa.origemNome,
           destino_nome: ativa.destinoNome,
+          destino_empresa_id: ativa.destinoEmpresaId,
           modalidade: ativa.modalidade,
           valor_estimado: ativa.valorEstimado,
           pagamento: ativa.pagamento,

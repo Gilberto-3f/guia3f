@@ -33,7 +33,7 @@ export async function GET() {
   const { data, error } = await admin
     .from('solicitacao_mobilidade')
     .select(
-      'id, status, modalidade, origem_nome, destino_nome, valor_estimado, lugares, pagamento, data_agendada, confirmacao_expira_em, turista_id, metadata, recomendacao_id',
+      'id, status, modalidade, origem_nome, destino_nome, destino_empresa_id, valor_estimado, lugares, pagamento, data_agendada, confirmacao_expira_em, turista_id, metadata, recomendacao_id',
     )
     .eq('profissional_id', prof.id)
     .in('status', ['agendada', 'aguardando_confirmacao'])
@@ -80,6 +80,8 @@ export async function GET() {
       modalidade: r.modalidade != null ? String(r.modalidade) : null,
       origem_nome: r.origem_nome != null ? String(r.origem_nome) : null,
       destino_nome: r.destino_nome != null ? String(r.destino_nome) : null,
+      destino_empresa_id:
+        r.destino_empresa_id != null ? String(r.destino_empresa_id) : null,
       valor_estimado: r.valor_estimado != null ? Number(r.valor_estimado) : null,
       lugares: r.lugares != null ? Number(r.lugares) : 1,
       pagamento: r.pagamento != null ? String(r.pagamento) : null,

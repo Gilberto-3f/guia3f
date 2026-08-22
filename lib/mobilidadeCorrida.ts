@@ -289,6 +289,7 @@ export async function buscarCorridaAtivaProfissional(
   status: string
   origemNome: string | null
   destinoNome: string | null
+  destinoEmpresaId: string | null
   modalidade: string | null
   valorEstimado: number | null
   pagamento: string | null
@@ -317,7 +318,7 @@ export async function buscarCorridaAtivaProfissional(
     const { data } = await admin
       .from('solicitacao_mobilidade')
       .select(
-        'id, status, turista_id, origem_nome, destino_nome, modalidade, valor_estimado, pagamento, lugares, data_agendada, metadata, lat_origem, lng_origem, lat_destino, lng_destino',
+        'id, status, turista_id, origem_nome, destino_nome, destino_empresa_id, modalidade, valor_estimado, pagamento, lugares, data_agendada, metadata, lat_origem, lng_origem, lat_destino, lng_destino',
       )
       .eq('id', prefer)
       .eq('profissional_id', profissionalId)
@@ -330,7 +331,7 @@ export async function buscarCorridaAtivaProfissional(
     const { data } = await admin
       .from('solicitacao_mobilidade')
       .select(
-        'id, status, turista_id, origem_nome, destino_nome, modalidade, valor_estimado, pagamento, lugares, data_agendada, metadata, lat_origem, lng_origem, lat_destino, lng_destino',
+        'id, status, turista_id, origem_nome, destino_nome, destino_empresa_id, modalidade, valor_estimado, pagamento, lugares, data_agendada, metadata, lat_origem, lng_origem, lat_destino, lng_destino',
       )
       .eq('profissional_id', profissionalId)
       .in('status', ['aceita', 'a_caminho', 'no_local', 'em_viagem'])
@@ -401,6 +402,8 @@ export async function buscarCorridaAtivaProfissional(
     status: String(row.status ?? 'a_caminho'),
     origemNome: row.origem_nome != null ? String(row.origem_nome) : null,
     destinoNome: row.destino_nome != null ? String(row.destino_nome) : null,
+    destinoEmpresaId:
+      row.destino_empresa_id != null ? String(row.destino_empresa_id) : null,
     modalidade: row.modalidade != null ? String(row.modalidade) : null,
     valorEstimado: row.valor_estimado != null ? Number(row.valor_estimado) : null,
     pagamento: row.pagamento != null ? String(row.pagamento) : null,

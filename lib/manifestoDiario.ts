@@ -279,6 +279,7 @@ export async function concluirManifestoDiario(
   supabase: SupabaseClient,
   manifestoId: string,
   profissionalId: string,
+  opts?: { pularCheckin?: boolean },
 ): Promise<{ ok: boolean; error?: string }> {
   const { data: md, error: mdErr } = await supabase
     .from('manifesto_diario')
@@ -304,7 +305,7 @@ export async function concluirManifestoDiario(
     .eq('manifesto_id', manifestoId)
 
   const qtdParadas = paradas?.length ?? 0
-  if (ehGuia && qtdParadas > 0) {
+  if (ehGuia && qtdParadas > 0 && opts?.pularCheckin !== true) {
     const pendentes = (paradas ?? []).filter((a) => !a.visitado)
     if (pendentes.length > 0) {
       return { ok: false, error: 'Confirme check-in em todas as paradas do itinerário antes de concluir.' }
