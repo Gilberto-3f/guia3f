@@ -18,9 +18,8 @@ export function propsUmToque(acao: () => void, disabled = false) {
     onClick: (e: MouseEvent<HTMLElement>) => {
       if (disabled) return
       e.stopPropagation()
-      const ne = e.nativeEvent
-      const tipo =
-        'pointerType' in ne ? String((ne as PointerEvent).pointerType ?? '') : ''
+      const ne = e.nativeEvent as { pointerType?: unknown }
+      const tipo = String(ne.pointerType ?? '')
       if (tipo === 'touch' || tipo === 'pen') {
         e.preventDefault()
         return
