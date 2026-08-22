@@ -29,6 +29,7 @@ import {
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
+import { propsUmToque } from '@/lib/umToque'
 import { refreshAppViewportHeight } from '@/lib/useAppViewportHeight'
 import {
   buildMobilidadePesquisaHref,
@@ -923,10 +924,11 @@ export default function DrawerPesquisaMobilidade({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[75] flex flex-col bg-white"
+      className="fixed inset-0 z-[75] flex flex-col bg-white touch-manipulation"
       style={{ height: 'var(--app-height, 100dvh)' }}
       role="dialog"
       aria-modal="true"
+      data-modal-scroll-lock-scrollable
     >
       {/* Faixa azul + safe area (padrão menu/canais) */}
       <div className="shrink-0 pt-safe" style={{ backgroundColor: COR }}>
@@ -938,8 +940,8 @@ export default function DrawerPesquisaMobilidade({
           {etapa === 1 ? (
             <button
               type="button"
-              onClick={onFechar}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/90 hover:bg-white/15"
+              {...propsUmToque(onFechar)}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/90 active:bg-white/15"
               aria-label={t('fechar')}
             >
               <X className="h-5 w-5" />
@@ -947,8 +949,8 @@ export default function DrawerPesquisaMobilidade({
           ) : etapa === 3 ? (
             <button
               type="button"
-              onClick={() => setEtapa(2)}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/90 hover:bg-white/15"
+              {...propsUmToque(() => setEtapa(2))}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/90 active:bg-white/15"
               aria-label={t('retornar')}
             >
               <ArrowLeft className="h-5 w-5" />
@@ -1750,10 +1752,10 @@ export default function DrawerPesquisaMobilidade({
                   !pontoPreenchido(destinoDraft))) ||
               (modoParticular && !modoCamposAbertos && (profParticularLoading || !profParticular))
             }
-            onClick={() => {
+            {...propsUmToque(() => {
               if (modoCamposAbertos) aplicarEnderecoEditado()
               setEtapa(2)
-            }}
+            })}
             className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold uppercase text-white disabled:opacity-50"
             style={{ backgroundColor: VERDE }}
           >
@@ -1764,7 +1766,7 @@ export default function DrawerPesquisaMobilidade({
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => setEtapa(1)}
+              {...propsUmToque(() => setEtapa(1))}
               className="flex items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-bold uppercase text-white"
               style={{ backgroundColor: COR }}
             >
@@ -1774,11 +1776,11 @@ export default function DrawerPesquisaMobilidade({
             <button
               type="button"
               disabled={!podeAvancarParaPagamento}
-              onClick={() => {
+              {...propsUmToque(() => {
                 if (!podeAvancarParaPagamento) return
                 if (particularExigeAgenda) setAgendarOutraData(true)
                 setEtapa(3)
-              }}
+              })}
               className="flex items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-bold uppercase text-white disabled:opacity-50"
               style={{ backgroundColor: VERDE }}
             >
@@ -1790,7 +1792,7 @@ export default function DrawerPesquisaMobilidade({
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={onFechar}
+              {...propsUmToque(onFechar)}
               className="flex items-center justify-center gap-1.5 rounded-xl bg-rose-600 py-3 text-sm font-bold uppercase text-white"
             >
               <X className="h-4 w-4" aria-hidden />
@@ -1799,7 +1801,7 @@ export default function DrawerPesquisaMobilidade({
             <button
               type="button"
               disabled={enviando || (particularExigeAgenda && !agendaPreenchida)}
-              onClick={() => void procurar()}
+              {...propsUmToque(() => void procurar())}
               className="flex items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-bold uppercase text-white disabled:opacity-60"
               style={{ backgroundColor: VERDE }}
             >

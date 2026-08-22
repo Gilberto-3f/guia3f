@@ -39,7 +39,13 @@ const blockTouchMove = (e: TouchEvent) => {
     e.preventDefault()
     return
   }
-  if (target.closest('[data-modal-scroll-lock-scrollable]')) return
+  if (
+    target.closest(
+      '[data-modal-scroll-lock-scrollable], [role="dialog"], [aria-modal="true"]',
+    )
+  ) {
+    return
+  }
   e.preventDefault()
 }
 
@@ -98,7 +104,10 @@ export function useModalScrollLock(aberto: boolean) {
 
       html.style.overflow = 'hidden'
       body.style.overflow = 'hidden'
-      body.style.touchAction = 'none'
+      // touch-action:none no body cancela o 1º toque em botões do drawer (Android/iOS).
+      if (!soft) {
+        body.style.touchAction = 'none'
+      }
 
       if (!soft) {
         body.style.position = 'fixed'

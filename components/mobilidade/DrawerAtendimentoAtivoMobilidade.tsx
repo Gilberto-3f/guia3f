@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import {
@@ -27,6 +27,7 @@ import { buscarRotaMapboxDriving, formatarDuracaoEta } from '@/lib/mapboxDirecti
 import { montarTrajetoEtaCorrida } from '@/lib/mobilidadeTrajetoMapa'
 import { supabase } from '@/lib/supabase'
 import LinhaEnderecoDestinoRota from '@/components/mobilidade/LinhaEnderecoDestinoRota'
+import { propsUmToque } from '@/lib/umToque'
 import {
   descricaoPeriodoRota,
   encontrarRotaTabeladaPorDestino,
@@ -155,6 +156,7 @@ export default function DrawerAtendimentoAtivoMobilidade({
   const t = useTranslations('Mobilidade')
   const router = useRouter()
   useModalScrollLock(aberto)
+  const raizRef = useRef<HTMLDivElement | null>(null)
 
   const [aba, setAba] = useState<'info' | 'itinerario'>('info')
   const [dicaPag, setDicaPag] = useState(false)
@@ -200,6 +202,10 @@ export default function DrawerAtendimentoAtivoMobilidade({
     }
     // Só conta como não lida mensagem chegada depois de abrir o drawer.
     setChatLastReadIso(new Date().toISOString())
+    const el = raizRef.current
+    if (el) {
+      el.focus({ preventScroll: true })
+    }
   }, [aberto, atendimento.solicitacao_id])
 
   const parte = atendimento.parte
@@ -334,11 +340,14 @@ export default function DrawerAtendimentoAtivoMobilidade({
     <>
       {createPortal(
     <div
-      className="fixed inset-0 z-[80] flex flex-col bg-white"
+      ref={raizRef}
+      tabIndex={-1}
+      className="fixed inset-0 z-[80] flex flex-col bg-white outline-none touch-manipulation"
       style={{ height: 'var(--app-height, 100dvh)' }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="drawer-atendimento-ativo-titulo"
+      data-modal-scroll-lock-scrollable
     >
       <div className="shrink-0 pt-safe" style={{ backgroundColor: headerCor }}>
         <div className="flex h-12 items-center gap-2 px-3">
@@ -351,8 +360,8 @@ export default function DrawerAtendimentoAtivoMobilidade({
           </h2>
           <button
             type="button"
-            onClick={onFechar}
-            className="rounded-lg p-2 text-white/90 hover:bg-white/15"
+            {...propsUmToque(onFechar)}
+            className="rounded-lg p-2 text-white/90 active:bg-white/15"
             aria-label={t('fechar')}
           >
             <X className="h-5 w-5" aria-hidden />
@@ -365,7 +374,7 @@ export default function DrawerAtendimentoAtivoMobilidade({
           <div className="mb-5 flex flex-col items-center gap-3">
             <button
               type="button"
-              onClick={() => setManifestoAberto(true)}
+              {...propsUmToque(() => setManifestoAberto(true))}
               className="flex w-full max-w-sm items-center justify-center gap-2 rounded-xl py-4 text-sm font-bold uppercase tracking-wide text-white shadow-sm"
               style={{ backgroundColor: COR }}
             >
@@ -419,12 +428,12 @@ export default function DrawerAtendimentoAtivoMobilidade({
 
         {mostrarAbasItinerario ? (
           <div className="mt-4 flex w-full border-b border-gray-200">
-            <button type="button" onClick={() => setAba('info')} className={abaCls(aba === 'info')}>
+            <button type="button" {...propsUmToque(() => setAba('info'))} className={abaCls(aba === 'info')}>
               {t('abaInformacoes')}
             </button>
             <button
               type="button"
-              onClick={() => setAba('itinerario')}
+              {...propsUmToque(() => setAba('itinerario'))}
               className={abaCls(aba === 'itinerario')}
             >
               {t('abaItinerario')}
@@ -548,11 +557,11 @@ export default function DrawerAtendimentoAtivoMobilidade({
         {atendimento.conversa_id ? (
           <button
             type="button"
-            onClick={() => {
+            {...propsUmToque(() => {
               setChatAberto(true)
               setChatUnread(0)
               setChatLastReadIso(new Date().toISOString())
-            }}
+            })}
             className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold uppercase tracking-wide text-white"
             style={{ backgroundColor: COR }}
           >

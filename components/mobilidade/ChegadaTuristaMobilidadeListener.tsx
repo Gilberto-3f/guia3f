@@ -20,6 +20,7 @@ import {
   MOBILIDADE_POLL_CORRIDA_ATIVA_MS,
   MOBILIDADE_POLL_CORRIDA_IDLE_MS,
 } from '@/lib/mobilidadePoll'
+import { propsUmToque } from '@/lib/umToque'
 
 type ProfissionalCorrida = {
   usuario_id: string
@@ -168,11 +169,11 @@ export default function ChegadaTuristaMobilidadeListener({ onCorridaChange }: Pr
   }, [elegivel, carregar, corrida?.solicitacao_id])
 
   useEffect(() => {
-    if (!corrida) return
+    if (!elegivel) return
     const onAbrir = () => setDrawerAberto(true)
     window.addEventListener(MOBILIDADE_ABRIR_DRAWER_ATIVO, onAbrir)
     return () => window.removeEventListener(MOBILIDADE_ABRIR_DRAWER_ATIVO, onAbrir)
-  }, [corrida])
+  }, [elegivel])
 
   if (!elegivel || !corrida) return null
   if (!STATUS_ATIVO.has(String(corrida.status))) return null
@@ -261,10 +262,10 @@ export default function ChegadaTuristaMobilidadeListener({ onCorridaChange }: Pr
         onFechar={() => setDrawerAberto(false)}
       />
       {!drawerAberto && !imediato ? (
-        <button
-          type="button"
-          onClick={() => setDrawerAberto(true)}
-          className="fixed inset-x-3 bottom-24 z-[70] rounded-2xl px-4 py-3 text-left text-sm font-bold text-white shadow-2xl sm:inset-x-auto sm:right-4 sm:w-96"
+          <button
+            type="button"
+            {...propsUmToque(() => setDrawerAberto(true))}
+            className="fixed inset-x-3 bottom-24 z-[70] rounded-2xl px-4 py-3 text-left text-sm font-bold text-white shadow-2xl sm:inset-x-auto sm:right-4 sm:w-96"
           style={{ backgroundColor: st === 'em_viagem' || st === 'no_local' ? '#00D443' : '#0097b2' }}
         >
           {t('drawerAtivoReabrir')}

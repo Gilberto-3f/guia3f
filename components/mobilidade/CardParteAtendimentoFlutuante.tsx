@@ -3,6 +3,7 @@
 import { UserRound } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
+import { propsUmToque } from '@/lib/umToque'
 
 export type ParteFloating = {
   nome: string
@@ -33,8 +34,8 @@ export default function CardParteAtendimentoFlutuante({
   return (
     <button
       type="button"
-      onClick={onAbrir}
-      className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-[#f5f5f5] px-3 py-3 text-left transition-colors hover:bg-gray-100"
+      {...propsUmToque(onAbrir)}
+      className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-[#f5f5f5] px-3 py-3 text-left active:bg-gray-100"
       aria-label={ariaLabel}
     >
       <div

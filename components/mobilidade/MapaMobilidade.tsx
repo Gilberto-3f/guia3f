@@ -252,6 +252,13 @@ export default function MapaMobilidade({
       }
       map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right')
       mapRef.current = map
+      try {
+        const canvas = map.getCanvas()
+        canvas.tabIndex = -1
+        canvas.setAttribute('aria-hidden', 'true')
+      } catch {
+        /* ignore */
+      }
 
       const forceResize = () => {
         try {

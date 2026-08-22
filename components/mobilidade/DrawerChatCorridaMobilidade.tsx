@@ -5,6 +5,7 @@ import { MessageCircle, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import ChatCorridaMobilidade from '@/components/mobilidade/ChatCorridaMobilidade'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
+import { propsUmToque } from '@/lib/umToque'
 
 const COR = '#0097b2'
 
@@ -38,7 +39,7 @@ export default function DrawerChatCorridaMobilidade({
     <div
       className={
         aberto
-          ? 'fixed inset-0 z-[90] flex flex-col bg-white'
+          ? 'fixed inset-0 z-[90] flex flex-col bg-white touch-manipulation'
           : 'hidden'
       }
       style={{ height: 'var(--app-height, 100dvh)' }}
@@ -46,6 +47,7 @@ export default function DrawerChatCorridaMobilidade({
       aria-modal={aberto}
       aria-hidden={!aberto}
       aria-labelledby="drawer-chat-corrida-titulo"
+      data-modal-scroll-lock-scrollable
     >
       <div className="shrink-0 pt-safe" style={{ backgroundColor: headerCor }}>
         <div className="flex h-12 items-center gap-2 px-3">
@@ -58,8 +60,8 @@ export default function DrawerChatCorridaMobilidade({
           </h2>
           <button
             type="button"
-            onClick={onFechar}
-            className="rounded-lg p-2 text-white/90 hover:bg-white/15"
+            {...propsUmToque(onFechar)}
+            className="rounded-lg p-2 text-white/90 active:bg-white/15"
             aria-label={t('fechar')}
           >
             <X className="h-5 w-5" aria-hidden />

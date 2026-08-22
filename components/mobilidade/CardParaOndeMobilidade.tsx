@@ -20,6 +20,7 @@ import {
   sugerirDestinosMobilidade,
   type SugestaoDestinoMobilidade,
 } from '@/lib/mobilidadePopupPesquisa'
+import { propsUmToque } from '@/lib/umToque'
 import CardParteAtendimentoFlutuante from '@/components/mobilidade/CardParteAtendimentoFlutuante'
 import {
   ehAtendimentoImediatoAtivo,
@@ -401,10 +402,10 @@ export default function CardParaOndeMobilidade({
         >
           <button
             type="button"
-            onClick={() => {
+            {...propsUmToque(() => {
               if (forcarRecolhido) return
               setAberto((v) => !v)
-            }}
+            })}
             className={`flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-white ${
               painelAberto ? 'rounded-t-2xl' : 'rounded-2xl'
             }`}
@@ -474,10 +475,10 @@ export default function CardParaOndeMobilidade({
           ) : null}
           <button
             type="button"
-            onClick={() => {
+            {...propsUmToque(() => {
               if (forcarRecolhido) return
               setAberto((v) => !v)
-            }}
+            })}
             className="flex min-w-0 flex-1 items-center justify-between gap-3 px-2 py-1.5 text-left text-white"
             aria-expanded={painelAberto}
             aria-label={painelAberto ? t('paraOndeTitulo') : `${t('paraOndeTitulo')}. ${resumoDestino}`}
@@ -660,8 +661,8 @@ export default function CardParaOndeMobilidade({
 
             <button
               type="button"
-              onClick={onPesquisar}
-              className="mx-auto flex w-[55%] max-w-[13.5rem] items-center justify-center gap-2 rounded-xl bg-[#00D443] py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-sm transition-opacity hover:opacity-95"
+              {...propsUmToque(onPesquisar)}
+              className="mx-auto flex w-[55%] max-w-[13.5rem] items-center justify-center gap-2 rounded-xl bg-[#00D443] py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-sm active:opacity-95"
             >
               <Search className="h-4 w-4 shrink-0" aria-hidden />
               {t('pesquisar')}
