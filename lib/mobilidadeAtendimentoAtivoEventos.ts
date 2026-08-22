@@ -51,6 +51,35 @@ export function avisarCorridaProPoll(corrida: CorridaProFlutuante | null): void 
   window.dispatchEvent(new CustomEvent(MOBILIDADE_CORRIDA_PRO, { detail: corrida }))
 }
 
+/** Payload completo para o mapa (trajeto / pins). O listener global dispara; o mapa lê no mount. */
+export const MOBILIDADE_CORRIDA_PRO_MAPA = 'mobilidade:corrida-pro-mapa'
+
+export type CorridaProMapaDetalhe = {
+  status?: string | null
+  data_agendada?: string | null
+  origem_nome?: string | null
+  destino_nome?: string | null
+  lat_origem?: number | null
+  lng_origem?: number | null
+  lat_destino?: number | null
+  lng_destino?: number | null
+  prof_lat?: number | null
+  prof_lng?: number | null
+  modalidade?: string | null
+}
+
+let ultimoCorridaProMapa: CorridaProMapaDetalhe | null = null
+
+export function peekCorridaProMapa(): CorridaProMapaDetalhe | null {
+  return ultimoCorridaProMapa
+}
+
+export function avisarCorridaProMapa(corrida: CorridaProMapaDetalhe | null): void {
+  ultimoCorridaProMapa = corrida
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent(MOBILIDADE_CORRIDA_PRO_MAPA, { detail: corrida }))
+}
+
 export function avisarLimparPesquisaMobilidade(): void {
   if (typeof window === 'undefined') return
   window.dispatchEvent(new Event(MOBILIDADE_LIMPAR_PESQUISA))

@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { usePathname } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { profissionalTemCategoriaMobilidade } from '@/lib/mobilidadeStatusProfissional'
 import {
@@ -20,6 +22,7 @@ import DrawerAtendimentoAtivoMobilidade, {
 } from '@/components/mobilidade/DrawerAtendimentoAtivoMobilidade'
 import {
   avisarCorridaAtivaAtualizada,
+  avisarCorridaProMapa,
   avisarCorridaProPoll,
   ehAtendimentoImediatoAtivo,
   MOBILIDADE_ABRIR_DRAWER_ATIVO,
@@ -73,6 +76,8 @@ type Props = {
 /** Pré-aceite + chat + concluir corrida (manifesto). */
 export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}) {
   const t = useTranslations('Mobilidade')
+  const router = useRouter()
+  const pathname = usePathname()
   const { perfilEhProfissional, recursosProfissionaisLiberados, profRow, loading } =
     useProfissionalGate()
   const [oferta, setOferta] = useState<Oferta | null>(null)
@@ -133,6 +138,23 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
                     nota_media: next.turista.nota_media,
                   }
                 : null,
+            }
+          : null,
+      )
+      avisarCorridaProMapa(
+        next
+          ? {
+              status: next.status,
+              data_agendada: next.data_agendada ?? null,
+              origem_nome: next.origem_nome,
+              destino_nome: next.destino_nome,
+              lat_origem: next.lat_origem ?? null,
+              lng_origem: next.lng_origem ?? null,
+              lat_destino: next.lat_destino ?? null,
+              lng_destino: next.lng_destino ?? null,
+              prof_lat: next.prof_lat ?? null,
+              prof_lng: next.prof_lng ?? null,
+              modalidade: next.modalidade,
             }
           : null,
       )
@@ -271,10 +293,30 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
 
   useEffect(() => {
     onCorridaChange?.(corrida)
+    avisarCorridaProMapa(
+      corrida
+        ? {
+            status: corrida.status,
+            data_agendada: corrida.data_agendada ?? null,
+            origem_nome: corrida.origem_nome,
+            destino_nome: corrida.destino_nome,
+            lat_origem: corrida.lat_origem ?? null,
+            lng_origem: corrida.lng_origem ?? null,
+            lat_destino: corrida.lat_destino ?? null,
+            lng_destino: corrida.lng_destino ?? null,
+            prof_lat: corrida.prof_lat ?? null,
+            prof_lng: corrida.prof_lng ?? null,
+            modalidade: corrida.modalidade,
+          }
+        : null,
+    )
   }, [corrida, onCorridaChange])
 
   useEffect(() => {
-    if (!elegivel) onCorridaChange?.(null)
+    if (!elegivel) {
+      onCorridaChange?.(null)
+      avisarCorridaProMapa(null)
+    }
   }, [elegivel, onCorridaChange])
 
   useEffect(() => {
@@ -430,7 +472,10 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
     // Guia/van: manifesto usa dados do cadastro do turista (sem formulário manual).
     setBusy(true)
     try {
-      await enviarAceite()
+      const ok = await enviarAceite()
+      if (ok && !/\/mobilidade(\/|$)/.test(pathname)) {
+        router.push('/mobilidade')
+      }
     } finally {
       setBusy(false)
     }

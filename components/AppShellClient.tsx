@@ -17,6 +17,7 @@ import AdminEcossistemaAlertaGate from '@/components/canal/AdminEcossistemaAlert
 import TuristaComprasNotificacaoGate from '@/components/TuristaComprasNotificacaoGate'
 import ConviteAdminGate from '@/components/ConviteAdminGate'
 import AdminColaboradorModoGate from '@/components/AdminColaboradorModoGate'
+import OfertaMobilidadeListener from '@/components/mobilidade/OfertaMobilidadeListener'
 import { useAppViewportHeight } from '@/lib/useAppViewportHeight'
 import {
   isModalScrollLocked,
@@ -195,14 +196,17 @@ function AppShellInner({ children }: { children: ReactNode }) {
   }, [pathname])
 
   return (
-    <AppShellLayoutFrame
-      pathname={pathname}
-      modoAtivo={modoAtivo}
-      tecladoOcultaBarra={tecladoOcultaBarra}
-      modalOcultaBarra={modalOcultaBarra}
-    >
-      {children}
-    </AppShellLayoutFrame>
+    <>
+      <AppShellLayoutFrame
+        pathname={pathname}
+        modoAtivo={modoAtivo}
+        tecladoOcultaBarra={tecladoOcultaBarra}
+        modalOcultaBarra={modalOcultaBarra}
+      >
+        {children}
+      </AppShellLayoutFrame>
+      <OfertaMobilidadeListener />
+    </>
   )
 }
 

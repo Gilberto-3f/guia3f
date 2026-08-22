@@ -4,7 +4,6 @@ import { Suspense, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import PublicidadeHome from '@/components/PublicidadeHome'
 import GradeFiltros from '@/components/GradeFiltros'
-import OfertaMobilidadeListener from '@/components/mobilidade/OfertaMobilidadeListener'
 import ConclusaoAtendimentoMobilidadeListener from '@/components/mobilidade/ConclusaoAtendimentoMobilidadeListener'
 import CabecalhoAbasGuiaMobilidade from '@/components/mobilidade/CabecalhoAbasGuiaMobilidade'
 import VisaoTuristaMobilidade from '@/components/mobilidade/VisaoTuristaMobilidade'
@@ -38,7 +37,7 @@ export default function GuiaPage() {
               </div>
             }
           >
-            <VisaoTuristaMobilidade comListener={false} />
+            <VisaoTuristaMobilidade />
           </Suspense>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-20">
@@ -48,7 +47,6 @@ export default function GuiaPage() {
           </div>
         )}
       </main>
-      <OfertaMobilidadeListener />
       {abaAtiva !== 'mobilidade' ? <ConclusaoAtendimentoMobilidadeListener /> : null}
     </div>
   )

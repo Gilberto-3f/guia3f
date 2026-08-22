@@ -12,7 +12,6 @@ import PopupResultadoCorridaMobilidade, {
 import CardParaOndeMobilidade from '@/components/mobilidade/CardParaOndeMobilidade'
 import CardStatusProfissionalMobilidade from '@/components/mobilidade/CardStatusProfissionalMobilidade'
 import CardAnfitriaoMobilidade from '@/components/mobilidade/CardAnfitriaoMobilidade'
-import OfertaMobilidadeListener from '@/components/mobilidade/OfertaMobilidadeListener'
 import ChegadaTuristaMobilidadeListener from '@/components/mobilidade/ChegadaTuristaMobilidadeListener'
 import ConclusaoAtendimentoMobilidadeListener from '@/components/mobilidade/ConclusaoAtendimentoMobilidadeListener'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
@@ -50,7 +49,17 @@ import {
 import { carregarProfissionalDrawerParticular } from '@/lib/profissionalDrawerParticular'
 import {
   MOBILIDADE_LIMPAR_PESQUISA,
+  MOBILIDADE_CORRIDA_PRO_MAPA,
+  ehAtendimentoImediatoAtivo,
+  peekCorridaProMapa,
+  type CorridaProMapaDetalhe,
 } from '@/lib/mobilidadeAtendimentoAtivoEventos'
+import {
+  destinoVisivelNoMapa,
+  marcadorDeslocamentoCorrida,
+  montarTrajetoCorridaAtiva,
+  pontoPartidaCorrida,
+} from '@/lib/mobilidadeTrajetoMapa'
 
 const MapaMobilidade = dynamic(() => import('@/components/mobilidade/MapaMobilidade'), {
   ssr: false,
@@ -62,8 +71,6 @@ const MapaMobilidade = dynamic(() => import('@/components/mobilidade/MapaMobilid
 })
 
 type Props = {
-  /** Se false, omite OfertaMobilidadeListener (já no layout pai). */
-  comListener?: boolean
   className?: string
   /** Linha azul da corrida ativa (profissional). */
   trajeto?: { de: { lat: number; lng: number }; ate: { lat: number; lng: number } } | null
@@ -97,7 +104,6 @@ type Props = {
  * Visão mapa + card flutuante (turista/empresa/ADM e, na Etapa A, também profissional).
  */
 export default function VisaoTuristaMobilidade({
-  comListener = true,
   className = '',
   trajeto = null,
   origemCorrida = null,
@@ -125,6 +131,21 @@ export default function VisaoTuristaMobilidade({
     perfilEhProfissional && ehAnfitriao && !temToggleMobilidade && !cardMotoristaApp,
   )
   const [anfitriaoChamarCorrida, setAnfitriaoChamarCorrida] = useState(false)
+  const [corridaMapaPro, setCorridaMapaPro] = useState<CorridaProMapaDetalhe | null>(null)
+  const [corridaMapaTurista, setCorridaMapaTurista] = useState<CorridaProMapaDetalhe | null>(null)
+
+  useEffect(() => {
+    if (!perfilEhProfissional) {
+      setCorridaMapaPro(null)
+      return
+    }
+    setCorridaMapaPro(peekCorridaProMapa())
+    const onPoll = (ev: Event) => {
+      setCorridaMapaPro((ev as CustomEvent<CorridaProMapaDetalhe | null>).detail ?? null)
+    }
+    window.addEventListener(MOBILIDADE_CORRIDA_PRO_MAPA, onPoll)
+    return () => window.removeEventListener(MOBILIDADE_CORRIDA_PRO_MAPA, onPoll)
+  }, [perfilEhProfissional])
 
   const pesquisa = useMemo(
     () => parseMobilidadePesquisaSearchParams(searchParams),
@@ -839,6 +860,23 @@ export default function VisaoTuristaMobilidade({
         ? { ...gpsCentro, label: origemLabelGps || undefined }
         : null
 
+  const corridaOverlay = perfilEhProfissional ? corridaMapaPro : corridaMapaTurista
+  const imediatoMapa = Boolean(
+    corridaOverlay &&
+      ehAtendimentoImediatoAtivo({
+        status: corridaOverlay.status,
+        data_agendada: corridaOverlay.data_agendada,
+      }),
+  )
+  const trajetoEfetivo = trajeto ?? (imediatoMapa ? montarTrajetoCorridaAtiva(corridaOverlay) : null)
+  const origemEfetiva =
+    origemCorrida ?? (imediatoMapa ? pontoPartidaCorrida(corridaOverlay) : null) ?? origemPonto
+  const destinoEfetivo =
+    destinoCorrida ?? (imediatoMapa ? destinoVisivelNoMapa(corridaOverlay) : null) ?? destinoPonto
+  const marcadorEfetivo =
+    marcadorDeslocamento ?? (imediatoMapa ? marcadorDeslocamentoCorrida(corridaOverlay) : null)
+  const ocultarPinsEfetivo = ocultarPinsEmpresas || imediatoMapa
+
   const origemInicialCard: MobilidadePonto | null =
     pesquisa.origem.lat != null
       ? pesquisa.origem
@@ -883,15 +921,15 @@ export default function VisaoTuristaMobilidade({
         <MapaMobilidade
           empresas={empresas}
           centro={gpsCentro}
-          origem={origemCorrida ?? origemPonto}
-          destino={destinoCorrida ?? destinoPonto}
-          trajeto={trajeto}
-          marcadorDeslocamento={marcadorDeslocamento}
+          origem={origemEfetiva}
+          destino={destinoEfetivo}
+          trajeto={trajetoEfetivo}
+          marcadorDeslocamento={marcadorEfetivo}
           contextoMapa={contextoMapa ?? 'turista'}
           visitanteParceria={visitanteParceria}
           carregandoPins={carregandoEmpresas}
-          ocultarPinsEmpresas={ocultarPinsEmpresas}
-          ocultarAvisoEmpresas={ocultarPinsEmpresas}
+          ocultarPinsEmpresas={ocultarPinsEfetivo}
+          ocultarAvisoEmpresas={ocultarPinsEfetivo}
         />
         {carregandoEmpresas ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-24 z-[5] flex justify-center">
@@ -997,8 +1035,28 @@ export default function VisaoTuristaMobilidade({
         onReabrirAgendar={reabrirDrawerParaAgendar}
       />
 
-      {comListener ? <OfertaMobilidadeListener /> : null}
-      <ChegadaTuristaMobilidadeListener onCorridaChange={onCorridaTuristaChange} />
+      <ChegadaTuristaMobilidadeListener
+        onCorridaChange={(c) => {
+          onCorridaTuristaChange?.(c)
+          setCorridaMapaTurista(
+            c
+              ? {
+                  status: c.status,
+                  data_agendada: c.data_agendada ?? null,
+                  origem_nome: c.origem_nome,
+                  destino_nome: c.destino_nome,
+                  lat_origem: c.lat_origem ?? null,
+                  lng_origem: c.lng_origem ?? null,
+                  lat_destino: c.lat_destino ?? null,
+                  lng_destino: c.lng_destino ?? null,
+                  prof_lat: c.prof_lat ?? null,
+                  prof_lng: c.prof_lng ?? null,
+                  modalidade: c.modalidade,
+                }
+              : null,
+          )
+        }}
+      />
       <ConclusaoAtendimentoMobilidadeListener />
     </div>
   )
