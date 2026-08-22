@@ -45,7 +45,7 @@ export default function CabecalhoAbasGuiaMobilidade({
         </div>
       ) : null}
 
-      <div className="flex w-full border-b border-gray-200 bg-white">
+      <div className="flex w-full border-b border-gray-200 bg-white touch-manipulation">
         {onAbaGuia ? (
           <button type="button" onClick={onAbaGuia} className={abaCls(abaAtiva === 'guia')}>
             <MapPin className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />

@@ -875,7 +875,7 @@ export default function VisaoTuristaMobilidade({
 
   return (
     <div
-      className={`relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-[#e8f4f6] ${className}`}
+      className={`relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-[#e8f4f6] touch-manipulation ${className}`}
     >
       {/* Mapa full-bleed — até a bottom bar; card flutua por cima. */}
       <div className="absolute inset-0 z-0">
@@ -901,14 +901,14 @@ export default function VisaoTuristaMobilidade({
         ) : null}
       </div>
 
-      {/* Overlay: card flutuante (não empurra o mapa ao abrir). */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col items-center px-3 pt-2">
+      {/* Card flutuante: só a caixa do card captura toque (sem overlay full-screen). */}
+      <div className="absolute left-1/2 top-2 z-20 w-[calc(100%-1.5rem)] max-w-lg -translate-x-1/2">
         {empresasErro ? (
-          <p className="pointer-events-auto mb-2 w-full max-w-lg rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
+          <p className="mb-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
             {empresasErro}
           </p>
         ) : null}
-        <div className="pointer-events-auto w-full max-w-lg">
+        <div>
           {perfilEhProfissional && temToggleMobilidade ? (
             <CardStatusProfissionalMobilidade forcarRecolhido={drawerAberto} />
           ) : cardMotoristaApp ? (

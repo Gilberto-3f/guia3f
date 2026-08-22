@@ -24,7 +24,7 @@ export default function CardPinEmpresaMapa({ empresa }: Props) {
 
   return (
     <div
-      className="pointer-events-auto absolute inset-x-3 bottom-[max(3.15rem,calc(env(safe-area-inset-bottom)+2.6rem))] z-30 mx-auto max-w-lg sm:inset-x-auto sm:left-1/2 sm:w-[min(100%-1.5rem,28rem)] sm:-translate-x-1/2"
+      className="pointer-events-auto absolute inset-x-3 bottom-[max(3.15rem,calc(env(safe-area-inset-bottom)+2.6rem))] z-30 mx-auto max-w-lg touch-manipulation sm:inset-x-auto sm:left-1/2 sm:w-[min(100%-1.5rem,28rem)] sm:-translate-x-1/2"
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >

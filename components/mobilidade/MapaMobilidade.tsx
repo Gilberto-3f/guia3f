@@ -114,6 +114,8 @@ function criarElPinEmpresa(
     'font-weight:700',
     'font-size:16px',
     'line-height:1',
+    'touch-action:manipulation',
+    'pointer-events:auto',
   ].join(';')
 
   const foto = String(empresa.foto_url ?? '').trim()
@@ -132,6 +134,9 @@ function criarElPinEmpresa(
     btn.textContent = (empresa.nome_fantasia || '?').charAt(0).toUpperCase()
   }
 
+  btn.addEventListener('pointerdown', (ev) => {
+    ev.stopPropagation()
+  })
   btn.addEventListener('click', (ev) => {
     ev.preventDefault()
     ev.stopPropagation()
@@ -238,6 +243,8 @@ export default function MapaMobilidade({
         center: [start.lng, start.lat],
         zoom: 12,
         attributionControl: true,
+        doubleClickZoom: false,
+        fadeDuration: 0,
       })
       if (cancelled) {
         map.remove()
@@ -292,8 +299,10 @@ export default function MapaMobilidade({
           },
         })
 
-        // Clique no fundo do mapa fecha o card (pins HTML já usam stopPropagation)
-        map.on('click', () => {
+        // Clique no fundo do mapa fecha o card (ignora toque em pin HTML)
+        map.on('click', (e) => {
+          const alvo = e.originalEvent?.target
+          if (alvo instanceof Element && alvo.closest('.mapboxgl-marker, button')) return
           setSelecionada(null)
         })
 
@@ -543,6 +552,10 @@ export default function MapaMobilidade({
         .mapa-mobilidade-root .mapboxgl-ctrl-bottom-right,
         .mapa-mobilidade-root .mapboxgl-ctrl-bottom-left {
           margin-bottom: 4.75rem;
+        }
+        .mapa-mobilidade-root,
+        .mapa-mobilidade-root .mapboxgl-canvas {
+          touch-action: manipulation;
         }
       `}</style>
       {mapError ? (
