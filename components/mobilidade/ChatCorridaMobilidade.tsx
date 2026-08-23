@@ -55,6 +55,8 @@ export default function ChatCorridaMobilidade({
   const [erro, setErro] = useState('')
   const fimRef = useRef<HTMLDivElement | null>(null)
   const listaRef = useRef<HTMLDivElement | null>(null)
+  const enviandoRef = useRef(false)
+  const ultimoEnvioEmRef = useRef(0)
   const [tecladoAberto, setTecladoAberto] = useState(false)
   const onMsgsRef = useRef(onMensagensChange)
   onMsgsRef.current = onMensagensChange
@@ -133,7 +135,11 @@ export default function ChatCorridaMobilidade({
 
   const enviar = async () => {
     const body = texto.trim()
-    if (!body || busy || leitura) return
+    if (!body || enviandoRef.current || leitura) return
+    const agora = Date.now()
+    if (agora - ultimoEnvioEmRef.current < 500) return
+    ultimoEnvioEmRef.current = agora
+    enviandoRef.current = true
     setBusy(true)
     try {
       const res = await fetch(`/api/mobilidade/chat/${conversaId}/mensagens`, {
@@ -150,6 +156,7 @@ export default function ChatCorridaMobilidade({
       if (json.mensagem) setMsgs((prev) => [...prev, json.mensagem!])
       else void carregar()
     } finally {
+      enviandoRef.current = false
       setBusy(false)
     }
   }
@@ -235,6 +242,7 @@ export default function ChatCorridaMobilidade({
             type="text"
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
+            onPointerDown={(e) => e.stopPropagation()}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault()
@@ -242,7 +250,7 @@ export default function ChatCorridaMobilidade({
               }
             }}
             placeholder={t('chatPlaceholder')}
-            className="min-h-11 min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-base touch-manipulation"
+            className="min-h-11 min-w-0 flex-1 cursor-text rounded-lg border border-gray-200 px-3 py-2 text-base touch-manipulation"
             maxLength={2000}
             inputMode="text"
             enterKeyHint="send"
@@ -252,8 +260,16 @@ export default function ChatCorridaMobilidade({
           <button
             type="button"
             disabled={busy || !texto.trim()}
+            onPointerDown={(e) => {
+              if (busy || !texto.trim() || e.button !== 0) return
+              if (e.pointerType === 'mouse') return
+              // iOS: o 1º toque não pode só fechar o teclado — envia no mesmo gesto.
+              e.preventDefault()
+              e.stopPropagation()
+              void enviar()
+            }}
             onClick={() => void enviar()}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#00D443] text-white disabled:opacity-50"
+            className="flex h-11 w-11 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-lg bg-[#00D443] text-white disabled:opacity-50"
             aria-label={t('chatEnviar')}
           >
             <Send className="h-4 w-4" />

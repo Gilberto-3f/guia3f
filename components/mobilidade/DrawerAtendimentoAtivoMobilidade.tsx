@@ -534,8 +534,8 @@ export default function DrawerAtendimentoAtivoMobilidade({
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => onConfirmarChegada?.(false)}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-rose-600 py-3 text-sm font-bold uppercase text-white disabled:opacity-50"
+                {...propsUmToque(() => onConfirmarChegada?.(false), busy)}
+                className="flex flex-1 cursor-pointer touch-manipulation items-center justify-center gap-1.5 rounded-xl bg-rose-600 py-3 text-sm font-bold uppercase text-white disabled:opacity-50"
               >
                 <X className="h-4 w-4" aria-hidden />
                 {t('chegadaNao')}
@@ -543,8 +543,8 @@ export default function DrawerAtendimentoAtivoMobilidade({
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => onConfirmarChegada?.(true)}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white py-3 text-sm font-bold uppercase disabled:opacity-50"
+                {...propsUmToque(() => onConfirmarChegada?.(true), busy)}
+                className="flex flex-1 cursor-pointer touch-manipulation items-center justify-center gap-1.5 rounded-xl bg-white py-3 text-sm font-bold uppercase disabled:opacity-50"
                 style={{ color: VERDE }}
               >
                 <Check className="h-4 w-4" aria-hidden />
@@ -563,7 +563,7 @@ export default function DrawerAtendimentoAtivoMobilidade({
               setChatUnread(0)
               setChatLastReadIso(new Date().toISOString())
             })}
-            className="relative mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold uppercase tracking-wide text-white"
+            className="relative mt-3 flex w-full cursor-pointer touch-manipulation items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold uppercase tracking-wide text-white"
             style={{ backgroundColor: COR }}
           >
             <MessageCircle className="h-5 w-5 shrink-0" aria-hidden strokeWidth={2.25} />

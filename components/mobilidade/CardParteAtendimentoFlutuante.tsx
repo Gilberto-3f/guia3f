@@ -35,7 +35,7 @@ export default function CardParteAtendimentoFlutuante({
     <button
       type="button"
       {...propsUmToque(onAbrir)}
-      className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-[#f5f5f5] px-3 py-3 text-left active:bg-gray-100"
+      className="flex w-full cursor-pointer touch-manipulation items-center gap-3 rounded-xl border border-gray-200 bg-[#f5f5f5] px-3 py-3 text-left active:bg-gray-100"
       aria-label={ariaLabel}
     >
       <div

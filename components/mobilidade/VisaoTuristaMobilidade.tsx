@@ -902,8 +902,9 @@ export default function VisaoTuristaMobilidade({
         ) : null}
       </div>
 
-      {/* Card flutuante: só a caixa do card captura toque (sem overlay full-screen). */}
-      <div className="absolute left-1/2 top-2 z-20 w-[calc(100%-1.5rem)] max-w-lg -translate-x-1/2">
+      {/* Sem translate no pai: no iOS o 1º toque é absorvido em camadas com CSS transform. */}
+      <div className="pointer-events-none absolute inset-x-0 top-2 z-20 flex justify-center px-3">
+        <div className="pointer-events-auto w-full max-w-lg">
         {empresasErro ? (
           <p className="mb-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
             {empresasErro}
@@ -966,6 +967,7 @@ export default function VisaoTuristaMobilidade({
               }}
             />
           )}
+        </div>
         </div>
       </div>
 

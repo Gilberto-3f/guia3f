@@ -1,26 +1,28 @@
 import type { MouseEvent, PointerEvent } from 'react'
 
+/** Descarta o click fantasma do iOS após o pointerup (Safari costuma omitir pointerType no click). */
+let ultimoToqueEm = 0
+const GUARDA_MS = 450
+
 /**
- * Um toque no celular dispara a ação no pointerdown e descarta o click fantasma.
- * Mouse/teclado continuam no onClick (evita disparo duplo).
+ * Um toque dispara no pointerup (touch/pen) ou no click (mouse/teclado).
+ * Não usa preventDefault no pointerdown — no iOS isso come o 1º toque
+ * (foco de input, botões sobre o mapa, popups).
  */
 export function propsUmToque(acao: () => void, disabled = false) {
   return {
-    onPointerDown: (e: PointerEvent<HTMLElement>) => {
+    onPointerUp: (e: PointerEvent<HTMLElement>) => {
       if (disabled) return
       if (e.button !== 0) return
+      if (e.pointerType === 'mouse') return
       e.stopPropagation()
-      if (e.pointerType === 'touch' || e.pointerType === 'pen') {
-        e.preventDefault()
-        acao()
-      }
+      ultimoToqueEm = Date.now()
+      acao()
     },
     onClick: (e: MouseEvent<HTMLElement>) => {
       if (disabled) return
       e.stopPropagation()
-      const ne = e.nativeEvent as { pointerType?: unknown }
-      const tipo = String(ne.pointerType ?? '')
-      if (tipo === 'touch' || tipo === 'pen') {
+      if (Date.now() - ultimoToqueEm < GUARDA_MS) {
         e.preventDefault()
         return
       }

@@ -42,7 +42,9 @@ export default function DrawerChatCorridaMobilidade({
 }: Props) {
   const t = useTranslations('Mobilidade')
   useModalScrollLock(aberto)
-  const [caixa, setCaixa] = useState({ top: 0, height: 0 })
+  const [caixa, setCaixa] = useState(() =>
+    typeof window === 'undefined' ? { top: 0, height: 0 } : caixaVisualViewport(),
+  )
 
   useEffect(() => {
     if (!aberto) return
@@ -54,14 +56,10 @@ export default function DrawerChatCorridaMobilidade({
     window.visualViewport?.addEventListener('resize', sync)
     window.visualViewport?.addEventListener('scroll', sync)
     window.addEventListener('resize', sync)
-    window.addEventListener('focusin', sync)
-    window.addEventListener('focusout', sync)
     return () => {
       window.visualViewport?.removeEventListener('resize', sync)
       window.visualViewport?.removeEventListener('scroll', sync)
       window.removeEventListener('resize', sync)
-      window.removeEventListener('focusin', sync)
-      window.removeEventListener('focusout', sync)
     }
   }, [aberto])
 
@@ -100,7 +98,7 @@ export default function DrawerChatCorridaMobilidade({
           <button
             type="button"
             {...propsUmToque(onFechar)}
-            className="rounded-lg p-2 text-white/90 active:bg-white/15"
+            className="cursor-pointer rounded-lg p-2 text-white/90 touch-manipulation active:bg-white/15"
             aria-label={t('fechar')}
           >
             <X className="h-5 w-5" aria-hidden />

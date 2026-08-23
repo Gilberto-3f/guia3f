@@ -425,11 +425,11 @@ export default function CardParaOndeMobilidade({
         >
           <button
             type="button"
-            onClick={() => {
+            {...propsUmToque(() => {
               if (forcarRecolhido) return
               setAberto((v) => !v)
-            }}
-            className={`flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-white ${
+            })}
+            className={`flex w-full cursor-pointer touch-manipulation items-center justify-between gap-3 px-4 py-3.5 text-left text-white ${
               painelAberto ? 'rounded-t-2xl' : 'rounded-2xl'
             }`}
             style={{ backgroundColor: VERDE }}
@@ -498,11 +498,11 @@ export default function CardParaOndeMobilidade({
           ) : null}
           <button
             type="button"
-            onClick={() => {
+            {...propsUmToque(() => {
               if (forcarRecolhido) return
               setAberto((v) => !v)
-            }}
-            className="flex min-w-0 flex-1 items-center justify-between gap-3 px-2 py-1.5 text-left text-white"
+            })}
+            className="flex min-w-0 flex-1 cursor-pointer touch-manipulation items-center justify-between gap-3 px-2 py-1.5 text-left text-white"
             aria-expanded={painelAberto}
             aria-label={painelAberto ? t('paraOndeTitulo') : `${t('paraOndeTitulo')}. ${resumoDestino}`}
           >
