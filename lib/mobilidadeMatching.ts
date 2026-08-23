@@ -994,3 +994,49 @@ export async function responderOfertaMobilidade(
   const avancou = await avancarFilaSeExpirada(admin, params.solicitacaoId)
   return { ok: true, status: avancou.status }
 }
+
+const STATUS_CANCELAVEIS_TURISTA = new Set(['oferecida', 'aguardando_confirmacao'])
+
+/** Turista/contratante cancela a oferta antes do aceite (não dispara rematch). */
+export async function cancelarSolicitacaoPendenteTurista(
+  admin: SupabaseClient,
+  params: { solicitacaoId: string; atorUsuarioId: string },
+): Promise<{ ok: true; status: 'cancelada' } | { ok: false; error: string }> {
+  const { data: row } = await admin
+    .from('solicitacao_mobilidade')
+    .select('id, turista_id, status, metadata')
+    .eq('id', params.solicitacaoId)
+    .maybeSingle()
+
+  if (!row) return { ok: false, error: 'Solicitação não encontrada.' }
+  if (String(row.turista_id) !== String(params.atorUsuarioId)) {
+    return { ok: false, error: 'Sem permissão para cancelar.' }
+  }
+  if (!STATUS_CANCELAVEIS_TURISTA.has(String(row.status))) {
+    return { ok: false, error: 'Só é possível cancelar enquanto o profissional não aceitou.' }
+  }
+
+  const agora = new Date().toISOString()
+  const meta =
+    typeof row.metadata === 'object' && row.metadata != null
+      ? (row.metadata as Record<string, unknown>)
+      : {}
+
+  const { error } = await admin
+    .from('solicitacao_mobilidade')
+    .update({
+      status: 'cancelada',
+      oferta_expira_em: null,
+      metadata: {
+        ...meta,
+        cancelado_em: agora,
+        cancelado_por: 'turista',
+        cancelamento_motivo: 'turista_cancelou_oferta',
+      },
+    })
+    .eq('id', params.solicitacaoId)
+    .in('status', [...STATUS_CANCELAVEIS_TURISTA])
+
+  if (error) return { ok: false, error: error.message }
+  return { ok: true, status: 'cancelada' }
+}

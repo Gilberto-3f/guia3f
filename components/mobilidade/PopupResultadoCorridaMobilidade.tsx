@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { X } from 'lucide-react'
+import { Ban, X } from 'lucide-react'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import { ofertaWarnAmarelo } from '@/lib/mobilidadeMatching'
 import { avisarCorridaAtivaAtualizada } from '@/lib/mobilidadeAtendimentoAtivoEventos'
@@ -37,6 +37,8 @@ type Props = {
   aberto: boolean
   resultado: ResultadoCorridaMobilidade | null
   onFechar: () => void
+  /** Aceite do profissional ou cancelamento do cliente — limpa o atalho pendente. */
+  onEncerrar?: (motivo: 'aceita' | 'cancelada') => void
   onReabrirAgendar?: () => void
 }
 
@@ -48,6 +50,7 @@ export default function PopupResultadoCorridaMobilidade({
   aberto,
   resultado,
   onFechar,
+  onEncerrar,
   onReabrirAgendar,
 }: Props) {
   const t = useTranslations('Mobilidade')
@@ -56,24 +59,40 @@ export default function PopupResultadoCorridaMobilidade({
   const [buscando, setBuscando] = useState(false)
   const [segRestantes, setSegRestantes] = useState<number | null>(null)
   const [matchErro, setMatchErro] = useState('')
+  const [cancelando, setCancelando] = useState(false)
+  const encerrouRef = useRef(false)
 
   const statusAtivo =
     matchStatus === 'aceita' ||
     matchStatus === 'a_caminho' ||
+    matchStatus === 'a_caminho' ||
     matchStatus === 'no_local' ||
     matchStatus === 'em_viagem'
 
+  const aguardandoAceite =
+    Boolean(resultado?.solicitacaoId) &&
+    (matchStatus === 'oferecida' || buscando) &&
+    matchStatus !== 'cancelada' &&
+    matchStatus !== 'sem_profissional' &&
+    !statusAtivo
+
   useModalScrollLock(aberto && !statusAtivo)
+
+  useEffect(() => {
+    encerrouRef.current = false
+  }, [resultado?.solicitacaoId])
 
   /** Após aceite: fecha o popup de espera; o mapa + card flutuante assumem. */
   useEffect(() => {
-    if (!aberto || !statusAtivo) return
+    if (!statusAtivo || encerrouRef.current) return
+    encerrouRef.current = true
     avisarCorridaAtivaAtualizada()
-    onFechar()
-  }, [aberto, statusAtivo, onFechar])
+    if (onEncerrar) onEncerrar('aceita')
+    else onFechar()
+  }, [statusAtivo, onEncerrar, onFechar])
 
   useEffect(() => {
-    if (!aberto || !resultado) return
+    if (!resultado) return
     setMatchStatus(resultado.status)
     setOferta(resultado.oferta)
     setMatchErro(resultado.matchErro ?? '')
@@ -82,16 +101,17 @@ export default function PopupResultadoCorridaMobilidade({
       Boolean(resultado.oferta) &&
         st !== 'aceita' &&
         st !== 'a_caminho' &&
+        st !== 'a_caminho' &&
         st !== 'no_local' &&
         st !== 'em_viagem' &&
         st !== 'sem_profissional' &&
         st !== 'agendada' &&
         st !== 'aguardando_confirmacao',
     )
-  }, [aberto, resultado])
+  }, [resultado])
 
   useEffect(() => {
-    if (!aberto || !resultado?.solicitacaoId) return
+    if (!resultado?.solicitacaoId) return
     const solicitacaoId = resultado.solicitacaoId
     if (matchStatus === 'sem_profissional' || matchStatus === 'cancelada') return
     if (statusAtivo) return
@@ -108,6 +128,7 @@ export default function PopupResultadoCorridaMobilidade({
         setOferta(of && of.profissionalId ? of : null)
         if (
           st === 'aceita' ||
+          st === 'a_caminho' ||
           st === 'a_caminho' ||
           st === 'no_local' ||
           st === 'em_viagem' ||
@@ -127,7 +148,7 @@ export default function PopupResultadoCorridaMobilidade({
       cancelled = true
       clearInterval(id)
     }
-  }, [aberto, resultado?.solicitacaoId, matchStatus, statusAtivo])
+  }, [resultado?.solicitacaoId, matchStatus, statusAtivo])
 
   useEffect(() => {
     if (!oferta?.expiraEm || matchStatus !== 'oferecida') {
@@ -142,6 +163,33 @@ export default function PopupResultadoCorridaMobilidade({
     const id = setInterval(tick, 250)
     return () => clearInterval(id)
   }, [oferta?.expiraEm, matchStatus])
+
+  const cancelarSolicitacao = async () => {
+    const sid = resultado?.solicitacaoId
+    if (!sid || cancelando) return
+    setCancelando(true)
+    try {
+      const res = await fetch(`/api/mobilidade/solicitar/${sid}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acao: 'cancelar' }),
+      })
+      if (!res.ok) {
+        const json = (await res.json()) as { error?: string }
+        setMatchErro(String(json.error ?? t('cancelarSolicitacaoErro')))
+        return
+      }
+      setMatchStatus('cancelada')
+      setOferta(null)
+      setBuscando(false)
+      encerrouRef.current = true
+      onEncerrar?.('cancelada')
+    } catch {
+      setMatchErro(t('cancelarSolicitacaoErro'))
+    } finally {
+      setCancelando(false)
+    }
+  }
 
   if (!aberto || !resultado || statusAtivo) return null
 
@@ -304,7 +352,19 @@ export default function PopupResultadoCorridaMobilidade({
           </div>
         </div>
 
-        {mostrarFechar ? (
+        {aguardandoAceite ? (
+          <div className="shrink-0 border-t border-gray-100 p-3">
+            <button
+              type="button"
+              disabled={cancelando}
+              onClick={() => void cancelarSolicitacao()}
+              className="flex w-full cursor-pointer touch-manipulation items-center justify-center gap-2 rounded-xl bg-rose-600 py-3 text-sm font-bold uppercase text-white disabled:opacity-50"
+            >
+              <Ban className="h-4 w-4" aria-hidden strokeWidth={2.5} />
+              {t('cancelarSolicitacao')}
+            </button>
+          </div>
+        ) : mostrarFechar ? (
           <div className="shrink-0 border-t border-gray-100 p-3">
             <button
               type="button"

@@ -57,6 +57,9 @@ type Props = {
   onRecusar: () => void
   /** Se true, oculta botões padrão (quando rodapeExtra assume o fluxo). */
   ocultarBotoes?: boolean
+  /** Cliente cancelou a oferta ainda pendente. */
+  canceladoPeloCliente?: boolean
+  onOkCancelamento?: () => void
 }
 
 function formatBrl(n: number): string {
@@ -118,6 +121,8 @@ export default function DrawerAtendimentoMobilidade({
   onAceitar,
   onRecusar,
   ocultarBotoes = false,
+  canceladoPeloCliente = false,
+  onOkCancelamento,
 }: Props) {
   const t = useTranslations('Mobilidade')
   useModalScrollLock(true)
@@ -295,30 +300,48 @@ export default function DrawerAtendimentoMobilidade({
       </div>
 
       <div className={`shrink-0 border-t border-gray-100 ${RODAPE_PB}`}>
-        {rodapeExtra}
-        {!ocultarBotoes ? (
-          <div className={`grid grid-cols-2 gap-2 ${rodapeExtra ? 'mt-2' : ''}`}>
+        {canceladoPeloCliente ? (
+          <div className="space-y-3">
+            <p className="text-center text-sm font-semibold text-gray-800">
+              {t('clienteCancelouSolicitacao')}
+            </p>
             <button
               type="button"
-              disabled={busy}
-              onClick={onRecusar}
-              className="flex items-center justify-center gap-1.5 rounded-xl bg-rose-600 py-3 text-sm font-bold uppercase text-white disabled:opacity-50"
+              onClick={onOkCancelamento}
+              className="flex w-full cursor-pointer touch-manipulation items-center justify-center rounded-xl py-3 text-sm font-bold uppercase text-white"
+              style={{ backgroundColor: COR }}
             >
-              <X className="h-4 w-4" aria-hidden />
-              {t('ofertaRecusar')}
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={onAceitar}
-              className="flex items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-bold uppercase text-white disabled:opacity-50"
-              style={{ backgroundColor: VERDE }}
-            >
-              <Check className="h-4 w-4" aria-hidden />
-              {t('ofertaAceitar')}
+              {t('chegadaProOk')}
             </button>
           </div>
-        ) : null}
+        ) : (
+          <>
+            {rodapeExtra}
+            {!ocultarBotoes ? (
+              <div className={`grid grid-cols-2 gap-2 ${rodapeExtra ? 'mt-2' : ''}`}>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={onRecusar}
+                  className="flex items-center justify-center gap-1.5 rounded-xl bg-rose-600 py-3 text-sm font-bold uppercase text-white disabled:opacity-50"
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                  {t('ofertaRecusar')}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={onAceitar}
+                  className="flex items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-bold uppercase text-white disabled:opacity-50"
+                  style={{ backgroundColor: VERDE }}
+                >
+                  <Check className="h-4 w-4" aria-hidden />
+                  {t('ofertaAceitar')}
+                </button>
+              </div>
+            ) : null}
+          </>
+        )}
       </div>
     </div>,
     document.body,

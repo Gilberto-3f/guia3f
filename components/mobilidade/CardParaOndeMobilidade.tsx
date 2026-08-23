@@ -78,6 +78,18 @@ type Props = {
   ) => void
   /** Força o card recolhido (ex.: enquanto o drawer de pesquisa está aberto). */
   forcarRecolhido?: boolean
+  /** Atalho do resultado da busca enquanto a oferta não foi aceita. */
+  pendenciaResultado?: {
+    profissional: {
+      nome: string
+      username: string | null
+      foto_url: string | null
+      verificado: boolean
+      nota_media: number | null
+    } | null
+    categoriaLabel?: string | null
+  } | null
+  onAbrirResultadoPendente?: () => void
   /** Voltar ao card anterior (ex.: anfitrião). */
   onVoltar?: () => void
 }
@@ -108,6 +120,8 @@ export default function CardParaOndeMobilidade({
   onOrigemChange,
   onPesquisar: onPesquisarProp,
   forcarRecolhido = false,
+  pendenciaResultado = null,
+  onAbrirResultadoPendente,
   onVoltar,
 }: Props) {
   const t = useTranslations('Mobilidade')
@@ -243,6 +257,8 @@ export default function CardParaOndeMobilidade({
       }),
   )
 
+  const emPendencia = Boolean(pendenciaResultado) && !emAtendimento
+
   const atendimentoIdAbertoRef = useRef<string | null>(null)
   useEffect(() => {
     if (!emAtendimento || forcarRecolhido) {
@@ -254,6 +270,11 @@ export default function CardParaOndeMobilidade({
     atendimentoIdAbertoRef.current = id
     setAberto(true)
   }, [emAtendimento, corridaAtiva?.solicitacao_id, forcarRecolhido])
+
+  useEffect(() => {
+    if (!emPendencia || forcarRecolhido) return
+    setAberto(true)
+  }, [emPendencia, forcarRecolhido])
 
   useEffect(() => {
     if (origemInicial?.lat != null && origemInicial?.lng != null) {
@@ -465,6 +486,66 @@ export default function CardParaOndeMobilidade({
                 onAbrir={pedirAbrirDrawerAtendimentoAtivo}
                 ariaLabel={t('drawerAtivoAbrirDetalhe')}
                 categoriaLabel={categoriaLabel}
+              />
+            </div>
+          ) : null}
+        </div>
+      </div>
+    )
+  }
+
+  if (emPendencia) {
+    const titulo = t('solicitacaoPendenteTitulo')
+    const prof = pendenciaResultado?.profissional ?? null
+    return (
+      <div className={`w-full max-w-lg ${className}`}>
+        <div
+          className={`bg-white shadow-lg ring-1 ring-black/10 ${
+            painelAberto ? 'rounded-2xl' : 'overflow-hidden rounded-2xl'
+          }`}
+        >
+          <button
+            type="button"
+            {...propsUmToque(() => {
+              if (forcarRecolhido) return
+              setAberto((v) => !v)
+            })}
+            className={`flex w-full cursor-pointer touch-manipulation items-center justify-between gap-3 px-4 py-3.5 text-left text-white ${
+              painelAberto ? 'rounded-t-2xl' : 'rounded-2xl'
+            }`}
+            style={{ backgroundColor: '#0097b2' }}
+            aria-expanded={painelAberto}
+            aria-label={titulo}
+          >
+            <div className="flex min-w-0 items-center gap-2.5">
+              <Car className="h-5 w-5 shrink-0 text-white" aria-hidden strokeWidth={2} />
+              <p className="text-base font-extrabold uppercase tracking-wide text-white">{titulo}</p>
+            </div>
+            {painelAberto ? (
+              <ChevronUp className="h-5 w-5 shrink-0 text-white" aria-hidden />
+            ) : (
+              <ChevronDown className="h-5 w-5 shrink-0 text-white" aria-hidden />
+            )}
+          </button>
+
+          {painelAberto ? (
+            <div className="space-y-3 rounded-b-2xl bg-white px-4 pb-4 pt-3">
+              <CardParteAtendimentoFlutuante
+                parte={
+                  prof
+                    ? {
+                        nome: prof.nome,
+                        username: prof.username,
+                        foto_url: prof.foto_url,
+                        verificado: prof.verificado,
+                        nota_media: prof.nota_media,
+                      }
+                    : null
+                }
+                fallbackNome={t('atendimentoProfissionalFallback')}
+                onAbrir={() => onAbrirResultadoPendente?.()}
+                ariaLabel={t('solicitacaoPendenteAbrir')}
+                categoriaLabel={pendenciaResultado?.categoriaLabel ?? null}
               />
             </div>
           ) : null}

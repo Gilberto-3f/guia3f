@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
 import { assertUserSession } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
-import { avancarFilaSeExpirada } from '@/lib/mobilidadeMatching'
+import {
+  avancarFilaSeExpirada,
+  cancelarSolicitacaoPendenteTurista,
+} from '@/lib/mobilidadeMatching'
 import { mediaNotaAlvo } from '@/lib/notaMediaAvaliacoes'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -113,6 +116,10 @@ export async function GET(_req: Request, ctx: Ctx) {
   const filaLen = Array.isArray(row.fila_profissional_ids) ? row.fila_profissional_ids.length : 0
   const idx = Number(row.fila_indice ?? 0)
   const backupsRestantes = Math.max(0, Math.min(2, filaLen - idx - 1))
+  const meta =
+    typeof row.metadata === 'object' && row.metadata != null
+      ? (row.metadata as Record<string, unknown>)
+      : {}
 
   return NextResponse.json({
     ok: true,
@@ -126,5 +133,44 @@ export async function GET(_req: Request, ctx: Ctx) {
     conversa_id: conversaId,
     profissional_username: profissionalUsername,
     profissional_whatsapp: profissionalWhatsapp,
+    cancelado_por: meta.cancelado_por != null ? String(meta.cancelado_por) : null,
   })
+}
+
+export async function POST(req: Request, ctx: Ctx) {
+  const auth = await assertUserSession()
+  if (!auth.ok) return auth.error
+
+  const { id } = await ctx.params
+  const solicitacaoId = String(id ?? '').trim()
+  if (!solicitacaoId) {
+    return NextResponse.json({ error: 'id obrigatório.' }, { status: 400 })
+  }
+
+  let body: Record<string, unknown>
+  try {
+    body = (await req.json()) as Record<string, unknown>
+  } catch {
+    return NextResponse.json({ error: 'JSON inválido.' }, { status: 400 })
+  }
+
+  if (String(body.acao ?? '').trim() !== 'cancelar') {
+    return NextResponse.json({ error: 'acao deve ser cancelar.' }, { status: 400 })
+  }
+
+  let admin
+  try {
+    admin = createSupabaseAdmin()
+  } catch {
+    return NextResponse.json({ error: 'Serviço indisponível.' }, { status: 503 })
+  }
+
+  const res = await cancelarSolicitacaoPendenteTurista(admin, {
+    solicitacaoId,
+    atorUsuarioId: auth.userId,
+  })
+  if (!res.ok) {
+    return NextResponse.json({ error: res.error }, { status: 400 })
+  }
+  return NextResponse.json({ ok: true, status: res.status })
 }

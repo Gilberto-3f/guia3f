@@ -83,12 +83,17 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
   const { perfilEhProfissional, recursosProfissionaisLiberados, profRow, loading } =
     useProfissionalGate()
   const [oferta, setOferta] = useState<Oferta | null>(null)
+  const ofertaRef = useRef<Oferta | null>(null)
+  ofertaRef.current = oferta
   const [busy, setBusy] = useState(false)
   const [seg, setSeg] = useState<number | null>(null)
   const [mostrarRecusa, setMostrarRecusa] = useState(false)
   const [justificativa, setJustificativa] = useState<JustificativaRecusaMobilidadeId | null>(null)
   const [justificativaDetalhe, setJustificativaDetalhe] = useState('')
   const [erroRecusa, setErroRecusa] = useState('')
+  const [canceladoPeloCliente, setCanceladoPeloCliente] = useState(false)
+  const canceladoClienteRef = useRef(false)
+  canceladoClienteRef.current = canceladoPeloCliente
   const [corrida, setCorrida] = useState<CorridaAtivaMobilidade | null>(null)
   const [erroConcluir, setErroConcluir] = useState('')
   const [erroChegada, setErroChegada] = useState('')
@@ -238,7 +243,33 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
       }
       if (!rOferta.ok) return 'ok' as const
       const first = Array.isArray(json.ofertas) && json.ofertas[0] ? json.ofertas[0] : null
-      setOferta(first ? { ...first, _fluxo: 'oferta' } : null)
+      if (first) {
+        setCanceladoPeloCliente(false)
+        setOferta({ ...first, _fluxo: 'oferta' })
+        return 'ok' as const
+      }
+      const atual = ofertaRef.current
+      if (atual && atual._fluxo !== 'agendamento_confirmacao') {
+        try {
+          const rSt = await fetch(`/api/mobilidade/solicitar/${atual.solicitacao_id}`)
+          const jSt = (await rSt.json()) as { status?: string; cancelado_por?: string | null }
+          if (
+            rSt.ok &&
+            String(jSt.status ?? '') === 'cancelada' &&
+            String(jSt.cancelado_por ?? '') === 'turista'
+          ) {
+            setCanceladoPeloCliente(true)
+            setMostrarRecusa(false)
+            return 'ok' as const
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      if (!canceladoClienteRef.current) {
+        setOferta(null)
+        setCanceladoPeloCliente(false)
+      }
     } catch {
       /* ignore */
     }
@@ -744,8 +775,14 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
         oferta={oferta}
         busy={busy}
         segundosRestantes={oferta._fluxo === 'agendamento_confirmacao' ? null : seg}
-        ocultarBotoes={mostrarRecusa}
-        rodapeExtra={painelRecusa}
+        ocultarBotoes={mostrarRecusa || canceladoPeloCliente}
+        rodapeExtra={canceladoPeloCliente ? null : painelRecusa}
+        canceladoPeloCliente={canceladoPeloCliente}
+        onOkCancelamento={() => {
+          setOferta(null)
+          setCanceladoPeloCliente(false)
+          setMostrarRecusa(false)
+        }}
         onAceitar={() => void aceitar()}
         onRecusar={() => {
           setMostrarRecusa(true)

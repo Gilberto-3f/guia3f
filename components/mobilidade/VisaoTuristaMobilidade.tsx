@@ -935,6 +935,32 @@ export default function VisaoTuristaMobilidade({
               empresas={empresas}
               forcarRecolhido={drawerAberto}
               expandidoInicial={Boolean(cardDestino) || anfitriaoChamarCorrida}
+              pendenciaResultado={
+                resultadoCorrida && !resultadoAberto && resultadoCorrida.solicitacaoId
+                  ? {
+                      profissional: resultadoCorrida.profissionalParticular
+                        ? {
+                            nome: resultadoCorrida.profissionalParticular.nome_completo,
+                            username: resultadoCorrida.profissionalParticular.nome_usuario,
+                            foto_url: resultadoCorrida.profissionalParticular.foto_url,
+                            verificado: resultadoCorrida.profissionalParticular.verificado,
+                            nota_media: resultadoCorrida.profissionalParticular.nota_media ?? null,
+                          }
+                        : resultadoCorrida.oferta
+                          ? {
+                              nome: resultadoCorrida.oferta.nome,
+                              username: resultadoCorrida.oferta.username,
+                              foto_url: resultadoCorrida.oferta.fotoUrl,
+                              verificado: false,
+                              nota_media: resultadoCorrida.oferta.notaMedia ?? null,
+                            }
+                          : null,
+                      categoriaLabel:
+                        resultadoCorrida.profissionalParticular?.categoria_label ?? null,
+                    }
+                  : null
+              }
+              onAbrirResultadoPendente={() => setResultadoAberto(true)}
               onVoltar={
                 cardAnfitriao && anfitriaoChamarCorrida
                   ? () => setAnfitriaoChamarCorrida(false)
@@ -994,8 +1020,11 @@ export default function VisaoTuristaMobilidade({
         resultado={resultadoCorrida}
         onFechar={() => {
           setResultadoAberto(false)
+        }}
+        onEncerrar={(motivo) => {
+          setResultadoAberto(false)
           setResultadoCorrida(null)
-          limparPesquisaDestino()
+          if (motivo === 'cancelada') limparPesquisaDestino()
         }}
         onReabrirAgendar={reabrirDrawerParaAgendar}
       />
