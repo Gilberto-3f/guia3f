@@ -8,7 +8,7 @@ import type { ProfissionalDrawerParticular } from '@/lib/profissionalDrawerParti
 
 const COR = '#0097b2'
 
-function formatMesAno(iso: string | null | undefined): string | null {
+export function formatMesAno(iso: string | null | undefined): string | null {
   if (!iso) return null
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return null
@@ -20,8 +20,8 @@ export type { ProfissionalDrawerParticular }
 
 type Props = {
   prof: ProfissionalDrawerParticular
-  /** Prefixo i18n, ex.: "Verificado desde" — mês/ano entra em negrito. */
-  labelVerificadoPrefixo: string
+  /** Prefixo i18n, ex.: "Verificado desde" — mês/ano entra em negrito. Omitir no drawer (vai no cabeçalho). */
+  labelVerificadoPrefixo?: string
 }
 
 /** Bloco do profissional nos drawers de contratação dirigida (cartão de visita). */
@@ -35,8 +35,8 @@ export default function BlocoProfissionalDrawerParticular({
   const categoria = String(prof.categoria_label ?? '').trim()
 
   return (
-    <div className="flex w-full flex-col px-1 py-2">
-      <div className="flex w-full flex-nowrap items-center gap-3">
+    <div className="flex w-full flex-col items-center px-1 py-2">
+      <div className="flex max-w-full flex-nowrap items-center gap-3">
         <div
           className="relative h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-xl bg-gray-100"
           style={{ boxShadow: `0 0 0 3px ${COR}` }}
@@ -45,7 +45,7 @@ export default function BlocoProfissionalDrawerParticular({
             <AvatarImage src={prof.foto_url} alt="" fill className="object-cover" sizes="72px" />
           ) : null}
         </div>
-        <div className="min-w-0 flex-1 text-left">
+        <div className="min-w-0 text-left">
           <p className="truncate text-base font-bold leading-tight text-gray-900">
             {prof.nome_completo || 'Profissional'}
           </p>
@@ -70,7 +70,7 @@ export default function BlocoProfissionalDrawerParticular({
           )}
         </div>
       </div>
-      {mesAno ? (
+      {mesAno && labelVerificadoPrefixo ? (
         <p className="mt-2 w-full text-center text-xs text-gray-500">
           {labelVerificadoPrefixo} <strong className="font-bold text-gray-600">{mesAno}</strong>
         </p>

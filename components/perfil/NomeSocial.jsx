@@ -30,8 +30,8 @@ export default function NomeSocial({
 }) {
   return (
     <div
-      className={`flex min-w-0 items-center gap-2 ${
-        compactoCentralizado ? 'justify-center text-center' : ''
+      className={`flex w-max max-w-full items-center gap-0.5 ${
+        compactoCentralizado ? 'mx-auto justify-center text-center' : ''
       }`}
     >
       {mostrarCartao ? (
@@ -46,7 +46,11 @@ export default function NomeSocial({
           }
           title="Cartão de visita"
         >
-          <EscudoVerificacaoPendente verificado={profissionalVerificado} />
+          <EscudoVerificacaoPendente
+            verificado={profissionalVerificado}
+            className="h-6 w-6"
+            iconSize={20}
+          />
         </button>
       ) : null}
       <h1
@@ -58,6 +62,7 @@ export default function NomeSocial({
           nome={nome}
           verificado={seloVerificacaoNoNome && contaVerificada}
           verificadoTipo={verificadoTipo}
+          className="inline-flex min-w-0 items-center gap-1"
           nomeClassName="truncate"
         />
       </h1>

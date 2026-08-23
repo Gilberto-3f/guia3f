@@ -66,6 +66,7 @@ import { reverseGeocodeMapbox } from '@/lib/mapboxReverseGeocode'
 import CamposPesquisaRotaMobilidade from '@/components/mobilidade/CamposPesquisaRotaMobilidade'
 import CotacaoValorMobilidade from '@/components/mobilidade/CotacaoValorMobilidade'
 import BlocoProfissionalDrawerParticular, {
+  formatMesAno,
   type ProfissionalDrawerParticular,
 } from '@/components/mobilidade/BlocoProfissionalDrawerParticular'
 import {
@@ -757,6 +758,8 @@ export default function DrawerPesquisaMobilidade({
           ? TITULOS_MOD[modalidade]
           : '—'
 
+  const mesAnoVerificado = modoParticular ? formatMesAno(profParticular?.verificado_em) : null
+
   const particularExigeAgenda = modoParticular && !particularPermiteImediato
   const agendaPreenchida = Boolean(dataAgenda && horaAgenda)
   // Offline dirigido: só avança da etapa 2 com data/hora.
@@ -1015,32 +1018,45 @@ export default function DrawerPesquisaMobilidade({
     >
       {/* Faixa azul + safe area (padrão menu/canais) */}
       <div className="shrink-0 pt-safe" style={{ backgroundColor: COR }}>
-        <div className="flex h-12 items-center gap-2 px-3">
-          <IconHeader className="h-5 w-5 shrink-0 text-white" aria-hidden />
-          <h2 className="min-w-0 flex-1 truncate text-base font-bold uppercase tracking-wide text-white">
-            {tituloHeader}
-          </h2>
-          {etapa === 1 ? (
-            <button
-              type="button"
-              {...propsUmToque(onFechar)}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/90 active:bg-white/15"
-              aria-label={t('fechar')}
-            >
-              <X className="h-5 w-5" />
-            </button>
-          ) : etapa === 3 ? (
-            <button
-              type="button"
-              {...propsUmToque(() => setEtapa(2))}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/90 active:bg-white/15"
-              aria-label={t('retornar')}
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-          ) : (
-            <span className="inline-flex h-8 w-8 shrink-0" aria-hidden />
-          )}
+        <div className="flex items-start gap-2 px-3">
+          <div className="flex h-12 shrink-0 items-center">
+            <IconHeader className="h-5 w-5 text-white" aria-hidden />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex h-12 items-center">
+              <h2 className="truncate text-base font-bold uppercase tracking-wide text-white">
+                {tituloHeader}
+              </h2>
+            </div>
+            {mesAnoVerificado ? (
+              <p className="-mt-1.5 pb-2 text-xs leading-snug text-white/90">
+                {t('particularVerificadoDesde', { mesAno: mesAnoVerificado })}
+              </p>
+            ) : null}
+          </div>
+          <div className="flex h-12 shrink-0 items-center">
+            {etapa === 1 ? (
+              <button
+                type="button"
+                {...propsUmToque(onFechar)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/90 active:bg-white/15"
+                aria-label={t('fechar')}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            ) : etapa === 3 ? (
+              <button
+                type="button"
+                {...propsUmToque(() => setEtapa(2))}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/90 active:bg-white/15"
+                aria-label={t('retornar')}
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+            ) : (
+              <span className="inline-flex h-8 w-8 shrink-0" aria-hidden />
+            )}
+          </div>
         </div>
       </div>
 
@@ -1048,10 +1064,7 @@ export default function DrawerPesquisaMobilidade({
         {modoParticular && !tecladoRotaAberto ? (
           <div className="mb-2">
             {profParticular ? (
-              <BlocoProfissionalDrawerParticular
-                prof={profParticular}
-                labelVerificadoPrefixo={t('particularVerificadoPrefixo')}
-              />
+              <BlocoProfissionalDrawerParticular prof={profParticular} />
             ) : profParticularLoading ? (
               <p className="py-6 text-center text-sm text-gray-500">…</p>
             ) : (
