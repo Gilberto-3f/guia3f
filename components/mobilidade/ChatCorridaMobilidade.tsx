@@ -54,6 +54,8 @@ export default function ChatCorridaMobilidade({
   const [meuId, setMeuId] = useState<string | null>(null)
   const [erro, setErro] = useState('')
   const fimRef = useRef<HTMLDivElement | null>(null)
+  const listaRef = useRef<HTMLDivElement | null>(null)
+  const [tecladoAberto, setTecladoAberto] = useState(false)
   const onMsgsRef = useRef(onMensagensChange)
   onMsgsRef.current = onMensagensChange
 
@@ -101,8 +103,33 @@ export default function ChatCorridaMobilidade({
 
   useEffect(() => {
     if (!visivel) return
-    fimRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const lista = listaRef.current
+    if (lista) lista.scrollTop = lista.scrollHeight
   }, [msgs.length, visivel])
+
+  useEffect(() => {
+    if (!visivel) {
+      setTecladoAberto(false)
+      return
+    }
+    const syncTeclado = () => {
+      const vv = window.visualViewport
+      if (!vv) {
+        setTecladoAberto(false)
+        return
+      }
+      setTecladoAberto(Math.round(window.innerHeight) - Math.round(vv.height) > 120)
+    }
+    syncTeclado()
+    window.visualViewport?.addEventListener('resize', syncTeclado)
+    window.visualViewport?.addEventListener('scroll', syncTeclado)
+    window.addEventListener('resize', syncTeclado)
+    return () => {
+      window.visualViewport?.removeEventListener('resize', syncTeclado)
+      window.visualViewport?.removeEventListener('scroll', syncTeclado)
+      window.removeEventListener('resize', syncTeclado)
+    }
+  }, [visivel])
 
   const enviar = async () => {
     const body = texto.trim()
@@ -171,7 +198,8 @@ export default function ChatCorridaMobilidade({
       </div>
       )}
       <div
-        className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-2"
+        ref={listaRef}
+        className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-3 py-2"
         data-modal-scroll-lock-scrollable
       >
         {msgs.length === 0 ? (
@@ -197,8 +225,10 @@ export default function ChatCorridaMobilidade({
       {erro ? <p className="px-3 text-xs text-rose-600">{erro}</p> : null}
       {!leitura ? (
         <div
-          className={`flex gap-2 border-t border-gray-100 p-2 ${
-            folha ? 'pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]' : ''
+          className={`flex shrink-0 items-center gap-2 border-t border-gray-100 p-2 ${
+            folha && !tecladoAberto
+              ? 'pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]'
+              : ''
           }`}
         >
           <input
@@ -212,14 +242,18 @@ export default function ChatCorridaMobilidade({
               }
             }}
             placeholder={t('chatPlaceholder')}
-            className="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm"
+            className="min-h-11 min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-base touch-manipulation"
             maxLength={2000}
+            inputMode="text"
+            enterKeyHint="send"
+            autoComplete="off"
+            autoCorrect="on"
           />
           <button
             type="button"
             disabled={busy || !texto.trim()}
             onClick={() => void enviar()}
-            className="rounded-lg bg-[#00D443] px-3 text-white disabled:opacity-50"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#00D443] text-white disabled:opacity-50"
             aria-label={t('chatEnviar')}
           >
             <Send className="h-4 w-4" />

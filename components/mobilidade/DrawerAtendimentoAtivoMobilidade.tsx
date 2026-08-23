@@ -200,8 +200,6 @@ export default function DrawerAtendimentoAtivoMobilidade({
       setManifestoAberto(false)
       return
     }
-    // Só conta como não lida mensagem chegada depois de abrir o drawer.
-    setChatLastReadIso(new Date().toISOString())
     const el = raizRef.current
     if (el) {
       el.focus({ preventScroll: true })
@@ -221,13 +219,15 @@ export default function DrawerAtendimentoAtivoMobilidade({
 
   const onMensagensChange = useMemo(
     () => (msgs: { remetente_id: string; created_at: string }[], meuId: string | null) => {
-      if (chatAberto || !meuId) {
-        if (chatAberto) setChatUnread(0)
+      if (!meuId) return
+      if (chatAberto) {
+        setChatUnread(0)
         return
       }
       const corte = chatLastReadIso ? new Date(chatLastReadIso).getTime() : 0
       const n = msgs.filter((m) => {
         if (m.remetente_id === meuId) return false
+        if (!chatLastReadIso) return true
         return new Date(m.created_at).getTime() > corte
       }).length
       setChatUnread(n)
@@ -558,17 +558,21 @@ export default function DrawerAtendimentoAtivoMobilidade({
           <button
             type="button"
             {...propsUmToque(() => {
+              raizRef.current?.blur()
               setChatAberto(true)
               setChatUnread(0)
               setChatLastReadIso(new Date().toISOString())
             })}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold uppercase tracking-wide text-white"
+            className="relative mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold uppercase tracking-wide text-white"
             style={{ backgroundColor: COR }}
           >
             <MessageCircle className="h-5 w-5 shrink-0" aria-hidden strokeWidth={2.25} />
             {t('chatTitulo')}
             {chatUnread > 0 ? (
-              <span className="rounded-full bg-rose-600 px-2 py-0.5 text-[11px] font-bold text-white">
+              <span
+                className="absolute right-2.5 top-1/2 flex h-[1.2rem] min-w-[1.2rem] -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-[#F44336] px-1 text-[10px] font-bold leading-none text-white tabular-nums"
+                aria-label={`${chatUnread} ${t('chatTitulo')}`}
+              >
                 {chatUnread > 99 ? '99+' : chatUnread}
               </span>
             ) : null}
