@@ -1018,23 +1018,20 @@ export default function DrawerPesquisaMobilidade({
     >
       {/* Faixa azul + safe area (padrão menu/canais) */}
       <div className="shrink-0 pt-safe" style={{ backgroundColor: COR }}>
-        <div className="flex items-start gap-2 px-3">
-          <div className="flex h-12 shrink-0 items-center">
-            <IconHeader className="h-5 w-5 text-white" aria-hidden />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex h-12 items-center">
-              <h2 className="truncate text-base font-bold uppercase tracking-wide text-white">
-                {tituloHeader}
-              </h2>
-            </div>
+        <div className={`flex items-center gap-2 px-3 ${mesAnoVerificado ? 'py-2' : 'h-12'}`}>
+          <IconHeader className="h-5 w-5 shrink-0 text-white" aria-hidden />
+          <div className="min-w-0 flex-1 leading-tight">
+            <h2 className="truncate text-base font-bold uppercase tracking-wide text-white">
+              {tituloHeader}
+            </h2>
             {mesAnoVerificado ? (
-              <p className="-mt-1.5 pb-2 text-xs leading-snug text-white/90">
-                {t('particularVerificadoDesde', { mesAno: mesAnoVerificado })}
+              <p className="mt-0.5 text-[11px] text-white/90">
+                {t('particularVerificadoPrefixo')}{' '}
+                <strong className="font-bold text-white">{mesAnoVerificado}</strong>
               </p>
             ) : null}
           </div>
-          <div className="flex h-12 shrink-0 items-center">
+          <div className="flex shrink-0 items-center">
             {etapa === 1 ? (
               <button
                 type="button"

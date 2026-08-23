@@ -243,8 +243,16 @@ export default function CardParaOndeMobilidade({
       }),
   )
 
+  const atendimentoIdAbertoRef = useRef<string | null>(null)
   useEffect(() => {
-    if (emAtendimento && !forcarRecolhido) setAberto(true)
+    if (!emAtendimento || forcarRecolhido) {
+      if (!emAtendimento) atendimentoIdAbertoRef.current = null
+      return
+    }
+    const id = String(corridaAtiva?.solicitacao_id ?? '')
+    if (atendimentoIdAbertoRef.current === id) return
+    atendimentoIdAbertoRef.current = id
+    setAberto(true)
   }, [emAtendimento, corridaAtiva?.solicitacao_id, forcarRecolhido])
 
   useEffect(() => {
@@ -417,10 +425,10 @@ export default function CardParaOndeMobilidade({
         >
           <button
             type="button"
-            {...propsUmToque(() => {
+            onClick={() => {
               if (forcarRecolhido) return
               setAberto((v) => !v)
-            })}
+            }}
             className={`flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-white ${
               painelAberto ? 'rounded-t-2xl' : 'rounded-2xl'
             }`}
@@ -490,10 +498,10 @@ export default function CardParaOndeMobilidade({
           ) : null}
           <button
             type="button"
-            {...propsUmToque(() => {
+            onClick={() => {
               if (forcarRecolhido) return
               setAberto((v) => !v)
-            })}
+            }}
             className="flex min-w-0 flex-1 items-center justify-between gap-3 px-2 py-1.5 text-left text-white"
             aria-expanded={painelAberto}
             aria-label={painelAberto ? t('paraOndeTitulo') : `${t('paraOndeTitulo')}. ${resumoDestino}`}

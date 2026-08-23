@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState, type SVGProps } from 'react'
+import { useCallback, useEffect, useRef, useState, type SVGProps } from 'react'
 import { Briefcase, ChevronDown, ChevronUp, ClipboardList, Navigation, Smile } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import ToggleStatusMobilidade from '@/components/mobilidade/ToggleStatusMobilidade'
@@ -131,8 +131,16 @@ export default function CardStatusProfissionalMobilidade({
       listaIniciada,
   )
 
+  const atendimentoIdAbertoRef = useRef<string | null>(null)
   useEffect(() => {
-    if (emAtendimento && !forcarRecolhido) setAberto(true)
+    if (!emAtendimento || forcarRecolhido) {
+      if (!emAtendimento) atendimentoIdAbertoRef.current = null
+      return
+    }
+    const id = String(corrida?.solicitacao_id ?? '')
+    if (atendimentoIdAbertoRef.current === id) return
+    atendimentoIdAbertoRef.current = id
+    setAberto(true)
   }, [emAtendimento, corrida?.solicitacao_id, forcarRecolhido])
 
   const painelAberto = aberto && !forcarRecolhido
