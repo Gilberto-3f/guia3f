@@ -13,6 +13,8 @@ export type MobilidadePesquisaState = {
   origem: MobilidadePonto
   destino: MobilidadePonto
   destinoEmpresaId: string | null
+  /** Sugestão escolhida na lista (empresa ou rota tabelada). Texto solto não preenche. */
+  destinoCatalogoId?: string | null
   /** Abre o popup de pesquisa na Etapa 3. */
   abrirPesquisa: boolean
   /** Indicação: recomendacoes_profissional.id */
@@ -41,6 +43,20 @@ export function pontoComCoords(p: {
   lng: number | null | undefined
 }): boolean {
   return p.lat != null && p.lng != null && Number.isFinite(p.lat) && Number.isFinite(p.lng)
+}
+
+/**
+ * Destino final aceito pelo app: empresa do guia ou rota tabelada escolhida na lista.
+ * Texto digitado sem selecionar sugestão não vale.
+ */
+export function destinoFinalSelecionado(opts: {
+  destinoEmpresaId?: string | null
+  destinoCatalogoId?: string | null
+}): boolean {
+  return (
+    Boolean(String(opts.destinoEmpresaId ?? '').trim()) ||
+    Boolean(String(opts.destinoCatalogoId ?? '').trim())
+  )
 }
 
 export function resolverModoContratacaoMobilidade(params: {
@@ -93,6 +109,7 @@ export function parseMobilidadePesquisaSearchParams(
       lng: numOrNull(sp.get('destino_lng')),
     },
     destinoEmpresaId: destinoEmpresa || null,
+    destinoCatalogoId: String(sp.get('destino_cat') ?? '').trim() || null,
     abrirPesquisa: sp.get('abrir_pesquisa') === '1' || sp.get('pesquisar') === '1',
     recomendacaoId: rec || null,
     profissionalUsuarioId: prof || null,
@@ -108,6 +125,7 @@ export function buildMobilidadePesquisaHref(params: {
   origem: MobilidadePonto
   destino: MobilidadePonto
   destinoEmpresaId?: string | null
+  destinoCatalogoId?: string | null
   abrirPesquisa?: boolean
   recomendacaoId?: string | null
   profissionalUsuarioId?: string | null
@@ -134,6 +152,9 @@ export function buildMobilidadePesquisaHref(params: {
 
   const emp = String(params.destinoEmpresaId ?? '').trim()
   if (emp) q.set('destino_empresa', emp)
+
+  const cat = String(params.destinoCatalogoId ?? '').trim()
+  if (cat) q.set('destino_cat', cat)
 
   const rec = String(params.recomendacaoId ?? '').trim()
   if (rec) q.set('rec', rec)
@@ -168,6 +189,7 @@ export function buildHrefContratarParticular(params: {
     origem: { nome: '', lat: null, lng: null },
     destino: { nome: '', lat: null, lng: null },
     destinoEmpresaId: null,
+    destinoCatalogoId: null,
     abrirPesquisa: true,
     profissionalUsuarioId: params.profissionalUsuarioId,
     recomendacaoId: rec || null,

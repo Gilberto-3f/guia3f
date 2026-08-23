@@ -438,6 +438,7 @@ export default function VisaoTuristaMobilidade({
           ...next,
           destino: { nome: '', lat: null, lng: null },
           destinoEmpresaId: null,
+          destinoCatalogoId: null,
           modo: 'particular',
         }
       }
@@ -944,7 +945,7 @@ export default function VisaoTuristaMobilidade({
                   if (o.nome) setOrigemLabelGps(o.nome)
                 }
               }}
-              onPesquisar={(o, d, empId) => {
+              onPesquisar={(o, d, empId, catId) => {
                 setResultadoAberto(false)
                 setResultadoCorrida(null)
                 empresaFechadaIdRef.current = null
@@ -954,6 +955,7 @@ export default function VisaoTuristaMobilidade({
                     origem: o,
                     destino: d,
                     destinoEmpresaId: empId,
+                    destinoCatalogoId: catId ?? (empId ? `empresa:${empId}` : null),
                     abrirPesquisa: true,
                     recomendacaoId: null,
                     profissionalUsuarioId: null,

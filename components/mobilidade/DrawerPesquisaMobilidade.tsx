@@ -5,7 +5,6 @@ import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import {
   ArrowLeft,
-  Building2,
   CalendarDays,
   Car,
   Check,
@@ -17,7 +16,6 @@ import {
   MapPin,
   Minus,
   Plus,
-  Route,
   Search,
   Send,
   Smartphone,
@@ -33,6 +31,7 @@ import { propsUmToque } from '@/lib/umToque'
 import { refreshAppViewportHeight } from '@/lib/useAppViewportHeight'
 import {
   buildMobilidadePesquisaHref,
+  destinoFinalSelecionado,
   ehContratacaoDirigida,
   pontoComCoords,
   pontoPreenchido,
@@ -63,6 +62,8 @@ import {
 import type { RotaTabelada } from '@/lib/servicosTabeladosCatalogo'
 import { labelIdiomaGuia } from '@/lib/idiomasGuia'
 import { forwardGeocodeMapbox } from '@/lib/mapboxForwardGeocode'
+import { reverseGeocodeMapbox } from '@/lib/mapboxReverseGeocode'
+import CamposPesquisaRotaMobilidade from '@/components/mobilidade/CamposPesquisaRotaMobilidade'
 import CotacaoValorMobilidade from '@/components/mobilidade/CotacaoValorMobilidade'
 import BlocoProfissionalDrawerParticular, {
   type ProfissionalDrawerParticular,
@@ -78,6 +79,7 @@ import type {
 
 const COR = '#0097b2'
 const VERDE = '#00D443'
+const CINZA = '#9CA3AF'
 
 type Props = {
   aberto: boolean
@@ -343,6 +345,9 @@ export default function DrawerPesquisaMobilidade({
   const [origemDraft, setOrigemDraft] = useState<MobilidadePonto>({ nome: '', lat: null, lng: null })
   const [destinoDraft, setDestinoDraft] = useState<MobilidadePonto>({ nome: '', lat: null, lng: null })
   const [destinoEmpresaDraft, setDestinoEmpresaDraft] = useState<string | null>(null)
+  const [destinoCatalogoDraft, setDestinoCatalogoDraft] = useState<string | null>(null)
+  const [campoRotaFocado, setCampoRotaFocado] = useState(false)
+  const [gpsStatus, setGpsStatus] = useState<'idle' | 'loading' | 'ok' | 'denied' | 'error'>('idle')
   const [sugestoesDestinoAbertas, setSugestoesDestinoAbertas] = useState(false)
   const [rotaAplicada, setRotaAplicada] = useState<{
     origem: MobilidadePonto
@@ -369,7 +374,7 @@ export default function DrawerPesquisaMobilidade({
   )
 
   const modoParticular = ehContratacaoDirigida(pesquisa)
-  const modoCamposAbertos = resolverModoContratacaoMobilidade(pesquisa) === 'particular'
+  const modoCamposAbertos = modoParticular
 
   const origemEfetiva = rotaAplicada?.origem ?? pesquisa.origem
   const destinoEfetiva =
@@ -442,12 +447,17 @@ export default function DrawerPesquisaMobilidade({
     setProfParticular(cachedBoot?.snap ?? null)
     setParticularPermiteImediato(cachedBoot?.imediatoOk ?? true)
     setSugestoesDestinoAbertas(false)
+    setCampoRotaFocado(false)
+    setGpsStatus(
+      pesquisa.origem.lat != null && pesquisa.origem.lng != null ? 'ok' : 'idle',
+    )
     setOrigemDraft({ ...pesquisa.origem })
     if (modoCamposAbertos) {
       setEditandoEndereco(true)
       const destVazio: MobilidadePonto = { nome: '', lat: null, lng: null }
       setDestinoDraft(destVazio)
       setDestinoEmpresaDraft(null)
+      setDestinoCatalogoDraft(null)
       setRotaAplicada({
         origem: { ...pesquisa.origem },
         destino: destVazio,
@@ -461,6 +471,7 @@ export default function DrawerPesquisaMobilidade({
         lng: pesquisa.destino.lng,
       })
       setDestinoEmpresaDraft(pesquisa.destinoEmpresaId)
+      setDestinoCatalogoDraft(pesquisa.destinoCatalogoId ?? null)
       setRotaAplicada({
         origem: { ...pesquisa.origem },
         destino: { ...pesquisa.destino },
@@ -476,6 +487,9 @@ export default function DrawerPesquisaMobilidade({
     if (origemDraft.nome.trim() && origemDraft.lat != null) return
     if (!pesquisa.origem.nome.trim() && pesquisa.origem.lat == null) return
     setOrigemDraft({ ...pesquisa.origem })
+    setGpsStatus(
+      pesquisa.origem.lat != null && pesquisa.origem.lng != null ? 'ok' : gpsStatus,
+    )
     setRotaAplicada((prev) =>
       prev
         ? { ...prev, origem: { ...pesquisa.origem } }
@@ -483,6 +497,54 @@ export default function DrawerPesquisaMobilidade({
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aberto, modoCamposAbertos, pesquisa.origem.nome, pesquisa.origem.lat, pesquisa.origem.lng])
+
+  useEffect(() => {
+    if (!aberto || !modoCamposAbertos) return
+    if (origemDraft.lat != null && origemDraft.lng != null) {
+      setGpsStatus('ok')
+      return
+    }
+    if (pesquisa.origem.lat != null && pesquisa.origem.lng != null) return
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setGpsStatus('error')
+      return
+    }
+    let ativo = true
+    setGpsStatus('loading')
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        void (async () => {
+          const endereco = await reverseGeocodeMapbox(pos.coords.latitude, pos.coords.longitude)
+          if (!ativo) return
+          const ponto: MobilidadePonto = {
+            nome: endereco || origemDraft.nome,
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          }
+          setOrigemDraft(ponto)
+          setRotaAplicada((prev) =>
+            prev
+              ? { ...prev, origem: ponto }
+              : {
+                  origem: ponto,
+                  destino: destinoDraft,
+                  destinoEmpresaId: destinoEmpresaDraft,
+                },
+          )
+          setGpsStatus(endereco ? 'ok' : 'error')
+        })()
+      },
+      (err) => {
+        if (!ativo) return
+        setGpsStatus(err.code === err.PERMISSION_DENIED ? 'denied' : 'error')
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60_000 },
+    )
+    return () => {
+      ativo = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aberto, modoCamposAbertos])
 
   useEffect(() => {
     if (!aberto || !modoParticular) {
@@ -737,6 +799,7 @@ export default function DrawerPesquisaMobilidade({
           origem: o,
           destino: d,
           destinoEmpresaId,
+          destinoCatalogoId: destinoCatalogoDraft ?? pesquisa.destinoCatalogoId,
           recomendacaoId: pesquisa.recomendacaoId,
           profissionalUsuarioId: pesquisa.profissionalUsuarioId,
           modo: pesquisa.modo,
@@ -758,7 +821,9 @@ export default function DrawerPesquisaMobilidade({
     const d: MobilidadePonto = { nome: s.label, lat: s.lat, lng: s.lng }
     setDestinoDraft(d)
     setDestinoEmpresaDraft(s.empresaId)
+    setDestinoCatalogoDraft(s.id)
     setSugestoesDestinoAbertas(false)
+    setCampoRotaFocado(false)
     aplicarRota(origemDraft, d, s.empresaId)
   }
 
@@ -922,6 +987,24 @@ export default function DrawerPesquisaMobilidade({
 
   if (typeof document === 'undefined') return null
 
+  const destinoOk = destinoFinalSelecionado(
+    modoCamposAbertos
+      ? {
+          destinoEmpresaId: destinoEmpresaDraft,
+          destinoCatalogoId: destinoCatalogoDraft,
+        }
+      : {
+          destinoEmpresaId: destEmpresaEfetiva,
+          destinoCatalogoId: destinoCatalogoDraft ?? pesquisa.destinoCatalogoId,
+        },
+  )
+  const tecladoRotaAberto = modoCamposAbertos && etapa === 1 && campoRotaFocado
+  const podeAvancarEtapa1 =
+    Boolean(modalidade) &&
+    destinoOk &&
+    (!modoCamposAbertos ||
+      (Boolean(profParticular) && !profParticularLoading && pontoPreenchido(origemDraft)))
+
   return createPortal(
     <div
       className="fixed inset-0 z-[75] flex flex-col bg-white touch-manipulation"
@@ -962,7 +1045,7 @@ export default function DrawerPesquisaMobilidade({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3" data-modal-scroll-lock-scrollable>
-        {modoParticular ? (
+        {modoParticular && !tecladoRotaAberto ? (
           <div className="mb-2">
             {profParticular ? (
               <BlocoProfissionalDrawerParticular
@@ -982,239 +1065,62 @@ export default function DrawerPesquisaMobilidade({
           </div>
         ) : null}
 
-        {/* Card rota */}
+        {etapa === 1 && modoCamposAbertos ? (
+          <div className="rounded-2xl bg-white px-4 py-3 shadow-lg ring-1 ring-black/10">
+            <CamposPesquisaRotaMobilidade
+              origem={origemDraft}
+              destino={destinoDraft}
+              gpsStatus={gpsStatus}
+              sugestoes={sugestoesDestino}
+              mostrarLista={mostrarSugestoesDestino}
+              listaRef={listaSugestoesRef}
+              onOrigemNomeChange={(nome) => {
+                setOrigemDraft((p) =>
+                  nome === p.nome
+                    ? p
+                    : p.lat != null || p.lng != null
+                      ? { nome, lat: null, lng: null }
+                      : { ...p, nome },
+                )
+              }}
+              onDestinoNomeChange={(nome) => {
+                setDestinoDraft({ nome, lat: null, lng: null })
+                setDestinoEmpresaDraft(null)
+                setDestinoCatalogoDraft(null)
+                setSugestoesDestinoAbertas(true)
+              }}
+              onLimparDestino={() => {
+                const vazio = { nome: '', lat: null, lng: null }
+                setDestinoDraft(vazio)
+                setDestinoEmpresaDraft(null)
+                setDestinoCatalogoDraft(null)
+                setSugestoesDestinoAbertas(false)
+                aplicarRota(origemDraft, vazio, null)
+              }}
+              onEscolherSugestao={escolherSugestaoDestino}
+              onFocusCampo={() => {
+                setCampoRotaFocado(true)
+                setSugestoesDestinoAbertas(true)
+                refreshAppViewportHeight()
+              }}
+              onBlurCampo={() => {
+                window.setTimeout(() => {
+                  setSugestoesDestinoAbertas(false)
+                  setCampoRotaFocado(false)
+                  refreshAppViewportHeight()
+                }, 200)
+              }}
+            />
+          </div>
+        ) : null}
+        {!(etapa === 1 && modoCamposAbertos) ? (
         <div className="rounded-xl px-3 py-2.5 text-sm text-white" style={{ backgroundColor: COR }}>
-          {etapa === 1 && modoCamposAbertos && editandoEndereco ? (
-            <div className="space-y-2">
-              <div className="space-y-2 text-center">
-                <label className="block text-[11px] font-bold uppercase tracking-wide text-white">
-                  {t('origemLabel')}
-                  <input
-                    type="text"
-                    value={origemDraft.nome}
-                    onChange={(e) => {
-                      const nome = e.target.value
-                      setOrigemDraft((p) =>
-                        nome === p.nome
-                          ? p
-                          : p.lat != null || p.lng != null
-                            ? { nome, lat: null, lng: null }
-                            : { ...p, nome },
-                      )
-                    }}
-                    className="mt-1 w-full rounded-lg border border-[#0097b2]/20 bg-white px-3 py-2 text-center text-sm font-medium outline-none placeholder:text-[#0097b2]/50"
-                    style={{ color: COR }}
-                    placeholder={t('origemManualPlaceholder')}
-                    autoComplete="off"
-                    autoCorrect="off"
-                    autoCapitalize="off"
-                    spellCheck={false}
-                  />
-                </label>
-                <div className="block text-[11px] font-bold uppercase tracking-wide text-white">
-                  {t('destinoLabel')}
-                  <span className="relative mt-1 block">
-                    <input
-                      type="text"
-                      value={destinoDraft.nome}
-                      onChange={(e) => {
-                        setDestinoDraft({ nome: e.target.value, lat: null, lng: null })
-                        setDestinoEmpresaDraft(null)
-                        setSugestoesDestinoAbertas(true)
-                      }}
-                      onFocus={() => setSugestoesDestinoAbertas(true)}
-                      onBlur={() => {
-                        window.setTimeout(() => setSugestoesDestinoAbertas(false), 200)
-                      }}
-                      className={`w-full rounded-lg border border-[#0097b2]/20 bg-white px-3 py-2 text-center text-sm font-medium outline-none placeholder:text-[#0097b2]/50${
-                        destinoDraft.nome.trim() ? ' pr-10' : ''
-                      }`}
-                      style={{ color: COR }}
-                      placeholder={t('destinoPlaceholder')}
-                      autoComplete="off"
-                      autoCorrect="off"
-                      autoCapitalize="off"
-                      spellCheck={false}
-                      role="combobox"
-                      aria-expanded={mostrarSugestoesDestino}
-                      aria-autocomplete="list"
-                    />
-                    {destinoDraft.nome.trim() ? (
-                      <button
-                        type="button"
-                        className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#0097b2] hover:bg-[#0097b2]/10"
-                        aria-label={t('limparDestino')}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          const vazio = { nome: '', lat: null, lng: null }
-                          setDestinoDraft(vazio)
-                          setDestinoEmpresaDraft(null)
-                          setSugestoesDestinoAbertas(false)
-                          aplicarRota(origemDraft, vazio, null)
-                        }}
-                      >
-                        <X className="h-4 w-4" aria-hidden strokeWidth={2.5} />
-                      </button>
-                    ) : null}
-                  </span>
-                  {mostrarSugestoesDestino ? (
-                    <ul
-                      ref={listaSugestoesRef}
-                      className="mt-2 max-h-[min(42vh,13.5rem)] min-h-[10.5rem] touch-pan-y overflow-y-auto overscroll-contain rounded-xl border border-white/30 bg-white py-1 text-left shadow-md normal-case tracking-normal font-normal"
-                      style={{ WebkitOverflowScrolling: 'touch' }}
-                      role="listbox"
-                      onTouchMove={(e) => e.stopPropagation()}
-                    >
-                      {sugestoesDestino.map((s) => (
-                        <li key={s.id} role="option">
-                          <button
-                            type="button"
-                            className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left hover:bg-[#0097b2]/8"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => escolherSugestaoDestino(s)}
-                          >
-                            {s.tipo === 'empresa' ? (
-                              s.fotoUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={s.fotoUrl}
-                                  alt=""
-                                  className="mt-0.5 h-9 w-9 shrink-0 rounded-lg bg-gray-100 object-cover"
-                                />
-                              ) : (
-                                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0097b2]/15">
-                                  <Building2 className="h-4 w-4 text-[#0097b2]" aria-hidden />
-                                </span>
-                              )
-                            ) : (
-                              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0097b2]/15">
-                                <Route className="h-4 w-4 text-[#0097b2]" aria-hidden />
-                              </span>
-                            )}
-                            <span className="min-w-0 flex-1">
-                              <span className="block text-sm font-semibold text-gray-900">{s.label}</span>
-                              {s.tipo === 'empresa' ? (
-                                <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">
-                                  {[s.endereco, s.detalhe].filter(Boolean).join(' · ') ||
-                                    t('sugestaoEmpresa')}
-                                </span>
-                              ) : (
-                                <span className="mt-0.5 block text-[11px] text-gray-500">
-                                  {t('sugestaoRota')}
-                                </span>
-                              )}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={aplicarEnderecoEditado}
-                className="mx-auto block w-[55%] max-w-[12rem] rounded-lg py-2 text-xs font-bold uppercase text-white"
-                style={{ backgroundColor: VERDE }}
-              >
-                {t('aplicarEndereco')}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  aplicarRota(origemDraft, destinoDraft, destinoEmpresaDraft)
-                  setEditandoEndereco(false)
-                }}
-                className="mx-auto flex items-center justify-center rounded-lg p-1 text-white hover:bg-white/15"
-                aria-label={t('editarEndereco')}
-                aria-expanded
-              >
-                <ChevronUp className="h-5 w-5 text-white" aria-hidden />
-              </button>
-            </div>
-          ) : etapa === 1 && modoCamposAbertos ? (
-            <div className="text-center text-white">
-              <p>
-                <span className="text-[11px] font-bold uppercase tracking-wide text-white">
-                  {t('origemLabel')}:{' '}
-                </span>
-                <span className="text-sm font-medium text-white">{origemLabel}</span>
-              </p>
-              <p className="mt-1">
-                <span className="text-[11px] font-bold uppercase tracking-wide text-white">
-                  {t('destinoLabel')}:{' '}
-                </span>
-                <span className="text-sm font-medium text-white">{destinoLabel}</span>
-              </p>
-              <button
-                type="button"
-                onClick={() => setEditandoEndereco(true)}
-                className="mx-auto mt-2 flex items-center justify-center rounded-lg p-1 text-white hover:bg-white/15"
-                aria-label={t('editarEndereco')}
-                aria-expanded={false}
-              >
-                <ChevronDown className="h-5 w-5 text-white" aria-hidden />
-              </button>
-            </div>
-          ) : etapa === 1 && editandoEndereco ? (
-            <div className="space-y-2">
-              <div className="space-y-2 text-center">
-                <label className="block text-[11px] font-bold uppercase tracking-wide text-white">
-                  {t('origemLabel')}
-                  <input
-                    type="text"
-                    value={origemDraft.nome}
-                    onChange={(e) => setOrigemDraft((p) => ({ ...p, nome: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-[#0097b2]/20 bg-white px-3 py-2 text-center text-sm font-medium outline-none placeholder:text-[#0097b2]/50"
-                    style={{ color: COR }}
-                    placeholder={t('origemManualPlaceholder')}
-                  />
-                </label>
-                <label className="block text-[11px] font-bold uppercase tracking-wide text-white">
-                  {t('destinoLabel')}
-                  <input
-                    type="text"
-                    value={destinoDraft.nome}
-                    onChange={(e) => setDestinoDraft((p) => ({ ...p, nome: e.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-[#0097b2]/20 bg-white px-3 py-2 text-center text-sm font-medium outline-none placeholder:text-[#0097b2]/50"
-                    style={{ color: COR }}
-                    placeholder={t('destinoPlaceholder')}
-                  />
-                </label>
-              </div>
-              <button
-                type="button"
-                onClick={aplicarEnderecoEditado}
-                className="mx-auto block w-[55%] max-w-[12rem] rounded-lg py-2 text-xs font-bold uppercase text-white"
-                style={{ backgroundColor: VERDE }}
-              >
-                {t('aplicarEndereco')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditandoEndereco(false)}
-                className="mx-auto flex items-center justify-center rounded-lg p-1 text-white hover:bg-white/15"
-                aria-label={t('editarEndereco')}
-                aria-expanded
-              >
-                <ChevronUp className="h-5 w-5 text-white" aria-hidden />
-              </button>
-            </div>
-          ) : etapa === 1 ? (
+          {etapa === 1 ? (
             <div className="text-center text-white">
               <p className="text-[11px] font-bold uppercase tracking-wide text-white">
                 {t('destinoLabel')}
               </p>
               <p className="mt-0.5 text-sm font-medium text-white">{destinoLabel}</p>
-              <button
-                type="button"
-                onClick={() => setEditandoEndereco(true)}
-                className="mx-auto mt-2 flex items-center justify-center rounded-lg p-1 text-white hover:bg-white/15"
-                aria-label={t('editarEndereco')}
-                aria-expanded={false}
-              >
-                <ChevronDown className="h-5 w-5 text-white" aria-hidden />
-              </button>
             </div>
           ) : (
             <div className="text-white">
@@ -1229,6 +1135,7 @@ export default function DrawerPesquisaMobilidade({
             </div>
           )}
         </div>
+        ) : null}
 
         {etapa === 1 && !modoParticular ? (
           <div className="mt-2 space-y-2">
@@ -1739,25 +1646,19 @@ export default function DrawerPesquisaMobilidade({
         ) : null}
       </div>
 
+      {!tecladoRotaAberto ? (
       <div className="shrink-0 border-t border-gray-100 bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
         {etapa === 1 ? (
           <button
             type="button"
-            disabled={
-              !modalidade ||
-              (modoCamposAbertos &&
-                (profParticularLoading ||
-                  !profParticular ||
-                  !pontoPreenchido(origemDraft) ||
-                  !pontoPreenchido(destinoDraft))) ||
-              (modoParticular && !modoCamposAbertos && (profParticularLoading || !profParticular))
-            }
+            disabled={!podeAvancarEtapa1}
             {...propsUmToque(() => {
+              if (!podeAvancarEtapa1) return
               if (modoCamposAbertos) aplicarEnderecoEditado()
               setEtapa(2)
             })}
-            className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold uppercase text-white disabled:opacity-50"
-            style={{ backgroundColor: VERDE }}
+            className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold uppercase text-white disabled:cursor-not-allowed"
+            style={{ backgroundColor: podeAvancarEtapa1 ? VERDE : CINZA }}
           >
             {t('avancar')}
           </button>
@@ -1815,6 +1716,7 @@ export default function DrawerPesquisaMobilidade({
           </div>
         ) : null}
       </div>
+      ) : null}
     </div>,
     document.body,
   )

@@ -7,6 +7,7 @@ import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import {
   buildMobilidadePesquisaHref,
+  destinoFinalSelecionado,
   pontoPreenchido,
   type MobilidadePonto,
 } from '@/lib/mobilidadePesquisaParams'
@@ -73,6 +74,7 @@ type Props = {
     origem: MobilidadePonto,
     destino: MobilidadePonto,
     destinoEmpresaId: string | null,
+    destinoCatalogoId?: string | null,
   ) => void
   /** Força o card recolhido (ex.: enquanto o drawer de pesquisa está aberto). */
   forcarRecolhido?: boolean
@@ -126,6 +128,9 @@ export default function CardParaOndeMobilidade({
   const [destinoEmpresaId, setDestinoEmpresaId] = useState<string | null>(
     () => destinoEmpresaIdInicial,
   )
+  const [destinoCatalogoId, setDestinoCatalogoId] = useState<string | null>(() =>
+    destinoEmpresaIdInicial ? `empresa:${destinoEmpresaIdInicial}` : null,
+  )
   const [rotasTabeladas, setRotasTabeladas] = useState<RotaTabelada[]>([])
   const [sugestoesAbertas, setSugestoesAbertas] = useState(false)
   const [campoFocado, setCampoFocado] = useState(false)
@@ -159,12 +164,14 @@ export default function CardParaOndeMobilidade({
     if (!preenchido) {
       setDestino({ nome: '', lat: null, lng: null })
       setDestinoEmpresaId(null)
+      setDestinoCatalogoId(null)
       setSugestoesAbertas(false)
       setErro('')
       return
     }
     setDestino({ nome, lat, lng })
     setDestinoEmpresaId(empId)
+    setDestinoCatalogoId(empId ? `empresa:${empId}` : null)
   }, [
     destinoSyncToken,
     destinoInicial?.nome,
@@ -177,6 +184,7 @@ export default function CardParaOndeMobilidade({
     const onLimpar = () => {
       setDestino({ nome: '', lat: null, lng: null })
       setDestinoEmpresaId(null)
+      setDestinoCatalogoId(null)
       setSugestoesAbertas(false)
       setErro('')
     }
@@ -327,11 +335,17 @@ export default function CardParaOndeMobilidade({
       lng: s.lng,
     })
     setDestinoEmpresaId(s.empresaId)
+    setDestinoCatalogoId(s.id)
     setSugestoesAbertas(false)
     setErro('')
   }
 
+  const podePesquisar =
+    pontoPreenchido(origem) &&
+    destinoFinalSelecionado({ destinoEmpresaId, destinoCatalogoId })
+
   const onPesquisar = () => {
+    if (!podePesquisar) return
     setErro('')
     setSugestoesAbertas(false)
     setCampoFocado(false)
@@ -346,7 +360,7 @@ export default function CardParaOndeMobilidade({
       lat: destino.lat,
       lng: destino.lng,
     }
-    if (!pontoPreenchido(o) || !pontoPreenchido(d)) {
+    if (!pontoPreenchido(o) || !destinoFinalSelecionado({ destinoEmpresaId, destinoCatalogoId })) {
       setErro(t('erroOrigemDestino'))
       setAberto(true)
       return
@@ -360,12 +374,13 @@ export default function CardParaOndeMobilidade({
       const ae = document.activeElement
       if (ae instanceof HTMLElement) ae.blur()
     }
-    onPesquisarProp?.(o, d, destinoEmpresaId)
+    onPesquisarProp?.(o, d, destinoEmpresaId, destinoCatalogoId)
     router.push(
       buildMobilidadePesquisaHref({
         origem: o,
         destino: d,
         destinoEmpresaId,
+        destinoCatalogoId,
         abrirPesquisa: true,
         modo: 'algoritmo',
         recomendacaoId: null,
@@ -559,6 +574,7 @@ export default function CardParaOndeMobilidade({
                         lng: null,
                       })
                       setDestinoEmpresaId(null)
+                      setDestinoCatalogoId(null)
                       setSugestoesAbertas(true)
                     }}
                     onFocus={() => {
@@ -592,6 +608,7 @@ export default function CardParaOndeMobilidade({
                       onClick={() => {
                         setDestino({ nome: '', lat: null, lng: null })
                         setDestinoEmpresaId(null)
+                        setDestinoCatalogoId(null)
                         setSugestoesAbertas(false)
                         setErro('')
                       }}
@@ -661,8 +678,13 @@ export default function CardParaOndeMobilidade({
 
             <button
               type="button"
-              {...propsUmToque(onPesquisar)}
-              className="mx-auto flex w-[55%] max-w-[13.5rem] items-center justify-center gap-2 rounded-xl bg-[#00D443] py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-sm active:opacity-95"
+              disabled={!podePesquisar}
+              {...propsUmToque(() => {
+                if (!podePesquisar) return
+                onPesquisar()
+              })}
+              className="mx-auto flex w-[55%] max-w-[13.5rem] items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold uppercase tracking-wide text-white shadow-sm disabled:cursor-not-allowed"
+              style={{ backgroundColor: podePesquisar ? VERDE : '#9CA3AF' }}
             >
               <Search className="h-4 w-4 shrink-0" aria-hidden />
               {t('pesquisar')}
