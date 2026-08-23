@@ -2,7 +2,17 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { concluirCorridaMobilidade } from '@/lib/mobilidadeCorrida'
 import { encerrarConversaCorrida } from '@/lib/mobilidadeChatCorrida'
 import { concluirManifestoDiario } from '@/lib/manifestoDiario'
+import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { upsertCompraTurista } from '@/lib/turistaCompras'
+
+/** Ledger do turista e conclusão de corrida exigem bypass de RLS (service_role). */
+function dbService(fallback: SupabaseClient): SupabaseClient {
+  try {
+    return createSupabaseAdmin()
+  } catch {
+    return fallback
+  }
+}
 
 export type PassageiroFilaStatus = 'pendente' | 'recebido' | 'cancelado'
 
@@ -364,7 +374,7 @@ export async function cancelarPassageiroManifesto(
 
     const turistaId = p.turista_id != null ? String(p.turista_id) : ''
     if (turistaId) {
-      await upsertCompraTurista(supabase, {
+      await upsertCompraTurista(dbService(supabase), {
         turistaUsuarioId: turistaId,
         tipo: 'mobilidade',
         referenciaId: sid || p.id,
@@ -436,7 +446,7 @@ export async function concluirAtendimentoManifesto(
   for (const p of recebidos) {
     const sid = p.solicitacao_id != null ? String(p.solicitacao_id) : ''
     if (!sid) continue
-    const res = await concluirCorridaMobilidade(supabase, {
+    const res = await concluirCorridaMobilidade(dbService(supabase), {
       solicitacaoId: sid,
       profissionalUsuarioId: params.profissionalUsuarioId,
       exigirManifestoOk: false,

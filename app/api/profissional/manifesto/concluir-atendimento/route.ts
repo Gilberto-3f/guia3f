@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { assertUserSession } from '@/lib/apiUserSession'
 import { buscarProfissionalPlacaVermelha } from '@/lib/manifestoDiario'
 import { concluirAtendimentoManifesto } from '@/lib/manifestoLista'
+import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 
 /** CONCLUIR ATENDIMENTO no fim da aba LISTA (guia/van). */
 export async function POST(req: Request) {
@@ -19,7 +20,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'manifesto_id obrigatório.' }, { status: 400 })
   }
 
-  const res = await concluirAtendimentoManifesto(auth.supabase, {
+  let admin
+  try {
+    admin = createSupabaseAdmin()
+  } catch {
+    return NextResponse.json({ error: 'Serviço indisponível.' }, { status: 503 })
+  }
+
+  const res = await concluirAtendimentoManifesto(admin, {
     manifestoId,
     profissionalId: prof.id,
     profissionalUsuarioId: auth.userId,

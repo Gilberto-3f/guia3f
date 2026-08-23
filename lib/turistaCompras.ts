@@ -99,12 +99,20 @@ export async function upsertCompraTurista(
       .maybeSingle()
 
     if (existente?.id) {
-      await supabase.from('turista_compras').update(payload).eq('id', existente.id)
+      const { error } = await supabase.from('turista_compras').update(payload).eq('id', existente.id)
+      if (error) {
+        console.warn('[turistaCompras] update:', error.message)
+        throw error
+      }
       return
     }
   }
 
-  await supabase.from('turista_compras').insert(payload)
+  const { error } = await supabase.from('turista_compras').insert(payload)
+  if (error) {
+    console.warn('[turistaCompras] insert:', error.message)
+    throw error
+  }
 }
 
 export async function sincronizarCompraReservaHospedagem(
