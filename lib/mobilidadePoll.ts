@@ -3,9 +3,9 @@
 /** Corrida ao vivo (status + GPS no mapa). */
 export const MOBILIDADE_POLL_CORRIDA_ATIVA_MS = 20_000
 /** Sem corrida: só detectar aceite / nova oferta. */
-export const MOBILIDADE_POLL_CORRIDA_IDLE_MS = 30_000
+export const MOBILIDADE_POLL_CORRIDA_IDLE_MS = 5_000
 /** Ofertas / agendamentos pendentes (profissional livre). */
-export const MOBILIDADE_POLL_OFERTA_IDLE_MS = 30_000
+export const MOBILIDADE_POLL_OFERTA_IDLE_MS = 3_000
 /** Popup verde de conclusão aberto. */
 export const MOBILIDADE_POLL_CONCLUSAO_ATIVA_MS = 8_000
 /** Sem conclusão pendente. */

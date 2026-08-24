@@ -181,6 +181,10 @@ export default function VisaoTuristaMobilidade({
   } | null>(null)
   const [resultadoCorrida, setResultadoCorrida] = useState<ResultadoCorridaMobilidade | null>(null)
   const [resultadoAberto, setResultadoAberto] = useState(false)
+
+  useEffect(() => {
+    if (corridaMapaTurista && resultadoCorrida) setResultadoCorrida(null)
+  }, [corridaMapaTurista, resultadoCorrida])
   const gpsCentroRef = useRef(gpsCentro)
   const origemLabelGpsRef = useRef(origemLabelGps)
   const abrindoDrawerRef = useRef(false)
@@ -1023,8 +1027,10 @@ export default function VisaoTuristaMobilidade({
         }}
         onEncerrar={(motivo) => {
           setResultadoAberto(false)
-          setResultadoCorrida(null)
-          if (motivo === 'cancelada') limparPesquisaDestino()
+          if (motivo === 'cancelada') {
+            setResultadoCorrida(null)
+            limparPesquisaDestino()
+          }
         }}
         onReabrirAgendar={reabrirDrawerParaAgendar}
       />

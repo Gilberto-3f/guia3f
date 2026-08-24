@@ -325,13 +325,26 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
           })()
         }, MOBILIDADE_POLL_OFERTA_IDLE_MS)
       })()
-    }, 2500)
+    }, 400)
     return () => {
       ativo = false
       window.clearTimeout(boot)
       if (id) clearInterval(id)
     }
   }, [elegivel, carregarOferta, corrida])
+
+  useEffect(() => {
+    if (!elegivel || corrida) return
+    const onVisivel = () => {
+      if (document.visibilityState === 'visible') void carregarOferta()
+    }
+    document.addEventListener('visibilitychange', onVisivel)
+    window.addEventListener('focus', onVisivel)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisivel)
+      window.removeEventListener('focus', onVisivel)
+    }
+  }, [elegivel, corrida, carregarOferta])
 
   useEffect(() => {
     if (!oferta?.oferta_expira_em || oferta._fluxo === 'agendamento_confirmacao') {

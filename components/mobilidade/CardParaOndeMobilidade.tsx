@@ -257,7 +257,14 @@ export default function CardParaOndeMobilidade({
       }),
   )
 
-  const emPendencia = Boolean(pendenciaResultado) && !emAtendimento
+  const pendenciaHoldRef = useRef(pendenciaResultado)
+  if (pendenciaResultado) {
+    pendenciaHoldRef.current = pendenciaResultado
+  } else if (emAtendimento) {
+    pendenciaHoldRef.current = null
+  }
+  const pendenciaExibir = pendenciaResultado ?? (!emAtendimento ? pendenciaHoldRef.current : null)
+  const emPendencia = Boolean(pendenciaExibir) && !emAtendimento
 
   const atendimentoIdAbertoRef = useRef<string | null>(null)
   useEffect(() => {
@@ -496,7 +503,7 @@ export default function CardParaOndeMobilidade({
 
   if (emPendencia) {
     const titulo = t('solicitacaoPendenteTitulo')
-    const prof = pendenciaResultado?.profissional ?? null
+    const prof = pendenciaExibir?.profissional ?? null
     return (
       <div className={`w-full max-w-lg ${className}`}>
         <div
@@ -545,7 +552,7 @@ export default function CardParaOndeMobilidade({
                 fallbackNome={t('atendimentoProfissionalFallback')}
                 onAbrir={() => onAbrirResultadoPendente?.()}
                 ariaLabel={t('solicitacaoPendenteAbrir')}
-                categoriaLabel={pendenciaResultado?.categoriaLabel ?? null}
+                categoriaLabel={pendenciaExibir?.categoriaLabel ?? null}
               />
             </div>
           ) : null}
