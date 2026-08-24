@@ -279,11 +279,10 @@ export default function ChegadaTuristaMobilidadeListener({ onCorridaChange }: Pr
       />
       <PopupFinalizacaoSemCheckinTurista
         aberto={mostrarFinalizacao}
-        motivoProfissional={fin?.motivo_profissional ?? ''}
         busy={busyFinalizacao}
         erro={erroFinalizacao || null}
         onConfirmar={() => void responderFinalizacao({ confirma: true })}
-        onOutro={(texto) => void responderFinalizacao({ confirma: false, outro: texto })}
+        onRecusar={() => void responderFinalizacao({ confirma: false })}
       />
     </>
   )

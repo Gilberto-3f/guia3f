@@ -342,10 +342,13 @@ export default function DrawerAtendimentoAtivoMobilidade({
     <div
       ref={raizRef}
       tabIndex={-1}
-      className="fixed inset-0 z-[80] flex flex-col bg-white outline-none touch-manipulation"
+      aria-hidden={chatAberto}
+      className={`fixed inset-0 z-[80] flex flex-col bg-white outline-none touch-manipulation ${
+        chatAberto ? 'pointer-events-none' : ''
+      }`}
       style={{ height: 'var(--app-height, 100dvh)' }}
       role="dialog"
-      aria-modal="true"
+      aria-modal={!chatAberto}
       aria-labelledby="drawer-atendimento-ativo-titulo"
       data-modal-scroll-lock-scrollable
     >

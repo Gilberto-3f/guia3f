@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { MessageCircle, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -42,24 +42,28 @@ export default function DrawerChatCorridaMobilidade({
 }: Props) {
   const t = useTranslations('Mobilidade')
   useModalScrollLock(aberto)
-  const [caixa, setCaixa] = useState(() =>
-    typeof window === 'undefined' ? { top: 0, height: 0 } : caixaVisualViewport(),
-  )
+  const raizRef = useRef<HTMLDivElement | null>(null)
+  const cabecalhoRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     if (!aberto) return
-    const sync = () => {
+    const aplicar = () => {
       refreshAppViewportHeight()
-      setCaixa(caixaVisualViewport())
+      const el = raizRef.current
+      if (!el) return
+      const { top, height } = caixaVisualViewport()
+      el.style.top = `${top}px`
+      el.style.height = `${height}px`
+      cabecalhoRef.current?.classList.toggle('pt-safe', top === 0)
     }
-    sync()
-    window.visualViewport?.addEventListener('resize', sync)
-    window.visualViewport?.addEventListener('scroll', sync)
-    window.addEventListener('resize', sync)
+    aplicar()
+    window.visualViewport?.addEventListener('resize', aplicar)
+    window.visualViewport?.addEventListener('scroll', aplicar)
+    window.addEventListener('resize', aplicar)
     return () => {
-      window.visualViewport?.removeEventListener('resize', sync)
-      window.visualViewport?.removeEventListener('scroll', sync)
-      window.removeEventListener('resize', sync)
+      window.visualViewport?.removeEventListener('resize', aplicar)
+      window.visualViewport?.removeEventListener('scroll', aplicar)
+      window.removeEventListener('resize', aplicar)
     }
   }, [aberto])
 
@@ -67,15 +71,14 @@ export default function DrawerChatCorridaMobilidade({
 
   return createPortal(
     <div
+      ref={raizRef}
       className={
         aberto
           ? 'fixed left-0 right-0 z-[90] flex flex-col overflow-hidden bg-white touch-manipulation'
           : 'hidden'
       }
       style={
-        aberto
-          ? { top: caixa.top, height: caixa.height || 'var(--app-height, 100dvh)' }
-          : undefined
+        aberto ? { top: 0, height: 'var(--app-height, 100dvh)' } : undefined
       }
       role="dialog"
       aria-modal={aberto}
@@ -84,7 +87,8 @@ export default function DrawerChatCorridaMobilidade({
       data-modal-scroll-lock-scrollable
     >
       <div
-        className={caixa.top > 0 ? 'shrink-0' : 'shrink-0 pt-safe'}
+        ref={cabecalhoRef}
+        className="shrink-0 pt-safe"
         style={{ backgroundColor: headerCor }}
       >
         <div className="flex h-12 items-center gap-2 px-3">

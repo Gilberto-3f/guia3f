@@ -6,7 +6,7 @@ import { registrarConfirmacaoTuristaSemCheckin } from '@/lib/manifestoFinalizaca
 
 type Ctx = { params: Promise<{ id: string }> }
 
-/** Turista confirma (ou registra OUTRO) a finalização sem check-in. */
+/** Turista confirma ou recusa a finalização sem check-in. */
 export async function POST(req: Request, ctx: Ctx) {
   const auth = await assertUserSession()
   if (!auth.ok) return auth.error

@@ -143,7 +143,7 @@ export async function proporFinalizacaoSemCheckin(
   return { ok: true }
 }
 
-/** Turista confirma (ou registra OUTRO). Se todos confirmaram, o caller conclui o manifesto. */
+/** Turista confirma ou recusa a finalização sem check-in. Se todos confirmaram, o caller conclui o manifesto. */
 export async function registrarConfirmacaoTuristaSemCheckin(
   supabase: SupabaseClient,
   params: {
@@ -178,26 +178,34 @@ export async function registrarConfirmacaoTuristaSemCheckin(
     return { ok: true, manifestoId, todosConfirmaram: false }
   }
 
-  const outro = String(params.outroTexto ?? '')
-    .trim()
-    .slice(0, FINALIZACAO_OUTRO_MAX)
-  if (!params.confirma && !outro) {
-    return { ok: false, error: 'Descreva o motivo.' }
+  const agora = new Date().toISOString()
+
+  if (!params.confirma) {
+    meta.finalizacao_sem_checkin = {
+      ...fin,
+      pendente: false,
+      motivo_turista: 'Não',
+      motivo_turista_outro: null,
+    }
+    const { error } = await supabase
+      .from('solicitacao_mobilidade')
+      .update({ metadata: meta })
+      .eq('id', params.solicitacaoId)
+    if (error) return { ok: false, error: error.message }
+    const manifestoId = meta.manifesto_id != null ? String(meta.manifesto_id) : ''
+    if (!manifestoId) return { ok: false, error: 'Manifesto não encontrado.' }
+    return { ok: true, manifestoId, todosConfirmaram: false }
   }
 
-  const agora = new Date().toISOString()
   const atualizado: FinalizacaoSemCheckinMeta = {
     ...fin,
-    motivo_turista: params.confirma ? 'Confirmo' : 'Outro',
-    motivo_turista_outro: params.confirma ? null : outro,
+    motivo_turista: 'Confirmo',
+    motivo_turista_outro: null,
     confirmado_turista_em: agora,
   }
   meta.finalizacao_sem_checkin = atualizado
   meta.finalizacao_sem_checkin_motivo_profissional = fin.motivo_profissional
   meta.finalizacao_sem_checkin_motivo_turista = atualizado.motivo_turista
-  if (atualizado.motivo_turista_outro) {
-    meta.finalizacao_sem_checkin_motivo_turista_outro = atualizado.motivo_turista_outro
-  }
 
   const { error } = await supabase
     .from('solicitacao_mobilidade')

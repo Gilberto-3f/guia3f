@@ -57,7 +57,7 @@ export default function ChatCorridaMobilidade({
   const listaRef = useRef<HTMLDivElement | null>(null)
   const enviandoRef = useRef(false)
   const ultimoEnvioEmRef = useRef(0)
-  const [tecladoAberto, setTecladoAberto] = useState(false)
+  const campoRef = useRef<HTMLInputElement | null>(null)
   const onMsgsRef = useRef(onMensagensChange)
   onMsgsRef.current = onMensagensChange
 
@@ -109,29 +109,10 @@ export default function ChatCorridaMobilidade({
     if (lista) lista.scrollTop = lista.scrollHeight
   }, [msgs.length, visivel])
 
-  useEffect(() => {
-    if (!visivel) {
-      setTecladoAberto(false)
-      return
-    }
-    const syncTeclado = () => {
-      const vv = window.visualViewport
-      if (!vv) {
-        setTecladoAberto(false)
-        return
-      }
-      setTecladoAberto(Math.round(window.innerHeight) - Math.round(vv.height) > 120)
-    }
-    syncTeclado()
-    window.visualViewport?.addEventListener('resize', syncTeclado)
-    window.visualViewport?.addEventListener('scroll', syncTeclado)
-    window.addEventListener('resize', syncTeclado)
-    return () => {
-      window.visualViewport?.removeEventListener('resize', syncTeclado)
-      window.visualViewport?.removeEventListener('scroll', syncTeclado)
-      window.removeEventListener('resize', syncTeclado)
-    }
-  }, [visivel])
+  const focarCampo = (el: HTMLInputElement) => {
+    if (document.activeElement === el) return
+    el.focus()
+  }
 
   const enviar = async () => {
     const body = texto.trim()
@@ -233,16 +214,24 @@ export default function ChatCorridaMobilidade({
       {!leitura ? (
         <div
           className={`flex shrink-0 items-center gap-2 border-t border-gray-100 p-2 ${
-            folha && !tecladoAberto
-              ? 'pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]'
+            folha
+              ? 'pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] focus-within:pb-2'
               : ''
           }`}
         >
           <input
+            ref={campoRef}
             type="text"
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
-            onPointerDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              focarCampo(e.currentTarget)
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation()
+              focarCampo(e.currentTarget)
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault()

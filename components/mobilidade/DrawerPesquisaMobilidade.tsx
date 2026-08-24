@@ -21,7 +21,6 @@ import {
   Smartphone,
   Sparkles,
   Users,
-  UserRound,
   X,
 } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
@@ -736,12 +735,9 @@ export default function DrawerPesquisaMobilidade({
     return Array.from({ length: Number.isFinite(n) ? n : 0 }, (_, i) => `mod.${id}.e${i + 1}`)
   }
 
-  const IconHeader = modoParticular
-    ? UserRound
-    : etapa === 1
-      ? modalidade && modoParticular
-        ? ICONES[modalidade]
-        : Car
+  const IconHeader =
+    etapa === 1
+      ? Car
       : etapa === 3
         ? DollarSign
         : modalidade
@@ -1019,13 +1015,21 @@ export default function DrawerPesquisaMobilidade({
       {/* Faixa azul + safe area (padrão menu/canais) */}
       <div className="shrink-0 pt-safe" style={{ backgroundColor: COR }}>
         <div className={`flex items-center gap-2 px-3 ${mesAnoVerificado ? 'py-2' : 'h-12'}`}>
-          <IconHeader className="h-5 w-5 shrink-0 text-white" aria-hidden />
-          <div className="min-w-0 flex-1 leading-tight">
+          {modoParticular ? (
+            <span className="inline-flex h-8 w-8 shrink-0" aria-hidden />
+          ) : (
+            <IconHeader className="h-5 w-5 shrink-0 text-white" aria-hidden />
+          )}
+          <div
+            className={`min-w-0 flex-1 ${
+              modoParticular ? 'text-center leading-none' : 'leading-tight'
+            }`}
+          >
             <h2 className="truncate text-base font-bold uppercase tracking-wide text-white">
               {tituloHeader}
             </h2>
             {mesAnoVerificado ? (
-              <p className="mt-0.5 text-[11px] text-white/90">
+              <p className="text-[11px] leading-none text-white/90">
                 {t('particularVerificadoPrefixo')}{' '}
                 <strong className="font-bold text-white">{mesAnoVerificado}</strong>
               </p>
