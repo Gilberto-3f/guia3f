@@ -13,6 +13,19 @@ type Msg = {
   created_at: string
 }
 
+/** Safari rejeita `YYYY-MM-DD HH:mm:ss` sem `T`/fuso — normaliza para ISO. */
+function formatarHoraMsg(iso: string): string {
+  const raw = String(iso ?? '').trim()
+  if (!raw) return ''
+  let s = raw.includes('T') ? raw : raw.replace(' ', 'T')
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)) {
+    s += 'Z'
+  }
+  const d = new Date(s)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+}
+
 type Props = {
   conversaId: string
   compact?: boolean
@@ -202,7 +215,16 @@ export default function ChatCorridaMobilidade({
                     meu ? 'bg-[#0097b2] text-white' : 'bg-gray-100 text-gray-800'
                   }`}
                 >
-                  {m.texto}
+                  <p className="whitespace-pre-wrap break-words">{m.texto}</p>
+                  {formatarHoraMsg(m.created_at) ? (
+                    <p
+                      className={`mt-0.5 text-right text-[10px] leading-none ${
+                        meu ? 'text-white/80' : 'text-gray-400'
+                      }`}
+                    >
+                      {formatarHoraMsg(m.created_at)}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             )

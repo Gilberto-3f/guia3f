@@ -10,8 +10,9 @@ import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { supabase } from '@/lib/supabase'
 import { abrirLinkAppParceiro, carregarLinkAppParceiro } from '@/lib/appParceiroLink'
-import PopupRecomendarMobilidade from '@/components/PopupRecomendarMobilidade'
 import DrawerManifestoEspaco from '@/components/mobilidade/DrawerManifestoEspaco'
+import { propsUmToque } from '@/lib/umToque'
+import PopupRecomendarMobilidade from '@/components/PopupRecomendarMobilidade'
 import DrawerCalendarioEspaco from '@/components/mobilidade/DrawerCalendarioEspaco'
 import DrawerEcossistemaEspaco from '@/components/mobilidade/DrawerEcossistemaEspaco'
 import DrawerHistoricoAtendimentosEspaco from '@/components/mobilidade/DrawerHistoricoAtendimentosEspaco'
@@ -111,11 +112,11 @@ export default function DrawerEspacoProfissionalMobilidade({
   const [acaoBusy, setAcaoBusy] = useState(false)
   const [acaoErro, setAcaoErro] = useState('')
   const [recomendarMobAberto, setRecomendarMobAberto] = useState(false)
-  const [manifestoAberto, setManifestoAberto] = useState(false)
   const [calendarioAberto, setCalendarioAberto] = useState(false)
   const [ecossistemaAberto, setEcossistemaAberto] = useState(false)
   const [historicoAtendAberto, setHistoricoAtendAberto] = useState(false)
   const [historicoParcAberto, setHistoricoParcAberto] = useState(false)
+  const [manifestoAberto, setManifestoAberto] = useState(false)
   const [historicoParcAba, setHistoricoParcAba] = useState<'andamento' | 'historico'>('andamento')
   const [cidadesAtuacao, setCidadesAtuacao] = useState<unknown>(null)
 
@@ -338,9 +339,9 @@ export default function DrawerEspacoProfissionalMobilidade({
                     key={id}
                     type="button"
                     disabled={busyApp}
-                    className="flex w-full flex-col items-center justify-center gap-0 rounded-2xl px-4 py-4 text-center text-white shadow-md transition-opacity hover:opacity-95 disabled:opacity-60"
+                    className="flex w-full cursor-pointer touch-manipulation flex-col items-center justify-center gap-0 rounded-2xl px-4 py-4 text-center text-white shadow-md transition-opacity hover:opacity-95 disabled:opacity-60"
                     style={{ backgroundColor: COR }}
-                    onClick={() => void handleAcao(id)}
+                    {...propsUmToque(() => void handleAcao(id), busyApp)}
                   >
                     <span className="text-base font-extrabold uppercase leading-none tracking-wide">
                       {busyApp ? t('appParceiroAbrindo') : t(`espacoAcao.${id}.titulo`)}
@@ -366,7 +367,6 @@ export default function DrawerEspacoProfissionalMobilidade({
         aberto={recomendarMobAberto}
         onFechar={() => setRecomendarMobAberto(false)}
       />
-      <DrawerManifestoEspaco aberto={manifestoAberto} onFechar={() => setManifestoAberto(false)} />
       <DrawerCalendarioEspaco
         aberto={calendarioAberto}
         onFechar={() => setCalendarioAberto(false)}
@@ -383,6 +383,11 @@ export default function DrawerEspacoProfissionalMobilidade({
       <DrawerHistoricoAtendimentosEspaco
         aberto={historicoAtendAberto}
         onFechar={() => setHistoricoAtendAberto(false)}
+      />
+      <DrawerManifestoEspaco
+        aberto={manifestoAberto}
+        onFechar={() => setManifestoAberto(false)}
+        abrirListaDoDia
       />
       <DrawerHistoricoParceriasEspaco
         key={`hist-parc-${historicoParcAba}-${historicoParcAberto ? '1' : '0'}`}

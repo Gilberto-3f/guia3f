@@ -1,12 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, ChevronDown, ChevronUp, MapPin, Users, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import AvatarImage from '@/components/AvatarImage'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
+import { propsUmToque } from '@/lib/umToque'
 import type { ManifestoDiarioRow } from '@/app/api/profissional/manifesto/route'
 import type { ParadaItinerarioRow } from '@/lib/itinerarioParadas'
 import { MANIFESTO_CAPACIDADE_PADRAO } from '@/lib/mobilidadePainelProfissional'
@@ -115,8 +116,7 @@ export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDi
     [manifestos, hoje],
   )
 
-  const iniciarLista = async (e: MouseEvent) => {
-    e.stopPropagation()
+  const iniciarLista = async () => {
     if (!doDia || busyIniciar) return
     if (doDia.qtd_passageiros < 1) {
       setErro(t('manifestoSemPassageirosIniciar'))
@@ -147,7 +147,7 @@ export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDi
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[95] flex flex-col bg-white"
+      className="fixed inset-0 z-[120] flex flex-col bg-white"
       style={{ height: 'var(--app-height, 100dvh)' }}
       role="dialog"
       aria-modal="true"
@@ -164,14 +164,14 @@ export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDi
           </h2>
           <button
             type="button"
-            onClick={() => {
+            {...propsUmToque(() => {
               if (selecionado) {
                 setSelecionado(null)
                 return
               }
               onFechar()
-            }}
-            className="rounded-lg p-2 text-white/90 hover:bg-white/15"
+            })}
+            className="cursor-pointer rounded-lg p-2 text-white/90 touch-manipulation hover:bg-white/15"
             aria-label={selecionado ? t('retornar') : t('fechar')}
           >
             <X className="h-5 w-5" aria-hidden />
@@ -199,11 +199,11 @@ export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDi
                 >
                   <button
                     type="button"
-                    onClick={() => {
-                      if (doDia) setSelecionado(doDia)
-                    }}
                     disabled={!doDia}
-                    className="w-full px-4 py-4 text-left disabled:opacity-70"
+                    {...propsUmToque(() => {
+                      if (doDia) setSelecionado(doDia)
+                    }, !doDia)}
+                    className="w-full cursor-pointer px-4 py-4 text-left touch-manipulation disabled:opacity-70"
                   >
                     <p className="text-lg font-extrabold uppercase leading-tight tracking-wide">
                       {t('manifestoDeHoje')}
@@ -222,8 +222,8 @@ export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDi
                       <button
                         type="button"
                         disabled={busyIniciar}
-                        onClick={(e) => void iniciarLista(e)}
-                        className="w-full rounded-xl bg-white py-3 text-sm font-extrabold uppercase tracking-wide disabled:opacity-50"
+                        {...propsUmToque(() => void iniciarLista(), busyIniciar)}
+                        className="w-full cursor-pointer touch-manipulation rounded-xl bg-white py-3 text-sm font-extrabold uppercase tracking-wide disabled:opacity-50"
                         style={{ color: COR }}
                       >
                         {t('manifestoIniciarLista')}
@@ -247,8 +247,8 @@ export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDi
                     <button
                       key={m.id}
                       type="button"
-                      onClick={() => setSelecionado(m)}
-                      className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-4 text-left shadow-sm ring-1 ring-black/5"
+                      {...propsUmToque(() => setSelecionado(m))}
+                      className="w-full cursor-pointer touch-manipulation rounded-2xl border border-gray-200 bg-white px-4 py-4 text-left shadow-sm ring-1 ring-black/5"
                     >
                       <p className="text-base font-extrabold leading-tight" style={{ color: COR }}>
                         {t('manifestoListaPassageiros')}
@@ -505,8 +505,8 @@ function DetalheManifesto({
                   <button
                     type="button"
                     disabled={busyId != null}
-                    onClick={() => void concluir()}
-                    className="w-full rounded-xl py-3.5 text-sm font-bold uppercase tracking-wide text-white disabled:opacity-50"
+                    {...propsUmToque(() => void concluir(), busyId != null)}
+                    className="w-full cursor-pointer touch-manipulation rounded-xl py-3.5 text-sm font-bold uppercase tracking-wide text-white disabled:opacity-50"
                     style={{ backgroundColor: COR }}
                   >
                     {t('concluirAtendimento')}

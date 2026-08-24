@@ -29,6 +29,7 @@ export type CorridaProFlutuante = {
   solicitacao_id: string
   status: string
   data_agendada?: string | null
+  modalidade?: string | null
   turista?: ParteCorridaFlutuante | null
   lista_iniciada?: boolean
 }

@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 
 function abaCls(ativo: boolean) {
-  return `flex min-w-0 flex-1 items-center justify-center gap-2 border-b-[3px] py-3 text-center text-sm font-semibold tracking-wide transition-colors sm:text-base ${
+  return `relative z-10 flex min-w-0 flex-1 cursor-pointer touch-manipulation items-center justify-center gap-2 border-b-[3px] py-3 text-center text-sm font-semibold tracking-wide transition-colors sm:text-base ${
     ativo
       ? 'border-[#0097b2] text-[#0097b2]'
       : 'border-transparent text-gray-500'
@@ -15,7 +15,7 @@ function abaCls(ativo: boolean) {
 
 type Props = {
   abaAtiva: 'guia' | 'mobilidade'
-  /** Em /guia: troca aba sem navegar. Em /mobilidade: usa links. */
+  /** Em /guia: troca aba sem navegar. Em /mobilidade: navega. */
   onAbaGuia?: () => void
   onAbaMobilidade?: () => void
 }
@@ -27,11 +27,23 @@ export default function CabecalhoAbasGuiaMobilidade({
   onAbaMobilidade,
 }: Props) {
   const tGuia = useTranslations('Guia')
-
   const mostrarLogo = abaAtiva === 'guia'
 
+  const abaGuia = (
+    <>
+      <MapPin className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
+      <span>{tGuia('tabGuia')}</span>
+    </>
+  )
+  const abaMobilidade = (
+    <>
+      <Car className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
+      <span>{tGuia('tabMobilidade')}</span>
+    </>
+  )
+
   return (
-    <header className="shrink-0 bg-[#0097b2] pt-safe">
+    <header className="relative z-50 isolate shrink-0 bg-[#0097b2] pt-safe pointer-events-auto">
       {mostrarLogo ? (
         <div className="flex justify-center py-4">
           <Image
@@ -45,16 +57,17 @@ export default function CabecalhoAbasGuiaMobilidade({
         </div>
       ) : null}
 
-      <div className="flex w-full border-b border-gray-200 bg-white touch-manipulation">
+      <nav
+        className="relative z-50 flex w-full border-b border-gray-200 bg-white touch-manipulation"
+        aria-label={tGuia('tabGuia')}
+      >
         {onAbaGuia ? (
           <button type="button" onClick={onAbaGuia} className={abaCls(abaAtiva === 'guia')}>
-            <MapPin className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
-            <span>{tGuia('tabGuia')}</span>
+            {abaGuia}
           </button>
         ) : (
           <Link href="/guia" className={abaCls(abaAtiva === 'guia')}>
-            <MapPin className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
-            <span>{tGuia('tabGuia')}</span>
+            {abaGuia}
           </Link>
         )}
         {onAbaMobilidade ? (
@@ -63,16 +76,14 @@ export default function CabecalhoAbasGuiaMobilidade({
             onClick={onAbaMobilidade}
             className={abaCls(abaAtiva === 'mobilidade')}
           >
-            <Car className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
-            <span>{tGuia('tabMobilidade')}</span>
+            {abaMobilidade}
           </button>
         ) : (
           <Link href="/mobilidade" className={abaCls(abaAtiva === 'mobilidade')}>
-            <Car className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden strokeWidth={2} />
-            <span>{tGuia('tabMobilidade')}</span>
+            {abaMobilidade}
           </Link>
         )}
-      </div>
+      </nav>
     </header>
   )
 }

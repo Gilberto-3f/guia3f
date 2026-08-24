@@ -7,6 +7,8 @@ import ToggleStatusMobilidade from '@/components/mobilidade/ToggleStatusMobilida
 import DrawerEspacoProfissionalMobilidade from '@/components/mobilidade/DrawerEspacoProfissionalMobilidade'
 import DrawerManifestoEspaco from '@/components/mobilidade/DrawerManifestoEspaco'
 import CardParteAtendimentoFlutuante from '@/components/mobilidade/CardParteAtendimentoFlutuante'
+import { propsUmToque } from '@/lib/umToque'
+import { modalidadeUsaManifesto } from '@/lib/mobilidadeOfertaAtendimento'
 import type { MobilidadeStatusId } from '@/lib/mobilidadeStatusProfissional'
 import {
   ehAtendimentoImediatoAtivo,
@@ -52,6 +54,7 @@ type CorridaAtivaResumo = {
   solicitacao_id: string
   status: string
   data_agendada?: string | null
+  modalidade?: string | null
   turista?: TuristaCorrida | null
   lista_iniciada?: boolean
 }
@@ -147,6 +150,7 @@ export default function CardStatusProfissionalMobilidade({
   const online = status === 'online' || status === 'em_atendimento' || emAtendimento
 
   const st = String(corrida?.status ?? '')
+  const usaManifesto = modalidadeUsaManifesto(corrida?.modalidade) || listaIniciada
   const tituloAtendimento =
     st === 'em_viagem'
       ? t('drawerAtivoInicio')
@@ -201,11 +205,11 @@ export default function CardStatusProfissionalMobilidade({
           >
             {emAtendimento ? (
               <>
-                {listaIniciada ? (
+                {usaManifesto ? (
                   <button
                     type="button"
-                    onClick={() => setManifestoAberto(true)}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold uppercase tracking-wide text-white shadow-sm"
+                    {...propsUmToque(() => setManifestoAberto(true))}
+                    className="flex w-full cursor-pointer touch-manipulation items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold uppercase tracking-wide text-white shadow-sm"
                     style={{ backgroundColor: COR }}
                   >
                     <ClipboardList className="h-4 w-4 shrink-0" aria-hidden strokeWidth={2.25} />

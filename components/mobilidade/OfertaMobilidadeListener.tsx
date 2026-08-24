@@ -140,6 +140,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
               solicitacao_id: next.solicitacao_id,
               status: String(next.status ?? ''),
               data_agendada: next.data_agendada ?? null,
+              modalidade: next.modalidade,
               lista_iniciada: listaIniciada,
               turista: next.turista
                 ? {

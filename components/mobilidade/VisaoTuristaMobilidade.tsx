@@ -883,7 +883,7 @@ export default function VisaoTuristaMobilidade({
       className={`relative flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-[#e8f4f6] touch-manipulation ${className}`}
     >
       {/* Mapa full-bleed — até a bottom bar; card flutua por cima. */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 z-0 overflow-hidden">
         <MapaMobilidade
           empresas={empresas}
           centro={gpsCentro}

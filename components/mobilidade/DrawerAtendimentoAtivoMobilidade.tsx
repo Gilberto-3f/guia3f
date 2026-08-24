@@ -581,6 +581,18 @@ export default function DrawerAtendimentoAtivoMobilidade({
             ) : null}
           </button>
         ) : null}
+
+        {papel === 'profissional' && modalidadeUsaManifesto(atendimento.modalidade) && !faseInicioManifesto ? (
+          <button
+            type="button"
+            {...propsUmToque(() => setManifestoAberto(true))}
+            className="mt-3 flex w-full cursor-pointer touch-manipulation items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold uppercase tracking-wide text-white"
+            style={{ backgroundColor: COR }}
+          >
+            <ClipboardList className="h-5 w-5 shrink-0" aria-hidden strokeWidth={2.25} />
+            {t('drawerAtivoManifesto')}
+          </button>
+        ) : null}
           </>
         ) : null}
 
@@ -685,10 +697,11 @@ export default function DrawerAtendimentoAtivoMobilidade({
     </div>,
     document.body,
       )}
-      {faseInicioManifesto ? (
+      {papel === 'profissional' && modalidadeUsaManifesto(atendimento.modalidade) ? (
         <DrawerManifestoEspaco
           aberto={manifestoAberto}
           onFechar={() => setManifestoAberto(false)}
+          abrirListaDoDia
         />
       ) : null}
       {atendimento.conversa_id ? (
