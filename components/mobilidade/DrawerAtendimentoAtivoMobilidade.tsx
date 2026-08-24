@@ -388,7 +388,7 @@ export default function DrawerAtendimentoAtivoMobilidade({
             ) : null}
           </div>
         ) : (
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col items-center gap-2 text-center">
             <div
               className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-gray-100"
               style={{ boxShadow: `0 0 0 3px ${headerCor}` }}
@@ -407,7 +407,7 @@ export default function DrawerAtendimentoAtivoMobilidade({
                 </span>
               )}
             </div>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 max-w-full">
               <p className="truncate text-lg font-bold leading-tight text-gray-900">
                 {parte?.nome ||
                   (papel === 'profissional'
@@ -420,7 +420,7 @@ export default function DrawerAtendimentoAtivoMobilidade({
                 verificadoTipo="profissional"
                 notaMedia={parte?.nota_media ?? null}
                 asButton={false}
-                className="justify-start text-sm font-normal leading-tight text-gray-600"
+                className="justify-center text-sm font-normal leading-tight text-gray-600"
               />
             </div>
           </div>
@@ -526,7 +526,7 @@ export default function DrawerAtendimentoAtivoMobilidade({
         </div>
 
         {mostrarChegadaDrawer ? (
-          <div className="mt-3 rounded-xl px-4 py-3 text-white" style={{ backgroundColor: VERDE }}>
+          <div className="mt-3 rounded-xl px-4 py-3 text-white" style={{ backgroundColor: COR }}>
             <p className="text-sm font-bold uppercase tracking-wide">{t('chegadaVoceTitulo')}</p>
             <p className="mt-1.5 text-sm leading-relaxed text-white/95">{t('chegadaVoceTexto')}</p>
             {erroChegada ? <p className="mt-2 text-xs text-white">{erroChegada}</p> : null}
@@ -535,7 +535,7 @@ export default function DrawerAtendimentoAtivoMobilidade({
                 type="button"
                 disabled={busy}
                 {...propsUmToque(() => onConfirmarChegada?.(false), busy)}
-                className="flex flex-1 cursor-pointer touch-manipulation items-center justify-center gap-1.5 rounded-xl bg-rose-600 py-3 text-sm font-bold uppercase text-white disabled:opacity-50"
+                className="flex flex-1 cursor-pointer touch-manipulation items-center justify-center gap-1.5 rounded-xl bg-white py-3 text-sm font-bold uppercase text-rose-600 disabled:opacity-50"
               >
                 <X className="h-4 w-4" aria-hidden />
                 {t('chegadaNao')}

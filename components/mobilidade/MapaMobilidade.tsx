@@ -478,11 +478,6 @@ export default function MapaMobilidade({
     const cached = peekRotaDirectionsCache(de, ate)
     if (cached?.coordinates?.length) {
       aplicar(cached.coordinates)
-    } else {
-      aplicar([
-        [de.lng, de.lat],
-        [ate.lng, ate.lat],
-      ])
     }
 
     void buscarRotaMapboxDriving(de, ate).then((rota) => {
