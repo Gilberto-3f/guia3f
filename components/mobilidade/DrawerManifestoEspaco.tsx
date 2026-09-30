@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, ChevronDown, ChevronUp, MapPin, Users, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -53,6 +53,29 @@ function formatarDataBrCompleta(iso: string): string {
   return `${d}/${m}/${y}`
 }
 
+function manifestoVazioHoje(): ManifestoDiarioRow {
+  return {
+    id: '',
+    data_manifesto: hojeIsoLocal(),
+    status: 'rascunho',
+    criado_em: '',
+    confirmado_em: null,
+    concluido_em: null,
+    lista_iniciada_em: null,
+    eh_guia: true,
+    qtd_passageiros: 0,
+    qtd_paradas: 0,
+    passageiros: [],
+    itinerario: [],
+    atrativos: [],
+    finalizacao_sem_checkin: null,
+  }
+}
+
+function dataEhHoje(iso: string): boolean {
+  return String(iso).slice(0, 10) === hojeIsoLocal()
+}
+
 /**
  * Drawer Manifesto no Espaço Profissional: lista do dia em destaque + demais datas.
  * Clique → detalhe com abas LISTA e ITINERÁRIO.
@@ -65,26 +88,45 @@ export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDi
   const [manifestos, setManifestos] = useState<ManifestoDiarioRow[]>([])
   const [selecionado, setSelecionado] = useState<ManifestoDiarioRow | null>(null)
   const [busyIniciar, setBusyIniciar] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   const carregar = useCallback(async () => {
     setLoading(true)
     setErro('')
     try {
-      const res = await fetch('/api/profissional/manifesto')
-      const json = (await res.json()) as { ok?: boolean; manifestos?: ManifestoDiarioRow[]; error?: string }
-      if (!res.ok) {
+      const [resAtivos, resConcluidos] = await Promise.all([
+        fetch('/api/profissional/manifesto'),
+        fetch('/api/profissional/manifesto?concluidos=1'),
+      ])
+      const json = (await resAtivos.json()) as {
+        ok?: boolean
+        manifestos?: ManifestoDiarioRow[]
+        error?: string
+      }
+      if (!resAtivos.ok) {
         setErro(String(json.error ?? t('manifestoErro')))
         setManifestos([])
         return
       }
-      const lista = Array.isArray(json.manifestos) ? json.manifestos : []
+      const ativos = Array.isArray(json.manifestos) ? json.manifestos : []
+      let concluidos: ManifestoDiarioRow[] = []
+      if (resConcluidos.ok) {
+        const jsonC = (await resConcluidos.json()) as { manifestos?: ManifestoDiarioRow[] }
+        concluidos = Array.isArray(jsonC.manifestos) ? jsonC.manifestos : []
+      }
+      const mapa = new Map<string, ManifestoDiarioRow>()
+      for (const m of [...ativos, ...concluidos]) {
+        if (m?.id) mapa.set(m.id, m)
+      }
+      const lista = [...mapa.values()].sort((a, b) =>
+        String(b.data_manifesto).localeCompare(String(a.data_manifesto)),
+      )
       setManifestos(lista)
       setSelecionado((prev) => {
-        if (prev) return lista.find((m) => m.id === prev.id) ?? prev
-        if (abrirListaDoDia) {
-          const hoje = hojeIsoLocal()
-          return lista.find((m) => String(m.data_manifesto).slice(0, 10) === hoje) ?? null
-        }
+        const doDiaRow = lista.find((m) => dataEhHoje(m.data_manifesto)) ?? null
+        if (prev?.id) return lista.find((m) => m.id === prev.id) ?? prev
+        if (prev && !prev.id) return doDiaRow ?? manifestoVazioHoje()
+        if (abrirListaDoDia) return doDiaRow ?? manifestoVazioHoje()
         return null
       })
     } catch {
@@ -105,6 +147,30 @@ export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDi
     window.addEventListener(MOBILIDADE_CORRIDA_ATIVA, onRefresh)
     return () => window.removeEventListener(MOBILIDADE_CORRIDA_ATIVA, onRefresh)
   }, [aberto, carregar])
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (el) el.scrollTop = 0
+  }, [selecionado?.id, aberto])
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el || !aberto) return
+    let startY = 0
+    const onStart = (e: TouchEvent) => {
+      startY = e.touches[0]?.clientY ?? 0
+    }
+    const onMove = (e: TouchEvent) => {
+      const y = e.touches[0]?.clientY ?? 0
+      if (el.scrollTop <= 0 && y - startY > 0) e.preventDefault()
+    }
+    el.addEventListener('touchstart', onStart, { passive: true })
+    el.addEventListener('touchmove', onMove, { passive: false })
+    return () => {
+      el.removeEventListener('touchstart', onStart)
+      el.removeEventListener('touchmove', onMove)
+    }
+  }, [aberto, selecionado])
 
   const hoje = hojeIsoLocal()
   const doDia = useMemo(
@@ -143,12 +209,14 @@ export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDi
     }
   }
 
+  const abrirListaHoje = () => setSelecionado(doDia ?? manifestoVazioHoje())
+
   if (!aberto) return null
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[120] flex flex-col bg-white"
-      style={{ height: 'var(--app-height, 100dvh)' }}
+      className="fixed inset-0 z-[120] flex flex-col overflow-hidden overscroll-none bg-white"
+      style={{ height: 'var(--app-height, 100dvh)', overscrollBehavior: 'none' }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="drawer-manifesto-titulo"
@@ -179,62 +247,56 @@ export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDi
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4" data-modal-scroll-lock-scrollable>
+      <div
+        ref={scrollRef}
+        className={`min-h-0 flex-1 overflow-y-auto overscroll-y-none px-4 pb-4 ${
+          selecionado ? 'pt-2' : 'pt-4'
+        }`}
+        style={{ overscrollBehavior: 'none', overflowAnchor: 'none' }}
+        data-modal-scroll-lock-scrollable
+      >
+        {erro ? (
+          <p className="mb-3 rounded-xl bg-rose-50 px-3 py-2 text-center text-sm text-rose-700">{erro}</p>
+        ) : null}
         {selecionado ? (
-          <DetalheManifesto manifesto={selecionado} onAtualizar={() => void carregar()} />
+          <DetalheManifesto
+            manifesto={selecionado}
+            onAtualizar={() => void carregar()}
+            onIniciarLista={
+              dataEhHoje(selecionado.data_manifesto) &&
+              Boolean(selecionado.id) &&
+              !selecionado.lista_iniciada_em
+                ? () => void iniciarLista()
+                : undefined
+            }
+            busyIniciar={busyIniciar}
+          />
         ) : (
           <>
             {loading ? (
               <p className="animate-pulse py-8 text-center text-sm text-gray-400">…</p>
             ) : null}
-            {erro ? (
-              <p className="rounded-xl bg-rose-50 px-3 py-2 text-center text-sm text-rose-700">{erro}</p>
-            ) : null}
 
             {!loading ? (
               <div className="space-y-3">
-                <div
-                  className="w-full overflow-hidden rounded-2xl text-white shadow-md"
-                  style={{ backgroundColor: COR }}
+                <button
+                  type="button"
+                  {...propsUmToque(abrirListaHoje)}
+                  className="w-full cursor-pointer touch-manipulation rounded-2xl px-4 py-4 text-center text-white shadow-md"
+                  style={{ backgroundColor: VERDE }}
                 >
-                  <button
-                    type="button"
-                    disabled={!doDia}
-                    {...propsUmToque(() => {
-                      if (doDia) setSelecionado(doDia)
-                    }, !doDia)}
-                    className="w-full cursor-pointer px-4 py-4 text-left touch-manipulation disabled:opacity-70"
-                  >
-                    <p className="text-lg font-extrabold uppercase leading-tight tracking-wide">
-                      {t('manifestoDeHoje')}
-                    </p>
-                    <p className="mt-1 text-sm font-normal text-white/90">
-                      {doDia
-                        ? `${doDia.qtd_passageiros} PAX — ${formatarDataBr(doDia.data_manifesto)}`
-                        : `0 PAX — ${formatarDataBr(hoje)}`}
-                      {doDia
-                        ? ` · ${doDia.qtd_passageiros}/${MANIFESTO_CAPACIDADE_PADRAO}`
-                        : ` · 0/${MANIFESTO_CAPACIDADE_PADRAO}`}
-                    </p>
-                  </button>
-                  {doDia && !doDia.lista_iniciada_em ? (
-                    <div className="px-4 pb-4">
-                      <button
-                        type="button"
-                        disabled={busyIniciar}
-                        {...propsUmToque(() => void iniciarLista(), busyIniciar)}
-                        className="w-full cursor-pointer touch-manipulation rounded-xl bg-white py-3 text-sm font-extrabold uppercase tracking-wide disabled:opacity-50"
-                        style={{ color: COR }}
-                      >
-                        {t('manifestoIniciarLista')}
-                      </button>
-                    </div>
-                  ) : doDia?.lista_iniciada_em ? (
-                    <p className="px-4 pb-4 text-sm font-semibold uppercase tracking-wide text-white/90">
-                      {t('manifestoListaIniciada')}
-                    </p>
-                  ) : null}
-                </div>
+                  <p className="text-lg font-extrabold uppercase leading-tight tracking-wide">
+                    {t('manifestoDeHoje')}
+                  </p>
+                  <p className="mt-1 text-sm font-normal text-white/90">
+                    {doDia
+                      ? `${doDia.qtd_passageiros} PAX — ${formatarDataBr(doDia.data_manifesto)}`
+                      : `0 PAX — ${formatarDataBr(hoje)}`}
+                    {doDia
+                      ? ` · ${doDia.qtd_passageiros}/${MANIFESTO_CAPACIDADE_PADRAO}`
+                      : ` · 0/${MANIFESTO_CAPACIDADE_PADRAO}`}
+                  </p>
+                </button>
 
                 <p className="pt-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">
                   {t('manifestoOutrasListas')}
@@ -248,12 +310,13 @@ export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDi
                       key={m.id}
                       type="button"
                       {...propsUmToque(() => setSelecionado(m))}
-                      className="w-full cursor-pointer touch-manipulation rounded-2xl border border-gray-200 bg-white px-4 py-4 text-left shadow-sm ring-1 ring-black/5"
+                      className="w-full cursor-pointer touch-manipulation rounded-2xl px-4 py-4 text-center text-white shadow-md"
+                      style={{ backgroundColor: COR }}
                     >
-                      <p className="text-base font-extrabold leading-tight" style={{ color: COR }}>
+                      <p className="text-base font-extrabold uppercase leading-tight">
                         {t('manifestoListaPassageiros')}
                       </p>
-                      <p className="mt-1 text-sm text-gray-600">
+                      <p className="mt-1 text-sm text-white/90">
                         {formatarDataBrCompleta(m.data_manifesto)} — {m.qtd_passageiros} PAX
                       </p>
                     </button>
@@ -272,9 +335,13 @@ export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDi
 function DetalheManifesto({
   manifesto,
   onAtualizar,
+  onIniciarLista,
+  busyIniciar = false,
 }: {
   manifesto: ManifestoDiarioRow
   onAtualizar: () => void
+  onIniciarLista?: () => void
+  busyIniciar?: boolean
 }) {
   const t = useTranslations('Mobilidade')
   const [aba, setAba] = useState<'lista' | 'itinerario'>('lista')
@@ -288,7 +355,7 @@ function DetalheManifesto({
   const [justificativa, setJustificativa] = useState('')
 
   const listaIniciada = Boolean(manifesto.lista_iniciada_em)
-  const ehHoje = String(manifesto.data_manifesto).slice(0, 10) === hojeIsoLocal()
+  const ehHoje = dataEhHoje(manifesto.data_manifesto)
   const mostrarAcoes = listaIniciada && ehHoje && String(manifesto.status) !== 'concluido'
   const aguardandoTurista = Boolean(manifesto.finalizacao_sem_checkin?.pendente)
 
@@ -429,10 +496,22 @@ function DetalheManifesto({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <p className="text-center text-sm text-gray-600">
         {formatarDataBrCompleta(manifesto.data_manifesto)} · {manifesto.qtd_passageiros} PAX
       </p>
+
+      {onIniciarLista ? (
+        <button
+          type="button"
+          disabled={busyIniciar}
+          {...propsUmToque(() => onIniciarLista(), busyIniciar)}
+          className="w-full cursor-pointer touch-manipulation rounded-xl py-3 text-sm font-extrabold uppercase tracking-wide text-white disabled:opacity-50"
+          style={{ backgroundColor: VERDE }}
+        >
+          {t('manifestoIniciarLista')}
+        </button>
+      ) : null}
 
       <div className="flex gap-2">
         <button

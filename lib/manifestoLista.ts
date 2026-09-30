@@ -57,6 +57,66 @@ function pontoDe(p: { lat: number | null; lng: number | null }): Ponto | null {
   return { lat: p.lat, lng: p.lng }
 }
 
+const STATUS_SOL_GEO = [
+  'aceita',
+  'a_caminho',
+  'no_local',
+  'em_viagem',
+  'agendada',
+  'aguardando_confirmacao',
+] as const
+
+const STATUS_ATIVAR_DA_VEZ = new Set(['agendada', 'aguardando_confirmacao', 'aceita'])
+const STATUS_JA_ATIVA = new Set(['a_caminho', 'no_local', 'em_viagem'])
+
+/** Coloca a solicitação da vez em a_caminho (mapa + popup), como no aceite. */
+async function ativarSolicitacaoDaVez(
+  supabase: SupabaseClient,
+  solicitacaoId: string | null | undefined,
+): Promise<void> {
+  const sid = String(solicitacaoId ?? '').trim()
+  if (!sid) return
+  const { data: sol } = await supabase
+    .from('solicitacao_mobilidade')
+    .select('id, status, metadata')
+    .eq('id', sid)
+    .maybeSingle()
+  if (!sol?.id) return
+  const st = String(sol.status ?? '')
+  if (STATUS_JA_ATIVA.has(st)) return
+  if (!STATUS_ATIVAR_DA_VEZ.has(st)) return
+  const agora = new Date().toISOString()
+  await supabase
+    .from('solicitacao_mobilidade')
+    .update({
+      status: 'a_caminho',
+      metadata: {
+        ...metaObj(sol.metadata),
+        fase: 'a_caminho',
+        lista_da_vez_em: agora,
+      },
+    })
+    .eq('id', sid)
+}
+
+async function ativarProximoPendente(
+  supabase: SupabaseClient,
+  manifestoId: string,
+): Promise<void> {
+  const { data: pax } = await supabase
+    .from('manifesto_passageiros')
+    .select('solicitacao_id')
+    .eq('manifesto_id', manifestoId)
+    .eq('status', 'pendente')
+    .order('ordem', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  await ativarSolicitacaoDaVez(
+    supabase,
+    pax?.solicitacao_id != null ? String(pax.solicitacao_id) : null,
+  )
+}
+
 /** Agendados por horário; “livre” no fim, ou encaixe GPS se veiculo_lugares > 4. */
 export function ordenarFilaManifesto(
   pax: PaxGeo[],
@@ -146,7 +206,7 @@ async function carregarGeoPassageiros(
       .select('id, turista_id, data_agendada, lat_origem, lng_origem, metadata')
       .eq('profissional_id', profissionalId)
       .in('turista_id', turistaIds)
-      .in('status', ['aceita', 'a_caminho', 'no_local', 'em_viagem'])
+      .in('status', [...STATUS_SOL_GEO])
     for (const s of byTur ?? []) {
       sols[String(s.id)] = {
         id: String(s.id),
@@ -250,6 +310,8 @@ export async function iniciarListaManifesto(
     })
     .eq('id', params.profissionalId)
 
+  await ativarProximoPendente(supabase, params.manifestoId)
+
   return { ok: true }
 }
 
@@ -301,6 +363,8 @@ export async function marcarPassageiroRecebido(
         .eq('id', sid)
     }
   }
+
+  await ativarProximoPendente(supabase, String(md.id))
 
   return { ok: true }
 }
@@ -408,6 +472,8 @@ export async function cancelarPassageiroManifesto(
       })
       .eq('id', params.profissionalId)
   }
+
+  await ativarProximoPendente(supabase, String(md.id))
 
   return { ok: true }
 }
