@@ -15,6 +15,7 @@ import {
   MOBILIDADE_ABRIR_MANIFESTO,
   MOBILIDADE_CORRIDA_PRO,
   MOBILIDADE_LISTA_INICIADA,
+  peekCorridaProPoll,
   pedirAbrirDrawerAtendimentoAtivo,
   type CorridaProFlutuante,
 } from '@/lib/mobilidadeAtendimentoAtivoEventos'
@@ -83,11 +84,14 @@ export default function CardStatusProfissionalMobilidade({
   const [listaIniciadaLocal, setListaIniciadaLocal] = useState(false)
 
   useEffect(() => {
-    const onPoll = (ev: Event) => {
-      const detail = (ev as CustomEvent<CorridaProFlutuante | null>).detail
+    const aplicar = (detail: CorridaProFlutuante | null) => {
       setCorrida(detail ?? null)
       if (detail?.lista_iniciada) setListaIniciadaLocal(true)
       if (!detail) setListaIniciadaLocal(false)
+    }
+    aplicar(peekCorridaProPoll())
+    const onPoll = (ev: Event) => {
+      aplicar((ev as CustomEvent<CorridaProFlutuante | null>).detail ?? null)
     }
     const onLista = () => {
       setListaIniciadaLocal(true)

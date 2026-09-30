@@ -282,22 +282,18 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
     let ativo = true
     let id: ReturnType<typeof setInterval> | null = null
     const intervaloMs = corrida ? MOBILIDADE_POLL_CORRIDA_ATIVA_MS : MOBILIDADE_POLL_CORRIDA_IDLE_MS
-    const boot = window.setTimeout(() => {
-      if (!ativo) return
-      void (async () => {
-        const st = await carregarCorrida()
-        if (!ativo || st === 'auth') return
-        id = setInterval(() => {
-          void (async () => {
-            const s = await carregarCorrida()
-            if (s === 'auth' && id) clearInterval(id)
-          })()
-        }, intervaloMs)
-      })()
-    }, 400)
+    void (async () => {
+      const st = await carregarCorrida()
+      if (!ativo || st === 'auth') return
+      id = setInterval(() => {
+        void (async () => {
+          const s = await carregarCorrida()
+          if (s === 'auth' && id) clearInterval(id)
+        })()
+      }, intervaloMs)
+    })()
     return () => {
       ativo = false
-      window.clearTimeout(boot)
       if (id) clearInterval(id)
     }
   }, [elegivel, carregarCorrida, corrida?.solicitacao_id])
@@ -335,17 +331,21 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
   }, [elegivel, carregarOferta, corrida])
 
   useEffect(() => {
-    if (!elegivel || corrida) return
+    if (!elegivel) return
     const onVisivel = () => {
-      if (document.visibilityState === 'visible') void carregarOferta()
+      if (document.visibilityState !== 'visible') return
+      void carregarCorrida()
+      if (!corrida) void carregarOferta()
     }
     document.addEventListener('visibilitychange', onVisivel)
     window.addEventListener('focus', onVisivel)
+    window.addEventListener('pageshow', onVisivel)
     return () => {
       document.removeEventListener('visibilitychange', onVisivel)
       window.removeEventListener('focus', onVisivel)
+      window.removeEventListener('pageshow', onVisivel)
     }
-  }, [elegivel, corrida, carregarOferta])
+  }, [elegivel, corrida, carregarCorrida, carregarOferta])
 
   useEffect(() => {
     if (!oferta?.oferta_expira_em || oferta._fluxo === 'agendamento_confirmacao') {

@@ -50,6 +50,7 @@ import { carregarProfissionalDrawerParticular } from '@/lib/profissionalDrawerPa
 import {
   MOBILIDADE_LIMPAR_PESQUISA,
   MOBILIDADE_CORRIDA_PRO_MAPA,
+  avisarCorridaAtivaAtualizada,
   ehAtendimentoImediatoAtivo,
   peekCorridaProMapa,
   type CorridaProMapaDetalhe,
@@ -146,6 +147,10 @@ export default function VisaoTuristaMobilidade({
     window.addEventListener(MOBILIDADE_CORRIDA_PRO_MAPA, onPoll)
     return () => window.removeEventListener(MOBILIDADE_CORRIDA_PRO_MAPA, onPoll)
   }, [perfilEhProfissional])
+
+  useEffect(() => {
+    avisarCorridaAtivaAtualizada()
+  }, [])
 
   const pesquisa = useMemo(
     () => parseMobilidadePesquisaSearchParams(searchParams),

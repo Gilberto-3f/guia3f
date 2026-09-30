@@ -49,7 +49,14 @@ export function avisarCorridaTuristaPoll(corrida: CorridaTuristaFlutuante | null
   window.dispatchEvent(new CustomEvent(MOBILIDADE_CORRIDA_TURISTA, { detail: corrida }))
 }
 
+let ultimoCorridaProPoll: CorridaProFlutuante | null = null
+
+export function peekCorridaProPoll(): CorridaProFlutuante | null {
+  return ultimoCorridaProPoll
+}
+
 export function avisarCorridaProPoll(corrida: CorridaProFlutuante | null): void {
+  ultimoCorridaProPoll = corrida
   if (typeof window === 'undefined') return
   window.dispatchEvent(new CustomEvent(MOBILIDADE_CORRIDA_PRO, { detail: corrida }))
 }
