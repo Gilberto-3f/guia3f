@@ -6,7 +6,6 @@ import { useTranslations } from 'next-intl'
 import {
   Car,
   Check,
-  ClipboardList,
   Clock,
   Info,
   MapPin,
@@ -19,7 +18,6 @@ import {
 import AvatarImage from '@/components/AvatarImage'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
 import DrawerChatCorridaMobilidade from '@/components/mobilidade/DrawerChatCorridaMobilidade'
-import DrawerManifestoEspaco from '@/components/mobilidade/DrawerManifestoEspaco'
 import { useRouter } from '@/i18n/navigation'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import { modalidadeUsaManifesto, modalidadeUsaDeslocamentoProprio } from '@/lib/mobilidadeOfertaAtendimento'
@@ -164,7 +162,6 @@ export default function DrawerAtendimentoAtivoMobilidade({
   const [chatAberto, setChatAberto] = useState(false)
   const [chatUnread, setChatUnread] = useState(0)
   const [chatLastReadIso, setChatLastReadIso] = useState<string | null>(null)
-  const [manifestoAberto, setManifestoAberto] = useState(false)
   const [etaSec, setEtaSec] = useState<number | null>(null)
   const [etaFase, setEtaFase] = useState<'partida' | 'destino' | null>(null)
   const [periodoRota, setPeriodoRota] = useState<string | null>(null)
@@ -186,10 +183,6 @@ export default function DrawerAtendimentoAtivoMobilidade({
     st === 'no_local' &&
     Boolean(onConfirmarChegada) &&
     modalidadeUsaDeslocamentoProprio(atendimento.modalidade)
-  /** INÍCIO (guia/van): botão MANIFESTO no lugar do card do turista. */
-  const faseInicioManifesto =
-    papel === 'profissional' && st === 'em_viagem' && modalidadeUsaManifesto(atendimento.modalidade)
-
   useEffect(() => {
     if (!aberto) {
       setAba('info')
@@ -197,7 +190,6 @@ export default function DrawerAtendimentoAtivoMobilidade({
       setChatAberto(false)
       setChatUnread(0)
       setChatLastReadIso(null)
-      setManifestoAberto(false)
       return
     }
     const el = raizRef.current
@@ -373,25 +365,7 @@ export default function DrawerAtendimentoAtivoMobilidade({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4" data-modal-scroll-lock-scrollable>
-        {faseInicioManifesto ? (
-          <div className="mb-5 flex flex-col items-center gap-3">
-            <button
-              type="button"
-              {...propsUmToque(() => setManifestoAberto(true))}
-              className="flex w-full max-w-sm items-center justify-center gap-2 rounded-xl py-4 text-sm font-bold uppercase tracking-wide text-white shadow-sm"
-              style={{ backgroundColor: COR }}
-            >
-              <ClipboardList className="h-5 w-5 shrink-0" aria-hidden strokeWidth={2.25} />
-              {t('drawerAtivoManifesto')}
-            </button>
-            {atendimento.manifesto_id ? (
-              <p className="text-center text-xs font-medium text-[#0097b2]">
-                {t('manifestoRegistrado')}
-              </p>
-            ) : null}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-2 text-center">
+        <div className="flex flex-col items-center gap-2 text-center">
             <div
               className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-gray-100"
               style={{ boxShadow: `0 0 0 3px ${headerCor}` }}
@@ -427,7 +401,6 @@ export default function DrawerAtendimentoAtivoMobilidade({
               />
             </div>
           </div>
-        )}
 
         {mostrarAbasItinerario ? (
           <div className="mt-4 flex w-full border-b border-gray-200">
@@ -582,16 +555,33 @@ export default function DrawerAtendimentoAtivoMobilidade({
           </button>
         ) : null}
 
-        {papel === 'profissional' && modalidadeUsaManifesto(atendimento.modalidade) && !faseInicioManifesto ? (
-          <button
-            type="button"
-            {...propsUmToque(() => setManifestoAberto(true))}
-            className="mt-3 flex w-full cursor-pointer touch-manipulation items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold uppercase tracking-wide text-white"
-            style={{ backgroundColor: COR }}
-          >
-            <ClipboardList className="h-5 w-5 shrink-0" aria-hidden strokeWidth={2.25} />
-            {t('drawerAtivoManifesto')}
-          </button>
+        {papel === 'profissional' && st === 'em_viagem' && onConcluir ? (
+          <div className="mt-3">
+            {erroConcluir ? (
+              <div className="mb-2 space-y-1">
+                <p className="text-xs text-rose-600">{erroConcluir}</p>
+                {erroConcluir.toLowerCase().includes('check-in') && onConcluirSemManifesto ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    {...propsUmToque(() => onConcluirSemManifesto?.(), busy)}
+                    className="text-xs font-semibold text-[#0097b2] underline disabled:opacity-50"
+                  >
+                    {t('concluirSemManifesto')}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            <button
+              type="button"
+              disabled={busy || !podeConcluir}
+              {...propsUmToque(() => onConcluir(), busy || !podeConcluir)}
+              className="flex w-full cursor-pointer touch-manipulation items-center justify-center rounded-xl py-3.5 text-sm font-bold uppercase tracking-wide text-white disabled:opacity-50"
+              style={{ backgroundColor: COR }}
+            >
+              {t('concluirCorrida')}
+            </button>
+          </div>
         ) : null}
           </>
         ) : null}
@@ -662,48 +652,9 @@ export default function DrawerAtendimentoAtivoMobilidade({
           </div>
         ) : null}
       </div>
-
-      {papel === 'profissional' &&
-      !modalidadeUsaManifesto(atendimento.modalidade) &&
-      modalidadeUsaDeslocamentoProprio(atendimento.modalidade) &&
-      st === 'em_viagem' ? (
-        <div className="shrink-0 border-t border-gray-100 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
-          {rodapeExtra}
-          {erroConcluir ? (
-            <div className="mb-2 space-y-1">
-              <p className="text-xs text-rose-600">{erroConcluir}</p>
-              {erroConcluir.toLowerCase().includes('check-in') && onConcluirSemManifesto ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={onConcluirSemManifesto}
-                  className="text-xs font-semibold text-[#0097b2] underline"
-                >
-                  {t('concluirSemManifesto')}
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-          <button
-            type="button"
-            disabled={busy || !podeConcluir}
-            onClick={onConcluir}
-            className="w-full rounded-xl bg-[#0097b2] py-3 text-sm font-bold uppercase tracking-wide text-white disabled:opacity-50"
-          >
-            {t('concluirAtendimento')}
-          </button>
-        </div>
-      ) : null}
     </div>,
     document.body,
       )}
-      {papel === 'profissional' && modalidadeUsaManifesto(atendimento.modalidade) ? (
-        <DrawerManifestoEspaco
-          aberto={manifestoAberto}
-          onFechar={() => setManifestoAberto(false)}
-          abrirListaDoDia
-        />
-      ) : null}
       {atendimento.conversa_id ? (
         <DrawerChatCorridaMobilidade
           aberto={chatAberto}

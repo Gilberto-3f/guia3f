@@ -28,7 +28,7 @@ import {
   MOBILIDADE_ABRIR_DRAWER_ATIVO,
   MOBILIDADE_CORRIDA_ATIVA,
 } from '@/lib/mobilidadeAtendimentoAtivoEventos'
-import { modalidadeUsaDeslocamentoProprio, modalidadeUsaManifesto } from '@/lib/mobilidadeOfertaAtendimento'
+import { modalidadeUsaDeslocamentoProprio } from '@/lib/mobilidadeOfertaAtendimento'
 import {
   MOBILIDADE_POLL_CHEGADA_GPS_MS,
   MOBILIDADE_POLL_CORRIDA_ATIVA_MS,
@@ -682,8 +682,6 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
         : null,
     }
 
-    const usaManifesto = modalidadeUsaManifesto(corrida.modalidade)
-
     return (
       <>
         <DrawerAtendimentoAtivoMobilidade
@@ -694,8 +692,8 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
           erroConcluir={erroConcluir || null}
           pagamentoConfirmado
           onFechar={() => setDrawerAtivoAberto(false)}
-          onConcluir={usaManifesto ? undefined : () => void concluir(false)}
-          onConcluirSemManifesto={usaManifesto ? undefined : () => void concluir(true)}
+          onConcluir={() => void concluir(false)}
+          onConcluirSemManifesto={() => void concluir(true)}
           onConfirmarChegada={(recebido) => void confirmarEmbarque(recebido)}
           erroChegada={erroChegada || null}
         />
