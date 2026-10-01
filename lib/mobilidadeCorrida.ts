@@ -156,11 +156,27 @@ export async function concluirCorridaMobilidade(
     .maybeSingle()
 
   if (!row) return { ok: false, error: 'Solicitação não encontrada.' }
+  const stAtual = String(row.status ?? '')
+  if (stAtual === 'concluida') {
+    const metaJa = metaObj(row.metadata)
+    return {
+      ok: true,
+      status: 'concluida',
+      manifestoConcluido: metaJa.manifesto_concluido === true,
+      financeiro: {
+        regime: String(metaJa.financeiro_regime ?? ''),
+        valorCorrida: Number(metaJa.financeiro_valor_corrida) || 0,
+        valorRegular: Number(metaJa.financeiro_valor_regular) || 0,
+        valorIndicador: Number(metaJa.financeiro_valor_indicador) || 0,
+        bonusVoluntario: Number(metaJa.financeiro_bonus_voluntario) || 0,
+      },
+    }
+  }
   if (
-    String(row.status) !== 'aceita' &&
-    String(row.status) !== 'a_caminho' &&
-    String(row.status) !== 'no_local' &&
-    String(row.status) !== 'em_viagem'
+    stAtual !== 'aceita' &&
+    stAtual !== 'a_caminho' &&
+    stAtual !== 'no_local' &&
+    stAtual !== 'em_viagem'
   ) {
     return { ok: false, error: 'Corrida não está em andamento.' }
   }
@@ -206,7 +222,7 @@ export async function concluirCorridaMobilidade(
   if (!fin.ok) return { ok: false, error: fin.error }
 
   const agora = new Date().toISOString()
-  await admin
+  const { data: upd } = await admin
     .from('solicitacao_mobilidade')
     .update({
       status: 'concluida',
@@ -217,6 +233,20 @@ export async function concluirCorridaMobilidade(
       },
     })
     .eq('id', params.solicitacaoId)
+    .in('status', ['aceita', 'a_caminho', 'no_local', 'em_viagem'])
+    .select('id')
+    .maybeSingle()
+
+  if (!upd?.id) {
+    const { data: ja } = await admin
+      .from('solicitacao_mobilidade')
+      .select('status')
+      .eq('id', params.solicitacaoId)
+      .maybeSingle()
+    if (String(ja?.status) !== 'concluida') {
+      return { ok: false, error: 'Corrida não está em andamento.' }
+    }
+  }
 
   if (params.liberarProfissional !== false) {
     await admin

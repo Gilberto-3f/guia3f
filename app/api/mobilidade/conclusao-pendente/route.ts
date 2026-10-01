@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
-import { assertUserSession } from '@/lib/apiUserSession'
+import { assertUserSessionLight } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { profissionalIdPorUsuario } from '@/lib/profissionalIdCache'
 
 function metaObj(raw: unknown): Record<string, unknown> {
   return typeof raw === 'object' && raw != null && !Array.isArray(raw)
@@ -15,7 +16,7 @@ const JANELA_MS = 24 * 60 * 60 * 1000
  * Usa `created_at` + `metadata.concluido_em` (não há `updated_at` na tabela).
  */
 export async function GET() {
-  const auth = await assertUserSession()
+  const auth = await assertUserSessionLight()
   if (!auth.ok) return auth.error
 
   let admin
@@ -26,16 +27,8 @@ export async function GET() {
   }
 
   const agora = Date.now()
-  const papel =
-    auth.role === 'profissional'
-      ? 'profissional'
-      : auth.role === 'turista' || auth.role === 'empresa' || auth.role === 'admin'
-        ? 'turista'
-        : null
-
-  if (!papel) {
-    return NextResponse.json({ ok: true, conclusao: null })
-  }
+  const profId = await profissionalIdPorUsuario(admin, auth.userId)
+  const papel: 'profissional' | 'turista' = profId ? 'profissional' : 'turista'
 
   let query = admin
     .from('solicitacao_mobilidade')
@@ -49,15 +42,7 @@ export async function GET() {
   if (papel === 'turista') {
     query = query.eq('turista_id', auth.userId)
   } else {
-    const { data: prof } = await admin
-      .from('profissionais')
-      .select('id')
-      .eq('usuario_id', auth.userId)
-      .maybeSingle()
-    if (!prof?.id) {
-      return NextResponse.json({ ok: true, conclusao: null })
-    }
-    query = query.eq('profissional_id', prof.id)
+    query = query.eq('profissional_id', profId)
   }
 
   const { data: rows } = await query

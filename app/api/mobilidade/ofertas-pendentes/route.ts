@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
-import { assertUserSession } from '@/lib/apiUserSession'
+import { assertUserSessionLight } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { avancarFilaSeExpirada, solicitacaoEhContratacaoDirecionada } from '@/lib/mobilidadeMatching'
 import { carregarParceiroRecomendacaoOferta } from '@/lib/mobilidadeOfertaAtendimento'
 import { mediaNotaAlvo } from '@/lib/notaMediaAvaliacoes'
+import { profissionalIdPorUsuario } from '@/lib/profissionalIdCache'
 
 async function carregarTuristaOferta(
   admin: ReturnType<typeof createSupabaseAdmin>,
@@ -48,12 +49,8 @@ async function carregarTuristaOferta(
 
 /** Ofertas pendentes para o profissional logado. */
 export async function GET() {
-  const auth = await assertUserSession()
+  const auth = await assertUserSessionLight()
   if (!auth.ok) return auth.error
-
-  if (auth.role !== 'profissional') {
-    return NextResponse.json({ error: 'Apenas profissionais.' }, { status: 403 })
-  }
 
   let admin
   try {
@@ -62,13 +59,8 @@ export async function GET() {
     return NextResponse.json({ error: 'Serviço indisponível.' }, { status: 503 })
   }
 
-  const { data: prof } = await admin
-    .from('profissionais')
-    .select('id')
-    .eq('usuario_id', auth.userId)
-    .maybeSingle()
-
-  if (!prof?.id) {
+  const profId = await profissionalIdPorUsuario(admin, auth.userId)
+  if (!profId) {
     return NextResponse.json({ ok: true, ofertas: [] })
   }
 
@@ -77,7 +69,7 @@ export async function GET() {
     .select(
       'id, status, modalidade, origem_nome, destino_nome, destino_empresa_id, valor_estimado, lugares, pagamento, data_agendada, oferta_expira_em, cruzamento_fronteira, lat_origem, lng_origem, turista_id, metadata, recomendacao_id',
     )
-    .eq('oferta_profissional_id', prof.id)
+    .eq('oferta_profissional_id', profId)
     .eq('status', 'oferecida')
     .order('created_at', { ascending: false })
     .limit(5)
@@ -86,7 +78,7 @@ export async function GET() {
   for (const row of rows ?? []) {
     const avancou = await avancarFilaSeExpirada(admin, String(row.id))
     if (avancou.status !== 'oferecida') continue
-    if (!avancou.oferta || avancou.oferta.profissionalId !== String(prof.id)) continue
+    if (!avancou.oferta || avancou.oferta.profissionalId !== profId) continue
 
     const turista = await carregarTuristaOferta(admin, row.turista_id != null ? String(row.turista_id) : null)
     const meta =

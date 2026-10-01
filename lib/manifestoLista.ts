@@ -498,6 +498,18 @@ export async function concluirAtendimentoManifesto(
   if (!md.lista_iniciada_em) return { ok: false, error: 'Inicie a lista antes de concluir.' }
   if (String(md.status) === 'concluido') return { ok: true }
 
+  const agoraClaim = new Date().toISOString()
+  const { data: claimed } = await supabase
+    .from('manifesto_diario')
+    .update({ updated_at: agoraClaim })
+    .eq('id', params.manifestoId)
+    .eq('profissional_id', params.profissionalId)
+    .neq('status', 'concluido')
+    .neq('status', 'cancelado')
+    .select('id, status')
+    .maybeSingle()
+  if (!claimed?.id) return { ok: true }
+
   const { data: pax } = await supabase
     .from('manifesto_passageiros')
     .select('id, status, solicitacao_id')

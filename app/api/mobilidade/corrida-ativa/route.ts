@@ -3,6 +3,7 @@ import { assertUserSessionLight } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { buscarCorridaAtivaProfissional } from '@/lib/mobilidadeCorrida'
 import { peekListaManifestoHoje } from '@/lib/manifestoLista'
+import { profissionalIdPorUsuario } from '@/lib/profissionalIdCache'
 
 /** Corrida aceita do profissional logado (chat + concluir). */
 export async function GET() {
@@ -16,22 +17,13 @@ export async function GET() {
     return NextResponse.json({ error: 'Serviço indisponível.' }, { status: 503 })
   }
 
-  const { data: prof } = await admin
-    .from('profissionais')
-    .select('id')
-    .eq('usuario_id', auth.userId)
-    .maybeSingle()
-
-  if (!prof?.id) {
+  const profId = await profissionalIdPorUsuario(admin, auth.userId)
+  if (!profId) {
     return NextResponse.json({ error: 'Profissional não encontrado.' }, { status: 404 })
   }
 
-  const lista = await peekListaManifestoHoje(admin, String(prof.id))
-  const ativa = await buscarCorridaAtivaProfissional(
-    admin,
-    String(prof.id),
-    lista?.daVezSolicitacaoId,
-  )
+  const lista = await peekListaManifestoHoje(admin, profId)
+  const ativa = await buscarCorridaAtivaProfissional(admin, profId, lista?.daVezSolicitacaoId)
   return NextResponse.json({
     ok: true,
     lista_iniciada: Boolean(lista?.iniciada),

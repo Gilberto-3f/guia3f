@@ -99,6 +99,8 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
   const [erroChegada, setErroChegada] = useState('')
   const [drawerAtivoAberto, setDrawerAtivoAberto] = useState(false)
   const detectandoChegadaRef = useRef(false)
+  const inflightCorridaRef = useRef(false)
+  const inflightOfertaRef = useRef(false)
 
   const categoriasProf = (() => {
     const raw = profRow as { categorias?: unknown } | null
@@ -112,10 +114,12 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
     profissionalTemCategoriaMobilidade(categoriasProf)
 
   const carregarCorrida = useCallback(async () => {
-    if (!elegivel) return
+    if (!elegivel || inflightCorridaRef.current) return
+    inflightCorridaRef.current = true
     try {
       const res = await fetch('/api/mobilidade/corrida-ativa')
       if (res.status === 401 || res.status === 403) return 'auth' as const
+      if (res.status === 503 || res.status === 504 || res.status === 522) return 'ok' as const
       const json = (await res.json()) as {
         corrida?: CorridaAtivaMobilidade | null
         lista_iniciada?: boolean
@@ -181,12 +185,15 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
       )
     } catch {
       /* ignore */
+    } finally {
+      inflightCorridaRef.current = false
     }
     return 'ok' as const
   }, [elegivel])
 
   const carregarOferta = useCallback(async () => {
-    if (!elegivel || corrida) return 'ok' as const
+    if (!elegivel || corrida || inflightOfertaRef.current) return 'ok' as const
+    inflightOfertaRef.current = true
     try {
       const [rOferta, rAg] = await Promise.all([
         fetch('/api/mobilidade/ofertas-pendentes'),
@@ -198,6 +205,18 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
         rAg.status === 401 ||
         rAg.status === 403
       ) {
+        return 'auth' as const
+      }
+      if (
+        rOferta.status === 503 ||
+        rOferta.status === 504 ||
+        rOferta.status === 522 ||
+        rAg.status === 503 ||
+        rAg.status === 504 ||
+        rAg.status === 522
+      ) {
+        return 'ok' as const
+      }
         return 'auth' as const
       }
       const json = (await rOferta.json()) as { ofertas?: OfertaAtendimentoUi[] }
@@ -273,6 +292,8 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
       }
     } catch {
       /* ignore */
+    } finally {
+      inflightOfertaRef.current = false
     }
     return 'ok' as const
   }, [elegivel, corrida])
@@ -635,7 +656,16 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
         } | null
       }
       if (!res.ok) {
-        setErroConcluir(String(json.error ?? t('concluirErro')))
+        const msg = String(json.error ?? t('concluirErro'))
+        if (/não está em andamento|nao esta em andamento/i.test(msg)) {
+          setCorrida(null)
+          avisarCorridaProPoll(null)
+          avisarCorridaAtivaAtualizada()
+          setErroConcluir('')
+          setDrawerAtivoAberto(false)
+          return
+        }
+        setErroConcluir(msg)
         return
       }
       setCorrida(null)

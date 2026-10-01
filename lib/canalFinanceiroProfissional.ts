@@ -71,6 +71,10 @@ export async function inserirNotificacaoCanalFinanceiroProfissional(
 
   const { data, error } = await supabase.from('canal_financeiro').insert(row).select('id').maybeSingle()
 
-  if (error) return { ok: false, error: error.message }
+  if (error) {
+    const msg = String(error.message ?? '')
+    if (/duplicate|unique|23505/i.test(msg)) return { ok: true }
+    return { ok: false, error: error.message }
+  }
   return { ok: true, id: data?.id != null ? String(data.id) : undefined }
 }
