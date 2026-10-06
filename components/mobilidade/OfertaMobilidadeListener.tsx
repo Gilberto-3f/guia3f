@@ -217,8 +217,6 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
       ) {
         return 'ok' as const
       }
-        return 'auth' as const
-      }
       const json = (await rOferta.json()) as { ofertas?: OfertaAtendimentoUi[] }
       const jag = (await rAg.json()) as {
         agendamentos?: Array<{
