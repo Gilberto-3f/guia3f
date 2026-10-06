@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { jwtAindaValido, userFromAccessToken } from '@/lib/serverAuthSession'
+import { limparPerfilSessaoCookies } from '@/lib/perfilSessaoCache'
 
 function fetchSemGetUserAuth(accessToken: string): typeof fetch {
   const orig = fetch.bind(globalThis)
@@ -125,5 +126,6 @@ export async function DELETE() {
   )
 
   await supabase.auth.signOut({ scope: 'local' })
+  await limparPerfilSessaoCookies()
   return NextResponse.json({ ok: true })
 }

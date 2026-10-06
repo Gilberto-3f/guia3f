@@ -1,37 +1,17 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { type ModalidadePlanoEmpresa } from '@/lib/contratarPlanoEmpresa'
 import { registrarAssinaturaPlanoEmpresa } from '@/lib/empresaAssinatura'
 import type { FormaPagamentoPlano } from '@/lib/pagamentoPlanoEmpresa'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
-import { getUserFromCookieSession } from '@/lib/serverAuthSession'
+import { assertUserSession } from '@/lib/apiUserSession'
 
 /** Empresa contrata plano do catálogo ADM (aba Planos do canal financeiro). */
 export async function POST(req: Request) {
   try {
-    const cookieStore = await cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll() {},
-        },
-      },
-    )
+    const session = await assertUserSession()
+    if (!session.ok) return session.error
 
-    const { user, error: authErr } = await getUserFromCookieSession(supabase)
-
-    if (authErr || !user) {
-      return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 })
-    }
-
-    const { data: urow } = await supabase.from('usuarios').select('role').eq('id', user.id).maybeSingle()
-    if (String(urow?.role ?? '') !== 'empresa') {
+    if (String(session.role ?? '') !== 'empresa') {
       return NextResponse.json({ error: 'Apenas empresas podem contratar planos.' }, { status: 403 })
     }
 
@@ -53,7 +33,7 @@ export async function POST(req: Request) {
     }
 
     const res = await registrarAssinaturaPlanoEmpresa(createSupabaseAdmin(), {
-      empresaUsuarioId: user.id,
+      empresaUsuarioId: session.userId,
       planoId,
       modalidade,
       formaPagamento,

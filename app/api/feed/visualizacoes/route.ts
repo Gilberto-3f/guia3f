@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
-import { assertUserSession } from '@/lib/apiUserSession'
+import { assertUserSessionLight } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 
 /** Contagem de visualizações (usuários alcançados) de um post do feed. */
 export async function GET(req: Request) {
-  const auth = await assertUserSession()
+  const auth = await assertUserSessionLight()
   if (!auth.ok) return auth.error
 
   const url = new URL(req.url)

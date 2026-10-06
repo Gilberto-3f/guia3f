@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { assertUserSession } from '@/lib/apiUserSession'
+import { assertUserSessionLight } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { carregarBloqueiosMobilidade, hojeIsoLocal } from '@/lib/mobilidadeBloqueiosCalendario'
 
@@ -8,7 +8,7 @@ import { carregarBloqueiosMobilidade, hojeIsoLocal } from '@/lib/mobilidadeBloqu
  * Dias sem bloqueio = disponíveis para pré-agendamento (modelo hospedagem).
  */
 export async function GET(req: Request) {
-  const auth = await assertUserSession()
+  const auth = await assertUserSessionLight()
   if (!auth.ok) return auth.error
 
   const profissionalId = String(new URL(req.url).searchParams.get('profissional_id') ?? '').trim()

@@ -106,6 +106,7 @@ export async function getUserFromCookieSession(
     if (!raw) return { user: null, error: null }
     const access = extrairAccessToken(raw)
     if (!access) return { user: null, error: null }
+    if (!jwtAindaValido(access, 0)) return { user: null, error: new Error('expired_jwt') }
     const user = userFromAccessToken(access)
     return { user, error: user ? null : new Error('invalid_jwt') }
   } catch (err) {

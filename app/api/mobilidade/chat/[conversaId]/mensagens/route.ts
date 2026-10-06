@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { assertUserSession, assertUserSessionLight } from '@/lib/apiUserSession'
+import { assertUserSessionLight } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 
 type Ctx = { params: Promise<{ conversaId: string }> }
@@ -62,7 +62,7 @@ export async function GET(_req: Request, ctx: Ctx) {
 }
 
 export async function POST(req: Request, ctx: Ctx) {
-  const auth = await assertUserSession()
+  const auth = await assertUserSessionLight()
   if (!auth.ok) return auth.error
 
   const { conversaId } = await ctx.params

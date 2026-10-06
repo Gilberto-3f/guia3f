@@ -1,5 +1,3 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
@@ -117,23 +115,9 @@ export async function loadAdminUsuarioRow(
   }
 }
 
-/** Sessão autenticada com role admin (rotas /api/admin/*). */
+/** Sessão autenticada com role admin (rotas /api/admin/*). Sem GET /auth/v1/user. */
 export async function assertAdminSession(): Promise<AdminSessionResult> {
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll() {},
-      },
-    },
-  )
-
-  const { user, error: authErr } = await getUserFromCookieSession(supabase)
+  const { user, error: authErr } = await getUserFromCookieSession()
 
   if (authErr) {
     console.error('[assertAdminSession] getSession', authErr.message)
@@ -147,6 +131,16 @@ export async function assertAdminSession(): Promise<AdminSessionResult> {
     return {
       ok: false,
       error: jsonAdminError(401, 'auth', 'Não autenticado. Faça login novamente no painel ADM.'),
+    }
+  }
+
+  let supabase: SupabaseClient
+  try {
+    supabase = createSupabaseAdmin()
+  } catch {
+    return {
+      ok: false,
+      error: jsonAdminError(503, 'service_role', 'Serviço indisponível.'),
     }
   }
 

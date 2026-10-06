@@ -1,39 +1,12 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { parseTourConfig, sincronizarTourComFotos, storagePathFromPublicUrl } from '@/lib/pannellumTour'
 import type { TourConfig } from '@/lib/tour360Types'
-import { getUserFromCookieSession } from '@/lib/serverAuthSession'
+import { assertAdminSession } from '@/lib/adminApiAuth'
 
 async function assertAdmin() {
-  const cookieStore = await cookies()
-  const supabaseAuth = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll() {
-          /* leitura da sessão */
-        },
-      },
-    }
-  )
-
-  const { user, error: authErr } = await getUserFromCookieSession(supabaseAuth)
-  if (authErr || !user) {
-    return { error: NextResponse.json({ error: 'unauthorized' }, { status: 401 }) }
-  }
-
-  const { data: rowUser } = await supabaseAuth.from('usuarios').select('role').eq('id', user.id).maybeSingle()
-  if (String(rowUser?.role ?? '') !== 'admin') {
-    return { error: NextResponse.json({ error: 'forbidden' }, { status: 403 }) }
-  }
-
-  return { admin: createSupabaseAdmin() }
+  const auth = await assertAdminSession()
+  if (!auth.ok) return { error: auth.error }
+  return { admin: auth.supabase }
 }
 
 function asStringArray(v: unknown): string[] {

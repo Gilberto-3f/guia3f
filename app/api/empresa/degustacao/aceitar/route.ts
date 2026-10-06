@@ -1,36 +1,15 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { persistirLeituraCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresaLeitura.server'
 import { aceitarDegustacaoEmpresa } from '@/lib/degustacaoEmpresa'
-import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
-import { getUserFromCookieSession } from '@/lib/serverAuthSession'
+import { assertUserSession } from '@/lib/apiUserSession'
 
 /** Empresa aceita convite de degustação no canal financeiro. */
 export async function POST(req: Request) {
   try {
-    const cookieStore = await cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll() {},
-        },
-      },
-    )
+    const session = await assertUserSession()
+    if (!session.ok) return session.error
 
-    const { user, error: authErr } = await getUserFromCookieSession(supabase)
-
-    if (authErr || !user) {
-      return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 })
-    }
-
-    const { data: urow } = await supabase.from('usuarios').select('role').eq('id', user.id).maybeSingle()
-    if (String(urow?.role ?? '') !== 'empresa') {
+    if (String(session.role ?? '') !== 'empresa') {
       return NextResponse.json({ error: 'Apenas empresas podem aceitar degustação.' }, { status: 403 })
     }
 
@@ -40,21 +19,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'degustacao_id é obrigatório.' }, { status: 400 })
     }
 
-    const res = await aceitarDegustacaoEmpresa(supabase, {
+    const res = await aceitarDegustacaoEmpresa(session.supabase, {
       degustacaoId,
-      empresaUsuarioId: user.id,
+      empresaUsuarioId: session.userId,
     })
 
     if (!res.ok) {
       return NextResponse.json({ error: res.error ?? 'Não foi possível aceitar.' }, { status: 400 })
     }
 
-    const { data: emp } = await supabase.from('empresas').select('id').eq('usuario_id', user.id).maybeSingle()
+    const { data: emp } = await session.supabase
+      .from('empresas')
+      .select('id')
+      .eq('usuario_id', session.userId)
+      .maybeSingle()
     const empresaId = emp?.id != null ? String(emp.id) : ''
     if (empresaId) {
       try {
-        const admin = createSupabaseAdmin()
-        await persistirLeituraCanalFinanceiroEmpresa(admin, empresaId)
+        await persistirLeituraCanalFinanceiroEmpresa(session.supabase, empresaId)
       } catch (syncErr) {
         console.error('aceitar degustacao sync leitura:', syncErr)
       }

@@ -1,7 +1,15 @@
 import { NextResponse } from 'next/server'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { getUserFromCookieSession } from '@/lib/serverAuthSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { gravarRoleCache, lerRoleCache, roleAppValida } from '@/lib/perfilSessaoCache'
+
+function roleDoJwt(user: User): string | null {
+  return roleAppValida(
+    (typeof user.app_metadata?.role === 'string' ? user.app_metadata.role : null) ??
+      (typeof user.user_metadata?.role === 'string' ? user.user_metadata.role : null),
+  )
+}
 
 export type UserSessionOk = {
   ok: true
@@ -47,13 +55,18 @@ export async function assertUserSession(): Promise<UserSessionOk | UserSessionFa
     return { ok: false, error: NextResponse.json({ error: 'Serviço indisponível.' }, { status: 503 }) }
   }
 
-  const { data: row } = await supabase.from('usuarios').select('role').eq('id', user.id).maybeSingle()
+  let role = roleDoJwt(user) ?? (await lerRoleCache(user.id))
+  if (role == null) {
+    const { data: row } = await supabase.from('usuarios').select('role').eq('id', user.id).maybeSingle()
+    role = row?.role != null ? String(row.role) : null
+    if (role && role !== 'authenticated') await gravarRoleCache(user.id, role)
+  }
 
   return {
     ok: true,
     supabase,
     userId: user.id,
     email: user.email ?? null,
-    role: row?.role != null ? String(row.role) : null,
+    role,
   }
 }

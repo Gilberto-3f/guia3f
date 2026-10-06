@@ -1,40 +1,24 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { repararLeituraDegustacaoConcluidaEmpresa } from '@/lib/canalFinanceiroEmpresaLeitura.server'
-import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
-import { getUserFromCookieSession } from '@/lib/serverAuthSession'
+import { assertUserSession } from '@/lib/apiUserSession'
 
 /** Repara canal_financeiro de degustações já aceitas/encerradas (não marca convites pendentes). */
 export async function POST() {
   try {
-    const cookieStore = await cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll() {},
-        },
-      },
-    )
+    const session = await assertUserSession()
+    if (!session.ok) return session.error
 
-    const { user, error: authErr } = await getUserFromCookieSession(supabase)
-
-    if (authErr || !user) {
-      return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 })
-    }
-
-    const { data: emp } = await supabase.from('empresas').select('id').eq('usuario_id', user.id).maybeSingle()
+    const { data: emp } = await session.supabase
+      .from('empresas')
+      .select('id')
+      .eq('usuario_id', session.userId)
+      .maybeSingle()
     const empresaId = emp?.id != null ? String(emp.id) : ''
     if (!empresaId) {
       return NextResponse.json({ error: 'Empresa não encontrada.' }, { status: 404 })
     }
 
-    const admin = createSupabaseAdmin()
+    const admin = session.supabase
     await repararLeituraDegustacaoConcluidaEmpresa(admin, empresaId)
     return NextResponse.json({ ok: true })
   } catch (e) {

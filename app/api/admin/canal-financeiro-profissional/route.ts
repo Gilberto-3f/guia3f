@@ -1,37 +1,7 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { inserirNotificacaoCanalFinanceiroProfissional } from '@/lib/canalFinanceiroProfissional'
 import type { TipoNotificacaoFinanceiroProfissional } from '@/lib/canalFinanceiroProfissional'
-import { getUserFromCookieSession } from '@/lib/serverAuthSession'
-
-async function assertAdminSession() {
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll() {},
-      },
-    }
-  )
-
-  const { user, error: authErr } = await getUserFromCookieSession(supabase)
-  if (authErr || !user) {
-    return { error: NextResponse.json({ error: 'unauthorized' }, { status: 401 }) }
-  }
-
-  const { data: rowUser } = await supabase.from('usuarios').select('role').eq('id', user.id).maybeSingle()
-  if (String(rowUser?.role ?? '') !== 'admin') {
-    return { error: NextResponse.json({ error: 'forbidden' }, { status: 403 }) }
-  }
-
-  return { supabase, user }
-}
+import { assertAdminSession } from '@/lib/adminApiAuth'
 
 const TIPOS_VALIDOS: TipoNotificacaoFinanceiroProfissional[] = [
   'mensagem_adm',
@@ -45,7 +15,7 @@ const TIPOS_VALIDOS: TipoNotificacaoFinanceiroProfissional[] = [
 export async function POST(req: Request) {
   try {
     const auth = await assertAdminSession()
-    if ('error' in auth && auth.error) return auth.error
+    if (!auth.ok) return auth.error
 
     const body = (await req.json()) as Record<string, unknown>
     const profissionalUsuarioId = String(body.profissional_usuario_id ?? '').trim()
