@@ -32,6 +32,7 @@ import { asUuidFilter } from '@/lib/supabaseRestUuid'
 import { useEmpresaInteratorSocial } from '@/lib/useEmpresaInteratorSocial'
 import { usuarioCurtiuNoModoAtual } from '@/lib/curtidaModoSocial'
 import { isDuplicateCurtidaError, toggleCurtidaSocial } from '@/lib/toggleCurtidaSocial'
+import { resolverPostRaizId } from '@/lib/feedRepostRaiz'
 
 /** UUID da empresa avaliada no `avaliacao_meta`, ou `null`. */
 function postAvaliacaoEmpresaAlvoId(p) {
@@ -193,6 +194,7 @@ export default function PostCard({
   const [autorOriginalEmpresaId, setAutorOriginalEmpresaId] = useState(/** @type {string | null} */ (null))
   const [autorOriginalRole, setAutorOriginalRole] = useState(/** @type {string | null} */ (null))
   const [meuRepostPostId, setMeuRepostPostId] = useState(/** @type {string | null} */ (null))
+  const [postRaizId, setPostRaizId] = useState(/** @type {string} */ (post.id))
   const [editando, setEditando] = useState(false)
   const [textoEditado, setTextoEditado] = useState('')
   /** Proporção largura/altura da mídia ( pixels do ficheiro = recorte exportado em criar ). */
@@ -421,9 +423,12 @@ export default function PostCard({
   const postOriginalId = post.post_original_id != null && post.post_original_id !== '' ? String(post.post_original_id) : null
   /** Republicação: UI não depende do fetch do autor original (evita cabeçalho “só @eu” antes de carregar). */
   const ehRepost = Boolean(postOriginalId)
+  const ocultarBotaoRepost =
+    ehRepost && Boolean(meuUsuarioId && autorId && String(autorId) === String(meuUsuarioId))
 
   useEffect(() => {
     if (!postOriginalId) {
+      setPostRaizId(post.id)
       setAutorOriginalUsername(null)
       setAutorOriginalUsuarioId(null)
       setAutorOriginalEmpresaId(null)
@@ -431,48 +436,52 @@ export default function PostCard({
       return
     }
     let cancel = false
-    void supabase
-      .from('posts_com_autores')
-      .select('*')
-      .eq('id', postOriginalId)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (cancel || error || !data) return
-        const p = /** @type {Record<string, unknown>} */ (data)
-        const rawU = p.usuarios
-        let u = rawU
-        if (typeof rawU === 'string') {
-          try {
-            u = JSON.parse(rawU)
-          } catch {
-            u = null
-          }
+    void (async () => {
+      const raiz = await resolverPostRaizId(supabase, postOriginalId)
+      if (cancel) return
+      setPostRaizId(raiz)
+      const { data, error } = await supabase.from('posts_com_autores').select('*').eq('id', raiz).maybeSingle()
+      if (cancel || error || !data) return
+      const p = /** @type {Record<string, unknown>} */ (data)
+      if (p.total_reposts != null) setRepostTotal(Number(p.total_reposts) || 0)
+      const rawU = p.usuarios
+      let u = rawU
+      if (typeof rawU === 'string') {
+        try {
+          u = JSON.parse(rawU)
+        } catch {
+          u = null
         }
-        const a = pickAutorDisplay(u)
-        setAutorOriginalUsername(a.username || null)
-        setAutorOriginalUsuarioId(a.usuario_id ? String(a.usuario_id) : null)
-        setAutorOriginalEmpresaId(a.empresa_id ? String(a.empresa_id) : null)
-        setAutorOriginalRole(a.role ? String(a.role) : null)
-      })
+      }
+      const a = pickAutorDisplay(u)
+      setAutorOriginalUsername(a.username || null)
+      setAutorOriginalUsuarioId(a.usuario_id ? String(a.usuario_id) : null)
+      setAutorOriginalEmpresaId(a.empresa_id ? String(a.empresa_id) : null)
+      setAutorOriginalRole(a.role ? String(a.role) : null)
+    })()
     return () => {
       cancel = true
     }
-  }, [postOriginalId])
+  }, [postOriginalId, post.id])
 
   useEffect(() => {
-    if (!meuUsuarioId || !post.id) {
+    const alvo = postRaizId || post.id
+    if (!meuUsuarioId || !alvo) {
       setMeuRepostPostId(null)
       return
     }
     void supabase
       .from('posts')
       .select('id')
-      .eq('post_original_id', post.id)
+      .eq('post_original_id', alvo)
       .eq('autor_id', meuUsuarioId)
       .is('deleted_at', null)
-      .maybeSingle()
-      .then(({ data }) => setMeuRepostPostId(data?.id != null ? String(data.id) : null))
-  }, [post.id, meuUsuarioId])
+      .limit(1)
+      .then(({ data }) => {
+        const row = Array.isArray(data) ? data[0] : data
+        setMeuRepostPostId(row?.id != null ? String(row.id) : null)
+      })
+  }, [postRaizId, post.id, meuUsuarioId])
 
   const mediaUrl = post.conteudo_url || post.foto_url
   const hasMedia = Boolean(mediaUrl)
@@ -523,6 +532,11 @@ export default function PostCard({
       alert('Não foi possível salvar.')
       return
     }
+    const { error: syncErr } = await supabase.rpc('sincronizar_texto_reposts', {
+      p_post_id: post.id,
+      p_texto: texto,
+    })
+    if (syncErr) console.error('sincronizar_texto_reposts:', syncErr)
     onPostLocalPatch?.(post.id, { texto })
     setEditando(false)
   }
@@ -723,6 +737,9 @@ export default function PostCard({
     }
     if (!meuUsuarioId) return
 
+    const raizId = await resolverPostRaizId(supabase, postRaizId || post.id)
+    setPostRaizId(raizId)
+
     if (meuRepostPostId) {
       const rid = meuRepostPostId
       const { error: delErr } = await supabase.from('posts').delete().eq('id', rid).eq('autor_id', meuUsuarioId)
@@ -731,7 +748,7 @@ export default function PostCard({
         alert('Não foi possível remover o repost.')
         return
       }
-      const { error: rpcErr } = await supabase.rpc('decrementar_reposts', { post_id: post.id })
+      const { error: rpcErr } = await supabase.rpc('decrementar_reposts', { post_id: raizId })
       if (rpcErr) console.error(rpcErr)
       setMeuRepostPostId(null)
       setRepostTotal((n) => Math.max(0, n - 1))
@@ -742,12 +759,13 @@ export default function PostCard({
     const { data: postOriginal, error: e1 } = await supabase
       .from('posts')
       .select('*')
-      .eq('id', post.id)
+      .eq('id', raizId)
       .is('deleted_at', null)
       .maybeSingle()
     if (e1 || !postOriginal) {
       console.error('[repost] leitura do post original falhou', {
         postId: post.id,
+        raizId,
         message: e1?.message,
         code: e1?.code,
         details: e1?.details,
@@ -767,14 +785,27 @@ export default function PostCard({
         foto_url: o.foto_url != null ? String(o.foto_url) : null,
         conteudo_url: o.conteudo_url != null ? String(o.conteudo_url) : null,
         avaliacao_meta: o.avaliacao_meta && typeof o.avaliacao_meta === 'object' ? o.avaliacao_meta : null,
-        post_original_id: post.id,
+        post_original_id: raizId,
       })
       .select('id')
       .maybeSingle()
+    if (e2?.code === '23505') {
+      const { data: ja } = await supabase
+        .from('posts')
+        .select('id')
+        .eq('post_original_id', raizId)
+        .eq('autor_id', meuUsuarioId)
+        .is('deleted_at', null)
+        .maybeSingle()
+      if (ja?.id) {
+        setMeuRepostPostId(String(ja.id))
+        return
+      }
+    }
     if (e2 || !ins?.id) {
       console.error('[repost] insert do republicação falhou', {
         postId: post.id,
-        post_original_id: post.id,
+        post_original_id: raizId,
         message: e2?.message,
         code: e2?.code,
         details: e2?.details,
@@ -786,7 +817,7 @@ export default function PostCard({
     }
     const novoId = String(ins.id)
     setMeuRepostPostId(novoId)
-    const { error: rpcErr } = await supabase.rpc('incrementar_reposts', { post_id: post.id })
+    const { error: rpcErr } = await supabase.rpc('incrementar_reposts', { post_id: raizId })
     if (rpcErr) console.error(rpcErr)
     setRepostTotal((n) => n + 1)
     const { data: viewRow, error: e3 } = await supabase.from('posts_com_autores').select('*').eq('id', novoId).maybeSingle()
@@ -832,7 +863,7 @@ export default function PostCard({
     onSeguiuUsuario: () => setTickSeguir((t) => t + 1),
     onEditar: handleEditarPost,
     onSalvar: ocultarSalvarPost ? undefined : () => void handleSalvar(),
-    onRepublicar: ehAvaliacao ? undefined : () => void handleRepostar(),
+    onRepublicar: ehAvaliacao || ocultarBotaoRepost ? undefined : () => void handleRepostar(),
     bloqueado: bloqueioApresentacao || bloqueioFeedSocial,
   }
 
@@ -960,7 +991,7 @@ export default function PostCard({
       >
         <Share2 className="h-5 w-5 shrink-0 text-gray-500" aria-hidden />
       </button>
-      {!ehAvaliacao ? (
+      {!ehAvaliacao && !ocultarBotaoRepost ? (
         <button
           type="button"
           onClick={() => void handleRepostar()}

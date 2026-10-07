@@ -28,6 +28,7 @@ import PostCard from '@/components/PostCard'
 import PostCardViewport from '@/components/feed/PostCardViewport'
 import FeedPullRefresh from '@/components/feed/FeedPullRefresh'
 import { POST_DELETED_EVENT } from '@/components/MenuPost'
+import { filtrarPostsForaDaArvore, patchTextoNaArvore } from '@/lib/feedRepostRaiz'
 import StoryViewer from '@/components/StoryViewer'
 import {
   autorIdFromStorySlot,
@@ -696,15 +697,9 @@ function FeedPageInner() {
   useEffect(() => {
     const onPostDeleted = (e: Event) => {
       const ce = e as CustomEvent<{ postId: string; postParentId: string | null }>
-      const { postId, postParentId } = ce.detail ?? {}
+      const { postId } = ce.detail ?? {}
       if (!postId) return
-      setPosts((prev) =>
-        prev.filter((p) => {
-          if (p.id === postId) return false
-          if (postParentId == null && p.post_original_id === postId) return false
-          return true
-        })
-      )
+      setPosts((prev) => filtrarPostsForaDaArvore(prev, postId))
     }
     window.addEventListener(POST_DELETED_EVENT, onPostDeleted)
     return () => window.removeEventListener(POST_DELETED_EVENT, onPostDeleted)
@@ -975,7 +970,7 @@ function FeedPageInner() {
   )
 
   const removerPost = (postId: string) => {
-    setPosts((prev) => prev.filter((p) => p.id !== postId))
+    setPosts((prev) => filtrarPostsForaDaArvore(prev, postId))
   }
 
   if (bloqueioEmpresaFeed) {
@@ -1056,13 +1051,17 @@ function FeedPageInner() {
                     })()
                   }}
                   onPostLocalPatch={(postId, patch) => {
-                    setPosts((prev) => prev.map((x) => (x.id === postId ? { ...x, ...patch } : x)))
+                    setPosts((prev) =>
+                      'texto' in patch
+                        ? patchTextoNaArvore(prev, postId, patch.texto ?? null)
+                        : prev.map((x) => (x.id === postId ? { ...x, ...patch } : x))
+                    )
                   }}
                   onEngagementChange={(postId, patch) => {
                     setPosts((prev) => prev.map((x) => (x.id === postId ? { ...x, ...patch } : x)))
                   }}
                   onRepostRemovido={(repostPostId) => {
-                    setPosts((prev) => prev.filter((p) => p.id !== repostPostId))
+                    setPosts((prev) => filtrarPostsForaDaArvore(prev, repostPostId))
                   }}
                 />
               </PostCardViewport>

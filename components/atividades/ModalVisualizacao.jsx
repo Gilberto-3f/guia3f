@@ -9,6 +9,7 @@ import AvatarImage from '@/components/AvatarImage'
 import { supabase } from '@/lib/supabase'
 import { mapPostComAutoresRow } from '@/lib/mapPostComAutoresRow'
 import { pickAutorDisplay } from '@/lib/feed-autor'
+import { resolverPostRaizId } from '@/lib/feedRepostRaiz'
 import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
 import { getPerfilHref } from '@/lib/perfil-utils'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
@@ -207,31 +208,29 @@ export default function ModalVisualizacao({
       return
     }
     let cancel = false
-    void supabase
-      .from(POSTS_FEED_VIEW)
-      .select('*')
-      .eq('id', postOriginalId)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (cancel || error || !data) {
-          return
+    void (async () => {
+      const raiz = await resolverPostRaizId(supabase, postOriginalId)
+      if (cancel) return
+      const { data, error } = await supabase.from(POSTS_FEED_VIEW).select('*').eq('id', raiz).maybeSingle()
+      if (cancel || error || !data) {
+        return
+      }
+      const p = /** @type {Record<string, unknown>} */ (data)
+      const rawU = p.usuarios
+      let u = rawU
+      if (typeof rawU === 'string') {
+        try {
+          u = JSON.parse(rawU)
+        } catch {
+          u = null
         }
-        const p = /** @type {Record<string, unknown>} */ (data)
-        const rawU = p.usuarios
-        let u = rawU
-        if (typeof rawU === 'string') {
-          try {
-            u = JSON.parse(rawU)
-          } catch {
-            u = null
-          }
-        }
-        const a = pickAutorDisplay(u)
-        setAutorOriginalUsername(a.username || null)
-        setAutorOriginalUsuarioId(a.usuario_id ? String(a.usuario_id) : null)
-        setAutorOriginalEmpresaId(a.empresa_id ? String(a.empresa_id) : null)
-        setAutorOriginalRole(a.role ? String(a.role) : null)
-      })
+      }
+      const a = pickAutorDisplay(u)
+      setAutorOriginalUsername(a.username || null)
+      setAutorOriginalUsuarioId(a.usuario_id ? String(a.usuario_id) : null)
+      setAutorOriginalEmpresaId(a.empresa_id ? String(a.empresa_id) : null)
+      setAutorOriginalRole(a.role ? String(a.role) : null)
+    })()
     return () => {
       cancel = true
     }

@@ -26,6 +26,7 @@ import PopupCartaoVisitaProfissional from '@/components/perfil/PopupCartaoVisita
 import { mapPostComAutoresRow } from '@/lib/mapPostComAutoresRow'
 import { bandeiraProfissionalRegistro } from '@/lib/bandeiraProfissional'
 import { POST_DELETED_EVENT } from '@/components/MenuPost'
+import { filtrarPostsForaDaArvore, patchTextoNaArvore } from '@/lib/feedRepostRaiz'
 import { fetchFotoPerfilUsuario } from '@/lib/feed-autor'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { temParceriaFechadaEntreProfissionais } from '@/lib/parceriaProfissional'
@@ -204,6 +205,13 @@ export default function PerfilSocialPage() {
       postId: string,
       patch: Partial<{ texto: string | null; total_curtidas?: number; total_comentarios?: number }>
     ) => {
+      if ('texto' in patch) {
+        const texto = patch.texto ?? null
+        setPostsTexto((prev) => patchTextoNaArvore(prev, postId, texto))
+        setPostsFotos((prev) => patchTextoNaArvore(prev, postId, texto))
+        setRepostadosPosts((prev) => patchTextoNaArvore(prev, postId, texto))
+        return
+      }
       setPostsTexto((prev) => prev.map((p) => (p.id === postId ? { ...p, ...patch } : p)))
     },
     []
@@ -231,6 +239,13 @@ export default function PerfilSocialPage() {
       postId: string,
       patch: Partial<{ texto: string | null; total_curtidas?: number; total_comentarios?: number }>
     ) => {
+      if ('texto' in patch) {
+        const texto = patch.texto ?? null
+        setPostsTexto((prev) => patchTextoNaArvore(prev, postId, texto))
+        setPostsFotos((prev) => patchTextoNaArvore(prev, postId, texto))
+        setRepostadosPosts((prev) => patchTextoNaArvore(prev, postId, texto))
+        return
+      }
       setRepostadosPosts((prev) =>
         prev.map((p) => (p.id === postId ? { ...p, ...patch } : p))
       )
@@ -783,15 +798,11 @@ export default function PerfilSocialPage() {
   useEffect(() => {
     const onPostDeleted = (e: Event) => {
       const ce = e as CustomEvent<{ postId: string; postParentId: string | null }>
-      const { postId, postParentId } = ce.detail ?? {}
+      const { postId } = ce.detail ?? {}
       if (!postId) return
-      setRepostadosPosts((prev) =>
-        prev.filter((r) => {
-          if (r.id === postId) return false
-          if (postParentId == null && r.post_original_id === postId) return false
-          return true
-        })
-      )
+      setPostsTexto((prev) => filtrarPostsForaDaArvore(prev, postId))
+      setPostsFotos((prev) => filtrarPostsForaDaArvore(prev, postId))
+      setRepostadosPosts((prev) => filtrarPostsForaDaArvore(prev, postId))
     }
     window.addEventListener(POST_DELETED_EVENT, onPostDeleted)
     return () => window.removeEventListener(POST_DELETED_EVENT, onPostDeleted)
@@ -1052,7 +1063,7 @@ export default function PerfilSocialPage() {
               userEmail={meuEmail}
               onPostLocalPatch={patchTextoPost}
               onEngagementChange={onEngagementTexto}
-              onRemovePost={(postId) => setPostsTexto((prev) => prev.filter((p) => p.id !== postId))}
+              onRemovePost={(postId) => setPostsTexto((prev) => filtrarPostsForaDaArvore(prev, postId))}
             />
           ) : null}
           {aba === 'republicados' ? (
@@ -1062,9 +1073,9 @@ export default function PerfilSocialPage() {
               userEmail={meuEmail}
               onPostLocalPatch={patchRepostadoPost}
               onEngagementChange={onEngagementRepostado}
-              onRemovePost={(postId) => setRepostadosPosts((prev) => prev.filter((p) => p.id !== postId))}
+              onRemovePost={(postId) => setRepostadosPosts((prev) => filtrarPostsForaDaArvore(prev, postId))}
               onRepostRemovido={(repostPostId) =>
-                setRepostadosPosts((prev) => prev.filter((p) => p.id !== repostPostId))
+                setRepostadosPosts((prev) => filtrarPostsForaDaArvore(prev, repostPostId))
               }
             />
           ) : null}
@@ -1205,7 +1216,7 @@ export default function PerfilSocialPage() {
           role: perfilRole,
         }}
         onPatchPost={patchFotoPost}
-        onRemovePost={(postId) => setPostsFotos((prev) => prev.filter((p) => p.id !== postId))}
+        onRemovePost={(postId) => setPostsFotos((prev) => filtrarPostsForaDaArvore(prev, postId))}
       />
     </div>
   )
