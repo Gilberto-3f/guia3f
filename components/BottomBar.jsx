@@ -1,7 +1,6 @@
 'use client'
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { Link, usePathname } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
@@ -35,6 +34,7 @@ import { profissionalOperaComoEmpresaAgencia } from '@/lib/guiaDualMode'
 import { profissionalOperaComoEmpresaAgenciaVan } from '@/lib/vanDualMode'
 import { lerPerfilBarraCache } from '@/lib/perfilBarraCache'
 import { resumirSessaoAposIdle } from '@/lib/authResume'
+import { precisaNavegacaoDura, navegarHard } from '@/lib/appIdleRecovery'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import AvatarImage from '@/components/AvatarImage'
 
@@ -658,6 +658,20 @@ export default function BottomBar() {
     void resumirSessaoAposIdle()
   }
 
+  /**
+   * Após hibernação longa o App Router não completa o voo RSC (fica na home).
+   * Se o JS ficou parado, troca de rota por navegação completa.
+   * @param {React.MouseEvent} e
+   * @param {string} href
+   */
+  const aoClicarBarra = (e, href) => {
+    const precisaHard = precisaNavegacaoDura()
+    void resumirSessaoAposIdle()
+    if (!precisaHard) return
+    e.preventDefault()
+    navegarHard(href)
+  }
+
   return (
     <div
       ref={rootRef}
@@ -666,7 +680,9 @@ export default function BottomBar() {
       <div className="flex items-center justify-around pt-2 pb-1">
         <Link
           href="/guia"
+          prefetch={false}
           onPointerDown={antesDeNavegar}
+          onClick={(e) => aoClicarBarra(e, '/guia')}
           className="flex flex-col items-center p-2"
           aria-label={t('home')}
         >
@@ -676,7 +692,9 @@ export default function BottomBar() {
         {segundoEhFavoritosNaBarra ? (
           <Link
             href="/favoritos"
+            prefetch={false}
             onPointerDown={antesDeNavegar}
+            onClick={(e) => aoClicarBarra(e, '/favoritos')}
             className="flex flex-col items-center p-2"
             aria-label={t('favorites')}
           >
@@ -689,7 +707,9 @@ export default function BottomBar() {
         ) : (
           <Link
             href="/canal"
+            prefetch={false}
             onPointerDown={antesDeNavegar}
+            onClick={(e) => aoClicarBarra(e, '/canal')}
             className="relative flex flex-col items-center p-2"
             aria-label={t('channel')}
           >
@@ -709,7 +729,9 @@ export default function BottomBar() {
         {isEmpresaBar ? (
           <Link
             href="/dashboard/empresa"
+            prefetch={false}
             onPointerDown={antesDeNavegar}
+            onClick={(e) => aoClicarBarra(e, '/dashboard/empresa')}
             className="relative flex flex-col items-center p-2"
             aria-label={t('dashboard')}
           >
@@ -748,12 +770,15 @@ export default function BottomBar() {
         ) : (
           <Link
             href={getTerceiroHref()}
+            prefetch={false}
             onPointerDown={antesDeNavegar}
             onClick={(e) => {
               if (!podeInteragir && isFeedPage) {
                 e.preventDefault()
                 notificarSomenteLeitura()
+                return
               }
+              aoClicarBarra(e, getTerceiroHref())
             }}
             className={`flex flex-col items-center ${isFeedPage ? 'p-0' : 'p-2'}`}
             aria-label={isFeedPage ? t('newPost') : t('feed')}
@@ -772,7 +797,9 @@ export default function BottomBar() {
 
         <Link
           href="/atividades"
+          prefetch={false}
           onPointerDown={antesDeNavegar}
+          onClick={(e) => aoClicarBarra(e, '/atividades')}
           className="relative flex flex-col items-center p-2"
           aria-label={t('activities')}
         >
@@ -786,8 +813,9 @@ export default function BottomBar() {
 
         <Link
           href={getQuintoHref()}
-          onPointerDown={antesDeNavegar}
           prefetch={false}
+          onPointerDown={antesDeNavegar}
+          onClick={(e) => aoClicarBarra(e, getQuintoHref())}
           className="flex flex-col items-center p-2"
           aria-label={isEmpresaBar ? t('companyGuia') : t('profile')}
         >

@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { clearSessionCookiesOnServer, syncSessionCookiesToServer } from '@/lib/authCookieSync'
 import { registrarResumoSessaoAoVoltar } from '@/lib/authResume'
+import { registrarRecuperacaoIdle } from '@/lib/appIdleRecovery'
 import { supabase } from '@/lib/supabase'
 
 async function syncCookies(session: { access_token: string; refresh_token: string }) {
@@ -52,7 +53,14 @@ export default function SupabaseCookieSync() {
     }
   }, [])
 
-  useEffect(() => registrarResumoSessaoAoVoltar(), [])
+  useEffect(() => {
+    const unsubResume = registrarResumoSessaoAoVoltar()
+    const unsubIdle = registrarRecuperacaoIdle()
+    return () => {
+      unsubResume()
+      unsubIdle()
+    }
+  }, [])
 
   return null
 }

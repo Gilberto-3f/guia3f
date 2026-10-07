@@ -77,6 +77,32 @@ function limparBodyFixedResidual() {
 }
 
 /**
+ * Após hibernação o cleanup do lock pode não ter rodado (contador preso).
+ * Libera body/BottomBar se não houver diálogo visível.
+ */
+export function resetModalScrollLockStale() {
+  if (typeof document === 'undefined') return
+  const dialogAberto = document.querySelector(
+    '[role="dialog"][aria-modal="true"], [data-modal-scroll-lock-scrollable]',
+  )
+  if (dialogAberto && activeLocks > 0) return
+
+  if (activeLocks === 0) {
+    limparBodyFixedResidual()
+    return
+  }
+
+  activeLocks = 0
+  snapshot = null
+  document.removeEventListener('touchmove', blockTouchMove)
+  document.documentElement.style.overflow = ''
+  document.body.style.overflow = ''
+  document.body.style.touchAction = ''
+  limparBodyFixedResidual()
+  emitirLockChange()
+}
+
+/**
  * Bloqueia scroll do fundo enquanto um modal/popup está aberto (inclui iOS).
  * Suporta múltiplos modais em paralelo; só libera o scroll ao fechar o último.
  * Em rotas do app-shell: lock "suave" (sem position:fixed) para não gerar faixa branca.

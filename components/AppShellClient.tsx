@@ -23,6 +23,7 @@ import {
   isModalScrollLocked,
   MODAL_SCROLL_LOCK_EVENT,
 } from '@/lib/useModalScrollLock'
+import { GUIA_IDLE_RECOVER_EVENT } from '@/lib/appIdleRecovery'
 
 /** `feed/criar` emite quando o teclado está visível para esconder a barra (aba TEXTO ou legenda na FOTO). */
 const CRIAR_KEYBOARD_EVENT = 'guia-criar-keyboard'
@@ -173,6 +174,15 @@ function AppShellInner({ children }: { children: ReactNode }) {
     }
     window.addEventListener(CRIAR_KEYBOARD_EVENT, onKb as EventListener)
     return () => window.removeEventListener(CRIAR_KEYBOARD_EVENT, onKb as EventListener)
+  }, [])
+
+  useEffect(() => {
+    const onIdleRecover = () => {
+      setTecladoOcultaBarra(false)
+      setModalOcultaBarra(isModalScrollLocked())
+    }
+    window.addEventListener(GUIA_IDLE_RECOVER_EVENT, onIdleRecover)
+    return () => window.removeEventListener(GUIA_IDLE_RECOVER_EVENT, onIdleRecover)
   }, [])
 
   useEffect(() => {
