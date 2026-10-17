@@ -11,7 +11,9 @@ import {
   parseConfigSub,
 } from './ConfiguracoesTabs'
 import { SubabasConformidade } from './SubabasConformidade'
+import { SubabasGeral } from './SubabasGeral'
 import { ConfigGeralPastas } from './ConfigGeralPastas'
+import { ConfigEcossistemas } from './ConfigEcossistemas'
 import { ConfigConformidadeAplicativo } from './ConfigConformidadeAplicativo'
 import { ConfigConformidadeSeguranca } from './ConfigConformidadeSeguranca'
 
@@ -25,13 +27,13 @@ export function ConfiguracoesBarraFixa({ sub }: { sub: string }) {
       <ConfiguracoesTabs
         value={activeMain}
         onChange={(next) => {
-          if (next === 'conformidade') {
-            selectSub('configuracoes', configSubPrincipal('conformidade', parsed.conformidade))
-          } else {
-            selectSub('configuracoes', 'geral')
-          }
+          selectSub(
+            'configuracoes',
+            configSubPrincipal(next, parsed.conformidade, parsed.geral),
+          )
         }}
       />
+      {activeMain === 'geral' ? <SubabasGeral value={parsed.geral} /> : null}
       {activeMain === 'conformidade' ? <SubabasConformidade value={parsed.conformidade} /> : null}
     </div>
   )
@@ -57,8 +59,10 @@ export function ConfiguracoesContainer({ sub }: { sub: string }) {
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           Você não tem permissão para acessar esta seção.
         </div>
-      ) : parsed.main === 'geral' ? (
+      ) : parsed.main === 'geral' && parsed.geral === 'organizacao' ? (
         <ConfigGeralPastas />
+      ) : parsed.main === 'geral' ? (
+        <ConfigEcossistemas />
       ) : parsed.conformidade === 'aplicativo' ? (
         <ConfigConformidadeAplicativo />
       ) : (

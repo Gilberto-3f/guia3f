@@ -7,6 +7,8 @@ export type ConfigSubabaId = 'geral' | 'conformidade'
 
 export type ConfigConformidadeSubId = 'aplicativo' | 'seguranca'
 
+export type ConfigGeralSubId = 'ecossistema' | 'organizacao'
+
 const TABS: { id: ConfigSubabaId; label: string; Icon: LucideIcon }[] = [
   { id: 'geral', label: 'Geral', Icon: Settings },
   { id: 'conformidade', label: 'Conformidade', Icon: ShieldCheck },
@@ -15,25 +17,34 @@ const TABS: { id: ConfigSubabaId; label: string; Icon: LucideIcon }[] = [
 export function parseConfigSub(sub: string): {
   main: ConfigSubabaId
   conformidade: ConfigConformidadeSubId
+  geral: ConfigGeralSubId
 } {
   if (sub === 'conformidade-seguranca' || sub === 'seguranca') {
-    return { main: 'conformidade', conformidade: 'seguranca' }
+    return { main: 'conformidade', conformidade: 'seguranca', geral: 'ecossistema' }
   }
   if (sub === 'conformidade-aplicativo' || sub === 'conformidade') {
-    return { main: 'conformidade', conformidade: 'aplicativo' }
+    return { main: 'conformidade', conformidade: 'aplicativo', geral: 'ecossistema' }
   }
-  if (sub === 'apis' || sub === 'logs') {
-    return { main: 'geral', conformidade: 'aplicativo' }
+  if (sub === 'geral-organizacao' || sub === 'organizacao' || sub === 'apis' || sub === 'logs') {
+    return { main: 'geral', conformidade: 'aplicativo', geral: 'organizacao' }
   }
-  return { main: 'geral', conformidade: 'aplicativo' }
+  return { main: 'geral', conformidade: 'aplicativo', geral: 'ecossistema' }
 }
 
 export function configSubConformidade(next: ConfigConformidadeSubId): string {
   return next === 'seguranca' ? 'conformidade-seguranca' : 'conformidade-aplicativo'
 }
 
-export function configSubPrincipal(main: ConfigSubabaId, conformidade: ConfigConformidadeSubId = 'aplicativo'): string {
-  return main === 'conformidade' ? configSubConformidade(conformidade) : 'geral'
+export function configSubGeral(next: ConfigGeralSubId): string {
+  return next === 'organizacao' ? 'geral-organizacao' : 'geral-ecossistema'
+}
+
+export function configSubPrincipal(
+  main: ConfigSubabaId,
+  conformidade: ConfigConformidadeSubId = 'aplicativo',
+  geral: ConfigGeralSubId = 'ecossistema',
+): string {
+  return main === 'conformidade' ? configSubConformidade(conformidade) : configSubGeral(geral)
 }
 
 export function coerceConfigSubaba(sub: string): ConfigSubabaId {

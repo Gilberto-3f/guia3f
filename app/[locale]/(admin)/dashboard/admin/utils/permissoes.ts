@@ -46,8 +46,8 @@ const PASTA_MODULO: Record<AbaPrincipalId, string> = {
 /** Pastas visíveis no painel principal da Dashboard ADM. */
 export function podeAcessarPasta(admin: AdminUser, pastaId: AbaPrincipalId): boolean {
   if (admin.admin_level === 1) return true
-  if (pastaId === 'configuracoes') return false
   const raw = admin.admin_permissoes as unknown as { modulos?: string[]; cargo?: string }
+  if (pastaId === 'configuracoes') return raw?.cargo === 'FINANCEIRO'
   const modulos = Array.isArray(raw?.modulos) ? raw.modulos : []
   const mod = PASTA_MODULO[pastaId]
   return modulos.includes(mod)
