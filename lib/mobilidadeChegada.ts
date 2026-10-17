@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { encerrarConversaCorrida } from '@/lib/mobilidadeChatCorrida'
+import { avancarFilaAposEmbarqueSolicitacao } from '@/lib/manifestoLista'
 import { modalidadeUsaDeslocamentoProprio } from '@/lib/mobilidadeOfertaAtendimento'
 
 /** Raio (metros) para considerar chegada no ponto de partida. */
@@ -183,6 +184,10 @@ export async function responderEmbarqueNoLocal(
         },
       })
       .eq('id', params.solicitacaoId)
+    await avancarFilaAposEmbarqueSolicitacao(admin, {
+      solicitacaoId: params.solicitacaoId,
+      profissionalId: String(prof.id),
+    })
     return { ok: true, status: 'em_viagem' }
   }
 

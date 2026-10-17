@@ -80,7 +80,11 @@ function dataEhHoje(iso: string): boolean {
  * Drawer Manifesto no Espaço Profissional: lista do dia em destaque + demais datas.
  * Clique → detalhe com abas LISTA e ITINERÁRIO.
  */
-export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDia = false }: Props) {
+export default function DrawerManifestoEspaco({
+  aberto,
+  onFechar,
+  abrirListaDoDia: _abrirListaDoDia = false,
+}: Props) {
   const t = useTranslations('Mobilidade')
   useModalScrollLock(aberto)
   const [loading, setLoading] = useState(true)
@@ -89,11 +93,18 @@ export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDi
   const [selecionado, setSelecionado] = useState<ManifestoDiarioRow | null>(null)
   const [busyIniciar, setBusyIniciar] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const raizRef = useRef<HTMLDivElement>(null)
+  const abrirHojeAposLoad = useRef(false)
 
   const carregar = useCallback(async () => {
     setLoading(true)
     setErro('')
     try {
+      try {
+        await fetch('/api/profissional/manifesto/hoje', { method: 'POST' })
+      } catch {
+        /* lista ainda abre com o que existir */
+      }
       const [resAtivos, resConcluidos] = await Promise.all([
         fetch('/api/profissional/manifesto'),
         fetch('/api/profissional/manifesto?concluidos=1'),
@@ -124,9 +135,12 @@ export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDi
       setManifestos(lista)
       setSelecionado((prev) => {
         const doDiaRow = lista.find((m) => dataEhHoje(m.data_manifesto)) ?? null
+        if (abrirHojeAposLoad.current) {
+          abrirHojeAposLoad.current = false
+          return doDiaRow ?? manifestoVazioHoje()
+        }
         if (prev?.id) return lista.find((m) => m.id === prev.id) ?? prev
         if (prev && !prev.id) return doDiaRow ?? manifestoVazioHoje()
-        if (abrirListaDoDia) return doDiaRow ?? manifestoVazioHoje()
         return null
       })
     } catch {
@@ -135,7 +149,7 @@ export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDi
     } finally {
       setLoading(false)
     }
-  }, [t, abrirListaDoDia])
+  }, [t])
 
   useEffect(() => {
     if (!aberto) {
@@ -150,25 +164,57 @@ export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDi
 
   useEffect(() => {
     const el = scrollRef.current
-    if (el) el.scrollTop = 0
-  }, [selecionado?.id, aberto])
+    if (!el) return
+    el.scrollTop = 0
+    const id = window.requestAnimationFrame(() => {
+      el.scrollTop = 0
+    })
+    return () => window.cancelAnimationFrame(id)
+  }, [selecionado?.id, selecionado?.status, aberto])
 
   useEffect(() => {
-    const el = scrollRef.current
-    if (!el || !aberto) return
+    if (!aberto) return
+    const html = document.documentElement
+    const body = document.body
+    const prevHtml = html.style.overscrollBehavior
+    const prevBody = body.style.overscrollBehavior
+    html.style.overscrollBehavior = 'none'
+    body.style.overscrollBehavior = 'none'
+
+    const scrollEl = () => scrollRef.current
     let startY = 0
     const onStart = (e: TouchEvent) => {
       startY = e.touches[0]?.clientY ?? 0
     }
     const onMove = (e: TouchEvent) => {
+      const el = scrollEl()
+      if (!el) return
       const y = e.touches[0]?.clientY ?? 0
       if (el.scrollTop <= 0 && y - startY > 0) e.preventDefault()
     }
-    el.addEventListener('touchstart', onStart, { passive: true })
-    el.addEventListener('touchmove', onMove, { passive: false })
+    const onEnd = () => {
+      const el = scrollEl()
+      if (el && el.scrollTop < 0) el.scrollTop = 0
+    }
+    const raiz = raizRef.current
+    const alvo = raiz ?? scrollEl()
+    if (!alvo) {
+      return () => {
+        html.style.overscrollBehavior = prevHtml
+        body.style.overscrollBehavior = prevBody
+      }
+    }
+    alvo.addEventListener('touchstart', onStart, { passive: true })
+    alvo.addEventListener('touchmove', onMove, { passive: false })
+    alvo.addEventListener('touchend', onEnd)
+    alvo.addEventListener('touchcancel', onEnd)
     return () => {
-      el.removeEventListener('touchstart', onStart)
-      el.removeEventListener('touchmove', onMove)
+      html.style.overscrollBehavior = prevHtml
+      body.style.overscrollBehavior = prevBody
+      alvo.removeEventListener('touchstart', onStart)
+      alvo.removeEventListener('touchmove', onMove)
+      alvo.removeEventListener('touchend', onEnd)
+      alvo.removeEventListener('touchcancel', onEnd)
     }
   }, [aberto, selecionado])
 
@@ -183,8 +229,12 @@ export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDi
   )
 
   const iniciarLista = async () => {
-    if (!doDia || busyIniciar) return
-    if (doDia.qtd_passageiros < 1) {
+    const alvo =
+      selecionado && dataEhHoje(selecionado.data_manifesto) && selecionado.id
+        ? selecionado
+        : doDia
+    if (!alvo?.id || busyIniciar) return
+    if ((alvo.qtd_passageiros ?? 0) < 1) {
       setErro(t('manifestoSemPassageirosIniciar'))
       return
     }
@@ -194,7 +244,7 @@ export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDi
       const res = await fetch('/api/profissional/manifesto/iniciar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ manifesto_id: doDia.id }),
+        body: JSON.stringify({ manifesto_id: alvo.id }),
       })
       const json = (await res.json()) as { error?: string }
       if (!res.ok) {
@@ -209,12 +259,20 @@ export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDi
     }
   }
 
-  const abrirListaHoje = () => setSelecionado(doDia ?? manifestoVazioHoje())
+  const abrirListaHoje = () => {
+    if (doDia) {
+      setSelecionado(doDia)
+      return
+    }
+    abrirHojeAposLoad.current = true
+    void carregar()
+  }
 
   if (!aberto) return null
 
   return createPortal(
     <div
+      ref={raizRef}
       className="fixed inset-0 z-[120] flex flex-col overflow-hidden overscroll-none bg-white"
       style={{ height: 'var(--app-height, 100dvh)', overscrollBehavior: 'none' }}
       role="dialog"
@@ -249,8 +307,8 @@ export default function DrawerManifestoEspaco({ aberto, onFechar, abrirListaDoDi
 
       <div
         ref={scrollRef}
-        className={`min-h-0 flex-1 overflow-y-auto overscroll-y-none px-4 pb-4 ${
-          selecionado ? 'pt-2' : 'pt-4'
+        className={`min-h-0 flex-1 justify-start overflow-y-auto overscroll-y-none px-4 pb-4 ${
+          selecionado ? 'pt-3' : 'pt-4'
         }`}
         style={{ overscrollBehavior: 'none', overflowAnchor: 'none' }}
         data-modal-scroll-lock-scrollable

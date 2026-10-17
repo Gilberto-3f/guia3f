@@ -1,7 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { concluirCorridaMobilidade } from '@/lib/mobilidadeCorrida'
 import { encerrarConversaCorrida } from '@/lib/mobilidadeChatCorrida'
-import { concluirManifestoDiario } from '@/lib/manifestoDiario'
+import {
+  concluirManifestoDiario,
+  obterOuCriarManifestoDiario,
+  registrarTuristaNoManifesto,
+  type ContratacaoTipo,
+} from '@/lib/manifestoDiario'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { upsertCompraTurista } from '@/lib/turistaCompras'
 
@@ -335,6 +340,10 @@ export async function marcarPassageiroRecebido(
   if (!md?.id) return { ok: false, error: 'Manifesto não encontrado.' }
   if (!md.lista_iniciada_em) return { ok: false, error: 'Inicie a lista antes de confirmar o receptivo.' }
   if (String(p.status) === 'cancelado') return { ok: false, error: 'Passageiro já cancelado.' }
+  if (String(p.status) === 'recebido') {
+    await ativarProximoPendente(supabase, String(md.id))
+    return { ok: true }
+  }
 
   await supabase
     .from('manifesto_passageiros')
@@ -588,5 +597,85 @@ export async function peekListaManifestoHoje(
     iniciada: true,
     manifestoId: String(md.id),
     daVezSolicitacaoId: pax?.solicitacao_id != null ? String(pax.solicitacao_id) : null,
+  }
+}
+
+const TIPOS_CONTRATACAO: ContratacaoTipo[] = [
+  'indicacao',
+  'contratacao_direta',
+  'agendamento',
+  'algoritmo',
+]
+
+function contratacaoDeMeta(meta: Record<string, unknown>): ContratacaoTipo {
+  const raw = String(meta.contratacao_tipo ?? meta.modo ?? 'algoritmo')
+  return TIPOS_CONTRATACAO.includes(raw as ContratacaoTipo) ? (raw as ContratacaoTipo) : 'algoritmo'
+}
+
+/**
+ * Garante o manifesto de hoje e registra todas as corridas guia/van do dia.
+ */
+export async function sincronizarManifestoHoje(
+  supabase: SupabaseClient,
+  profissionalId: string,
+): Promise<{ ok: true; manifestoId: string } | { ok: false; error: string }> {
+  const hoje = hojeIsoLocal()
+  const diario = await obterOuCriarManifestoDiario(supabase, profissionalId, hoje, 'rascunho')
+  if ('error' in diario) return { ok: false, error: diario.error }
+
+  const { data: sols } = await supabase
+    .from('solicitacao_mobilidade')
+    .select(
+      'id, turista_id, modalidade, data_agendada, created_at, destino_empresa_id, metadata',
+    )
+    .eq('profissional_id', profissionalId)
+    .in('modalidade', ['guia', 'van'])
+    .in('status', [...STATUS_SOL_GEO])
+
+  for (const s of sols ?? []) {
+    const ag = s.data_agendada != null ? String(s.data_agendada).slice(0, 10) : ''
+    const cri = s.created_at != null ? String(s.created_at).slice(0, 10) : ''
+    const meta = metaObj(s.metadata)
+    const mid = meta.manifesto_id != null ? String(meta.manifesto_id) : ''
+    const doDia = ag === hoje || (!ag && cri === hoje) || mid === diario.id
+    if (!doDia) continue
+    const tid = s.turista_id != null ? String(s.turista_id).trim() : ''
+    if (!tid) continue
+    const dest = s.destino_empresa_id != null ? String(s.destino_empresa_id) : ''
+    await registrarTuristaNoManifesto(supabase, {
+      profissionalId,
+      turistaUsuarioId: tid,
+      contratacaoTipo: contratacaoDeMeta(meta),
+      dataManifesto: hoje,
+      paradasEmpresaIds: dest ? [dest] : undefined,
+      solicitacaoId: String(s.id),
+    })
+  }
+
+  return { ok: true, manifestoId: diario.id }
+}
+
+/**
+ * SIM no receptivo: marca o PAX como recebido e ativa o próximo da fila.
+ * Ignora se a lista ainda não foi iniciada.
+ */
+export async function avancarFilaAposEmbarqueSolicitacao(
+  supabase: SupabaseClient,
+  params: { solicitacaoId: string; profissionalId: string },
+): Promise<void> {
+  const sid = String(params.solicitacaoId ?? '').trim()
+  if (!sid) return
+  const { data: p } = await supabase
+    .from('manifesto_passageiros')
+    .select('id')
+    .eq('solicitacao_id', sid)
+    .maybeSingle()
+  if (!p?.id) return
+  const res = await marcarPassageiroRecebido(supabase, {
+    passageiroId: String(p.id),
+    profissionalId: params.profissionalId,
+  })
+  if (!res.ok && !String(res.error).toLowerCase().includes('inicie a lista')) {
+    console.warn('[manifestoLista] avancarFilaAposEmbarque:', res.error)
   }
 }
