@@ -12,11 +12,10 @@ import {
   MessageCircle,
   Navigation,
   Plus,
-  UserRound,
   X,
 } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
-import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
+import CardParteAtendimentoFlutuante from '@/components/mobilidade/CardParteAtendimentoFlutuante'
 import DrawerChatCorridaMobilidade from '@/components/mobilidade/DrawerChatCorridaMobilidade'
 import { useRouter } from '@/i18n/navigation'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
@@ -145,8 +144,8 @@ export default function DrawerAtendimentoAtivoMobilidade({
   erroConcluir = null,
   onFechar,
   onConcluir,
-  pagamentoConfirmado = false,
-  rodapeExtra = null,
+  pagamentoConfirmado: _pagamentoConfirmado = false,
+  rodapeExtra: _rodapeExtra = null,
   onConcluirSemManifesto,
   onConfirmarChegada,
   erroChegada = null,
@@ -172,12 +171,12 @@ export default function DrawerAtendimentoAtivoMobilidade({
   const titulo = tituloPorStatus(st, papel, t)
   const HeaderIcon = papel === 'profissional' ? Navigation : Car
 
-  const podeConcluir =
+  const mostrarConcluir =
     papel === 'profissional' &&
     st === 'em_viagem' &&
     Boolean(onConcluir) &&
-    modalidadeUsaDeslocamentoProprio(atendimento.modalidade) &&
-    pagamentoConfirmado
+    modalidadeUsaDeslocamentoProprio(atendimento.modalidade)
+  const podeConcluir = mostrarConcluir
   const mostrarChegadaDrawer =
     papel === 'profissional' &&
     st === 'no_local' &&
@@ -199,7 +198,6 @@ export default function DrawerAtendimentoAtivoMobilidade({
   }, [aberto, atendimento.solicitacao_id])
 
   const parte = atendimento.parte
-  const username = String(parte?.username ?? '').replace(/^@+/, '') || 'usuario'
 
   const agendado = Boolean(atendimento.data_agendada)
   const mostrarAbasItinerario =
@@ -365,42 +363,14 @@ export default function DrawerAtendimentoAtivoMobilidade({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4" data-modal-scroll-lock-scrollable>
-        <div className="flex flex-col items-center gap-2 text-center">
-            <div
-              className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-gray-100"
-              style={{ boxShadow: `0 0 0 3px ${headerCor}` }}
-            >
-              {parte?.foto_url ? (
-                <AvatarImage
-                  src={parte.foto_url}
-                  alt=""
-                  fill
-                  className="object-cover"
-                  sizes="64px"
-                />
-              ) : (
-                <span className="flex h-full w-full items-center justify-center text-[#0097b2]">
-                  <UserRound className="h-8 w-8" aria-hidden />
-                </span>
-              )}
-            </div>
-            <div className="min-w-0 max-w-full">
-              <p className="truncate text-lg font-bold leading-tight text-gray-900">
-                {parte?.nome ||
-                  (papel === 'profissional'
-                    ? t('atendimentoTuristaFallback')
-                    : t('atendimentoProfissionalFallback'))}
-              </p>
-              <UsuarioHandleVerificado
-                username={username}
-                verificado={Boolean(parte?.verificado)}
-                verificadoTipo="profissional"
-                notaMedia={parte?.nota_media ?? null}
-                asButton={false}
-                className="justify-center text-sm font-normal leading-tight text-gray-600"
-              />
-            </div>
-          </div>
+        <CardParteAtendimentoFlutuante
+          parte={parte}
+          fallbackNome={
+            papel === 'profissional'
+              ? t('atendimentoTuristaFallback')
+              : t('atendimentoProfissionalFallback')
+          }
+        />
 
         {mostrarAbasItinerario ? (
           <div className="mt-4 flex w-full border-b border-gray-200">
@@ -555,7 +525,7 @@ export default function DrawerAtendimentoAtivoMobilidade({
           </button>
         ) : null}
 
-        {papel === 'profissional' && st === 'em_viagem' && onConcluir ? (
+        {mostrarConcluir && onConcluir ? (
           <div className="mt-3">
             {erroConcluir ? (
               <div className="mb-2 space-y-1">

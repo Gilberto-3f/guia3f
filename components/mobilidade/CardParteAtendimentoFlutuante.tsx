@@ -16,12 +16,16 @@ export type ParteFloating = {
 type Props = {
   parte: ParteFloating | null
   fallbackNome: string
-  onAbrir: () => void
-  ariaLabel: string
+  /** Se omitido, o card é só leitura (drawer já aberto). */
+  onAbrir?: () => void
+  ariaLabel?: string
   categoriaLabel?: string | null
 }
 
-/** Mini card da outra parte no floating (header verde) — toque abre o drawer. */
+const cardCls =
+  'flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-[#f5f5f5] px-3 py-3 text-left'
+
+/** Mini card da outra parte (avatar, nome, @, nota). Toque abre o drawer quando `onAbrir`. */
 export default function CardParteAtendimentoFlutuante({
   parte,
   fallbackNome,
@@ -31,13 +35,8 @@ export default function CardParteAtendimentoFlutuante({
 }: Props) {
   const username = String(parte?.username ?? '').replace(/^@+/, '') || 'usuario'
 
-  return (
-    <button
-      type="button"
-      {...propsUmToque(onAbrir)}
-      className="flex w-full cursor-pointer touch-manipulation items-center gap-3 rounded-xl border border-gray-200 bg-[#f5f5f5] px-3 py-3 text-left active:bg-gray-100"
-      aria-label={ariaLabel}
-    >
+  const corpo = (
+    <>
       <div
         className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-white"
         style={{ boxShadow: '0 0 0 2px #00D443' }}
@@ -66,6 +65,21 @@ export default function CardParteAtendimentoFlutuante({
           <p className="mt-0.5 truncate text-xs font-medium text-[#0097b2]">{categoriaLabel}</p>
         ) : null}
       </div>
+    </>
+  )
+
+  if (!onAbrir) {
+    return <div className={cardCls}>{corpo}</div>
+  }
+
+  return (
+    <button
+      type="button"
+      {...propsUmToque(onAbrir)}
+      className={`${cardCls} cursor-pointer touch-manipulation active:bg-gray-100`}
+      aria-label={ariaLabel}
+    >
+      {corpo}
     </button>
   )
 }

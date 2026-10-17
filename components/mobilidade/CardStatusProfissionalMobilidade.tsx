@@ -1,14 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState, type SVGProps } from 'react'
-import { Briefcase, ChevronDown, ChevronUp, ClipboardList, Navigation, Smile } from 'lucide-react'
+import { Briefcase, ChevronDown, ChevronUp, Navigation, Smile } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import ToggleStatusMobilidade from '@/components/mobilidade/ToggleStatusMobilidade'
 import DrawerEspacoProfissionalMobilidade from '@/components/mobilidade/DrawerEspacoProfissionalMobilidade'
 import DrawerManifestoEspaco from '@/components/mobilidade/DrawerManifestoEspaco'
 import CardParteAtendimentoFlutuante from '@/components/mobilidade/CardParteAtendimentoFlutuante'
-import { propsUmToque } from '@/lib/umToque'
-import { modalidadeUsaManifesto } from '@/lib/mobilidadeOfertaAtendimento'
 import type { MobilidadeStatusId } from '@/lib/mobilidadeStatusProfissional'
 import {
   ehAtendimentoImediatoAtivo,
@@ -154,7 +152,6 @@ export default function CardStatusProfissionalMobilidade({
   const online = status === 'online' || status === 'em_atendimento' || emAtendimento
 
   const st = String(corrida?.status ?? '')
-  const usaManifesto = modalidadeUsaManifesto(corrida?.modalidade) || listaIniciada
   const tituloAtendimento =
     st === 'em_viagem'
       ? t('drawerAtivoInicio')
@@ -209,17 +206,6 @@ export default function CardStatusProfissionalMobilidade({
           >
             {emAtendimento ? (
               <>
-                {usaManifesto ? (
-                  <button
-                    type="button"
-                    {...propsUmToque(() => setManifestoAberto(true))}
-                    className="flex w-full cursor-pointer touch-manipulation items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold uppercase tracking-wide text-white shadow-sm"
-                    style={{ backgroundColor: COR }}
-                  >
-                    <ClipboardList className="h-4 w-4 shrink-0" aria-hidden strokeWidth={2.25} />
-                    {t('manifestoAtalhoLista')}
-                  </button>
-                ) : null}
                 {listaIniciada ? (
                   <ToggleStatusMobilidade
                     variant="card"

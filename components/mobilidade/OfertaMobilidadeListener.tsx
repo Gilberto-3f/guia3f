@@ -28,7 +28,10 @@ import {
   MOBILIDADE_ABRIR_DRAWER_ATIVO,
   MOBILIDADE_CORRIDA_ATIVA,
 } from '@/lib/mobilidadeAtendimentoAtivoEventos'
-import { modalidadeUsaDeslocamentoProprio } from '@/lib/mobilidadeOfertaAtendimento'
+import {
+  modalidadeUsaDeslocamentoProprio,
+  modalidadeUsaManifesto,
+} from '@/lib/mobilidadeOfertaAtendimento'
 import {
   MOBILIDADE_POLL_CHEGADA_GPS_MS,
   MOBILIDADE_POLL_CORRIDA_ATIVA_MS,
@@ -415,9 +418,10 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
     return () => window.removeEventListener(MOBILIDADE_ABRIR_DRAWER_ATIVO, onAbrir)
   }, [corrida])
 
-  /** Chegada no ponto: abre o drawer para SIM/NÃO + chat (sem popup bloqueante). */
+  /** Chegada e Início: abre o drawer (chat + concluir corrida). */
   useEffect(() => {
-    if (String(corrida?.status ?? '') === 'no_local') setDrawerAtivoAberto(true)
+    const st = String(corrida?.status ?? '')
+    if (st === 'no_local' || st === 'em_viagem') setDrawerAtivoAberto(true)
   }, [corrida?.solicitacao_id, corrida?.status])
 
   /** GPS automático: a_caminho → detectar proximidade da partida. */
@@ -720,7 +724,7 @@ export default function OfertaMobilidadeListener({ onCorridaChange }: Props = {}
           erroConcluir={erroConcluir || null}
           pagamentoConfirmado
           onFechar={() => setDrawerAtivoAberto(false)}
-          onConcluir={() => void concluir(false)}
+          onConcluir={() => void concluir(modalidadeUsaManifesto(corrida.modalidade))}
           onConcluirSemManifesto={() => void concluir(true)}
           onConfirmarChegada={(recebido) => void confirmarEmbarque(recebido)}
           erroChegada={erroChegada || null}
