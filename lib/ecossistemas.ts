@@ -210,3 +210,25 @@ export function mapRowEcossistema(
     cidades,
   }
 }
+
+export function blocosDisponiveisHome(lista: EcossistemaBloco[]): EcossistemaBloco[] {
+  return lista.filter((e) => e.disponivel_home)
+}
+
+export function escolherBlocoInicial(
+  lista: EcossistemaBloco[],
+  storedId: string | null,
+): EcossistemaBloco | null {
+  const home = blocosDisponiveisHome(lista)
+  if (home.length === 0) return null
+  if (storedId) {
+    const hit = home.find((e) => e.id === storedId)
+    if (hit) return hit
+  }
+  return home.find((e) => e.padrao) ?? home[0] ?? null
+}
+
+export function podeEscolherEcossistemaHome(role: string | null | undefined): boolean {
+  const r = String(role ?? '').trim()
+  return r !== 'profissional' && r !== 'empresa'
+}

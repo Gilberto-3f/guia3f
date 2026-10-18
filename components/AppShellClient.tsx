@@ -9,6 +9,7 @@ import { ProfissionalGateProvider } from '@/context/ProfissionalGateContext'
 import { AnfitriaoModoProvider } from '@/context/AnfitriaoModoContext'
 import { GuiaModoProvider } from '@/context/GuiaModoContext'
 import { VanModoProvider } from '@/context/VanModoContext'
+import { EcossistemaAtivoProvider } from '@/context/EcossistemaAtivoContext'
 import ModoApresentacaoChrome from '@/components/ModoApresentacaoChrome'
 import ProfissionalGateBanner from '@/components/ProfissionalGateBanner'
 import BottomBar from '@/components/BottomBar'
@@ -229,9 +230,11 @@ export default function AppShellClient({ children }: { children: ReactNode }) {
             <AnfitriaoModoProvider>
               <GuiaModoProvider>
                 <VanModoProvider>
-                  <Suspense fallback={<AppShellSuspenseFallback>{children}</AppShellSuspenseFallback>}>
-                    <AppShellInner>{children}</AppShellInner>
-                  </Suspense>
+                  <EcossistemaAtivoProvider>
+                    <Suspense fallback={<AppShellSuspenseFallback>{children}</AppShellSuspenseFallback>}>
+                      <AppShellInner>{children}</AppShellInner>
+                    </Suspense>
+                  </EcossistemaAtivoProvider>
                 </VanModoProvider>
               </GuiaModoProvider>
             </AnfitriaoModoProvider>

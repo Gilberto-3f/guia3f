@@ -734,7 +734,10 @@
     "servicos": "Services",
     "servicosLocais": "Local Services",
     "tabGuia": "GUIDE",
-    "tabMobilidade": "MOBILITY"
+    "tabMobilidade": "MOBILITY",
+    "ecoAria": "Choose ecosystem",
+    "ecoTipoCidade": "city",
+    "ecoTipoRegiao": "region"
   },
   "MudarSenha": {
     "hint": "Enter your current password and choose a new one. Other devices will be signed out.",

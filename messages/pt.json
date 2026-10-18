@@ -734,7 +734,10 @@
     "servicos": "Serviços",
     "servicosLocais": "Serviços Locais",
     "tabGuia": "GUIA",
-    "tabMobilidade": "MOBILIDADE"
+    "tabMobilidade": "MOBILIDADE",
+    "ecoAria": "Escolher ecossistema",
+    "ecoTipoCidade": "cidade",
+    "ecoTipoRegiao": "região"
   },
   "MudarSenha": {
     "hint": "Informe a senha atual e escolha uma nova. Os outros dispositivos serão desconectados.",

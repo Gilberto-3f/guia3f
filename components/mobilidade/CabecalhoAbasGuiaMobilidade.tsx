@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { Car, MapPin } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
+import ChevronEcossistemaHome from '@/components/ChevronEcossistemaHome'
 
 function abaCls(ativo: boolean) {
   return `relative z-10 flex min-w-0 flex-1 cursor-pointer touch-manipulation items-center justify-center gap-2 border-b-[3px] py-3 text-center text-sm font-semibold tracking-wide transition-colors sm:text-base ${
@@ -56,6 +57,7 @@ export default function CabecalhoAbasGuiaMobilidade({
           />
         </div>
       ) : null}
+      <ChevronEcossistemaHome />
 
       <nav
         className="relative z-50 flex w-full border-b border-gray-200 bg-white touch-manipulation"
