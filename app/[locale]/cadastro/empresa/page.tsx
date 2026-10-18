@@ -12,15 +12,15 @@ import { useUsernameDisponivel } from '@/hooks/useUsernameDisponivel'
 import { digitsWhatsapp } from '@/lib/whatsapp-empresa'
 import { CATEGORIAS_EMPRESA_DB } from '@/lib/segmentosEmpresaGuia'
 import { resolverCoordsEmpresa } from '@/lib/empresaCoordsBackfill'
+import { CIDADES_CATALOGO, cidadeDoCatalogo, gravarVinculosEcossistema } from '@/lib/ecossistemas'
+import { CampoEcossistemasCadastro, useEcossistemasCadastro } from '@/components/cadastro/CampoEcossistemasCadastro'
 
 type CategoriaEmpresa = (typeof CATEGORIAS_EMPRESA_DB)[number]
-
-type CidadeEmpresa = 'Foz do Iguacu' | 'Ciudad del Este' | 'Puerto Iguazu'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const categorias: CategoriaEmpresa[] = [...CATEGORIAS_EMPRESA_DB]
-const cidades: CidadeEmpresa[] = ['Foz do Iguacu', 'Ciudad del Este', 'Puerto Iguazu']
+const cidades = CIDADES_CATALOGO.map((c) => c.chave)
 
 const senhaRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
 
@@ -57,7 +57,7 @@ function catLabel(cat: CategoriaEmpresa, t: (k: string) => string) {
   return t(catMessageKey[cat])
 }
 
-function cidadeLabel(cidade: CidadeEmpresa, t: (k: string) => string) {
+function cidadeLabel(cidade: string, t: (k: string) => string) {
   switch (cidade) {
     case 'Foz do Iguacu':
       return t('empresa.cidade.fozDoIguacu')
@@ -65,6 +65,10 @@ function cidadeLabel(cidade: CidadeEmpresa, t: (k: string) => string) {
       return t('empresa.cidade.ciudadDelEste')
     case 'Puerto Iguazu':
       return t('empresa.cidade.puertoIguazu')
+    case 'Londrina':
+      return t('empresa.cidade.londrina')
+    default:
+      return cidadeDoCatalogo(cidade)?.label ?? cidade
   }
 }
 
@@ -81,7 +85,8 @@ export default function CadastroEmpresaPage() {
   const [senhaConfirma, setSenhaConfirma] = useState('')
   const [modoLogado, setModoLogado] = useState(false)
   const [categoria, setCategoria] = useState<CategoriaEmpresa>('Restaurantes')
-  const [cidade, setCidade] = useState<CidadeEmpresa>('Foz do Iguacu')
+  const [cidade, setCidade] = useState(CIDADES_CATALOGO[0]?.chave ?? 'Foz do Iguacu')
+  const { lista: ecosLista, ids: ecoIds, setIds: setEcoIds, carregou: ecosCarregou } = useEcossistemasCadastro()
   const [enderecoRua, setEnderecoRua] = useState('')
   const [enderecoNumero, setEnderecoNumero] = useState('')
   const [enderecoBairro, setEnderecoBairro] = useState('')
@@ -129,6 +134,7 @@ export default function CadastroEmpresaPage() {
     if (!enderecoNumero.trim()) return t('empresa.valNumber')
     if (!enderecoBairro.trim()) return t('empresa.valNeighborhood')
     if (!aceitePoliticas) return t('empresa.valPolicies')
+    if (ecosCarregou && ecosLista.length > 0 && ecoIds.length < 1) return t('valEcossistemas')
     if (!modoLogado) {
       if (!senhaRegex.test(senha)) return t('apiErrorInvalidPassword')
       if (senha !== senhaConfirma) return t('signUpPasswordMatch')
@@ -167,6 +173,7 @@ export default function CadastroEmpresaPage() {
         fd.append('enderecoNumero', enderecoNumero.trim())
         fd.append('enderecoBairro', enderecoBairro.trim())
         fd.append('aceitePoliticas', String(aceitePoliticas))
+        fd.append('ecossistemaIds', JSON.stringify(ecoIds))
 
         const res = await fetch('/api/cadastro/empresa', { method: 'POST', body: fd })
         const json = (await res.json().catch(() => ({}))) as {
@@ -267,6 +274,12 @@ export default function CadastroEmpresaPage() {
       }
 
       if (insertEmpresa.error) throw new Error(insertEmpresa.error.message)
+
+      const { data: emp } = await supabase.from('empresas').select('id').eq('usuario_id', userId).maybeSingle()
+      if (emp?.id && ecoIds.length > 0) {
+        const vinculo = await gravarVinculosEcossistema(supabase, 'empresa', String(emp.id), ecoIds)
+        if (!vinculo.ok) throw new Error(vinculo.error)
+      }
 
       router.push('/guia')
     } catch (error) {
@@ -452,6 +465,14 @@ export default function CadastroEmpresaPage() {
           </div>
         </div>
 
+        <CampoEcossistemasCadastro
+          lista={ecosLista}
+          value={ecoIds}
+          onChange={setEcoIds}
+          label={`${t('ecossistemas')} ${t('common.required')}`}
+          hint={t('ecossistemasHint')}
+        />
+
         <div>
           <label htmlFor="cidade" className="mb-1 block text-sm font-medium text-[#001f3f]">
             {t('empresa.cityOrigin')} {t('common.required')}
@@ -459,7 +480,7 @@ export default function CadastroEmpresaPage() {
           <select
             id="cidade"
             value={cidade}
-            onChange={(e) => setCidade(e.target.value as CidadeEmpresa)}
+            onChange={(e) => setCidade(e.target.value)}
             className={inputCls}
           >
             {cidades.map((item) => (

@@ -80,6 +80,11 @@
       "emailInvalid": "E-mail inválido.",
       "emailHint": "Use um e-mail válido para acesso."
     },
+    "ecossistemas": "Onde deseja atuar",
+    "ecossistemasHint": "Escolha uma ou mais cidades ou regiões.",
+    "ecoTipoCidade": "cidade",
+    "ecoTipoRegiao": "região",
+    "valEcossistemas": "Escolha ao menos um ecossistema.",
     "username": {
       "rulesHint": "Use 3-20 caracteres: letras minúsculas, números, ponto e _",
       "checking": "Verificando disponibilidade...",
@@ -221,7 +226,8 @@
       "cidade": {
         "fozDoIguacu": "Foz do Iguaçu",
         "ciudadDelEste": "Ciudad del Este",
-        "puertoIguazu": "Puerto Iguazú"
+        "puertoIguazu": "Puerto Iguazú",
+        "londrina": "Londrina"
       },
       "valTradeName": "Informe o nome fantasia.",
       "valUsername": "Escolha um nome de usuário disponível.",

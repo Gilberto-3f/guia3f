@@ -12,6 +12,8 @@ import { useUsernameDisponivel } from '@/hooks/useUsernameDisponivel'
 import CampoIdiomasGuia from '@/components/perfil/CampoIdiomasGuia'
 import { normalizarIdiomasGuia } from '@/lib/idiomasGuia'
 import { digitsWhatsapp } from '@/lib/whatsapp-empresa'
+import { cidadesChaveDosBlocos, gravarVinculosEcossistema } from '@/lib/ecossistemas'
+import { CampoEcossistemasCadastro, useEcossistemasCadastro } from '@/components/cadastro/CampoEcossistemasCadastro'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -88,6 +90,7 @@ type CadastroProfissionalPayload = {
   whatsapp: string
   categoria: string
   cidadeAtuacao: string
+  ecossistemaIds: string[]
   aceitePoliticas: boolean
   idiomas?: string[]
 }
@@ -105,6 +108,7 @@ export default function CadastroProfissionalPage() {
   const [modoLogado, setModoLogado] = useState(false)
   const [whatsApp, setWhatsApp] = useState('')
   const [cidadeAtuacao, setCidadeAtuacao] = useState<CidadeProfissional>('Foz do Iguacu')
+  const { lista: ecosLista, ids: ecoIds, setIds: setEcoIds, carregou: ecosCarregou } = useEcossistemasCadastro()
   const [categoria, setCategoria] = useState<CategoriaProfissional | ''>('')
   const [idiomas, setIdiomas] = useState<string[]>(['pt'])
   const [aceitePoliticas, setAceitePoliticas] = useState(false)
@@ -161,6 +165,7 @@ export default function CadastroProfissionalPage() {
       return 'Selecione ao menos um idioma que você atende.'
     }
     if (!aceitePoliticas) return t('profissional.valPolicies')
+    if (ecosCarregou && ecosLista.length > 0 && ecoIds.length < 1) return t('valEcossistemas')
     if (!modoLogado) {
       if (!senhaRegex.test(senha)) return t('apiErrorInvalidPassword')
       if (senha !== senhaConfirma) return t('signUpPasswordMatch')
@@ -189,6 +194,7 @@ export default function CadastroProfissionalPage() {
           whatsapp: whatsApp.trim(),
           categoria,
           cidadeAtuacao,
+          ecossistemaIds: ecoIds,
           aceitePoliticas,
           ...(categoria === 'Guia' ? { idiomas: normalizarIdiomasGuia(idiomas) } : {}),
         }
@@ -247,6 +253,7 @@ export default function CadastroProfissionalPage() {
       )
       if (upsertUsuario.error) throw new Error(upsertUsuario.error.message)
 
+      const cidadesDerivadas = cidadesChaveDosBlocos(ecosLista.filter((e) => ecoIds.includes(e.id)))
       const payloadProfissional: Record<string, unknown> = {
         usuario_id: userId,
         nome_completo: nomeCompleto.trim(),
@@ -254,7 +261,7 @@ export default function CadastroProfissionalPage() {
         telefone: whatsApp.trim(),
         categorias: [categoria],
         placa_vermelha: placaVermelha,
-        cidade_atuacao: [cidadeAtuacao],
+        cidade_atuacao: cidadesDerivadas.length > 0 ? cidadesDerivadas : [cidadeAtuacao],
         status: 'pendente',
       }
       if (categoria === 'Guia') {
@@ -284,6 +291,16 @@ export default function CadastroProfissionalPage() {
       }
 
       if (insertProfissional.error) throw new Error(insertProfissional.error.message)
+
+      const { data: prof } = await supabase
+        .from('profissionais')
+        .select('id')
+        .eq('usuario_id', userId)
+        .maybeSingle()
+      if (prof?.id && ecoIds.length > 0) {
+        const vinculo = await gravarVinculosEcossistema(supabase, 'profissional', String(prof.id), ecoIds)
+        if (!vinculo.ok) throw new Error(vinculo.error)
+      }
 
       router.push('/guia')
     } catch (error) {
@@ -408,6 +425,15 @@ export default function CadastroProfissionalPage() {
             </>
           ) : null}
 
+          <CampoEcossistemasCadastro
+            lista={ecosLista}
+            value={ecoIds}
+            onChange={setEcoIds}
+            label={`${t('ecossistemas')} ${t('common.required')}`}
+            hint={t('ecossistemasHint')}
+          />
+
+          {ecosLista.length === 0 ? (
           <div>
             <label htmlFor="cidadeProf" className="mb-1 block text-sm font-medium text-[#001f3f]">
               {t('profissional.cityOrigin')} {t('common.required')}
@@ -425,6 +451,7 @@ export default function CadastroProfissionalPage() {
               ))}
             </select>
           </div>
+          ) : null}
 
           <div>
             <label htmlFor="categoria" className="mb-1 block text-sm font-medium text-[#001f3f]">

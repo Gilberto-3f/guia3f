@@ -6,6 +6,7 @@ import {
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { ehCategoriaEmpresaPermitida } from '@/lib/segmentosEmpresaGuia'
 import { resolverCoordsEmpresa } from '@/lib/empresaCoordsBackfill'
+import { gravarVinculosEcossistema, parseEcossistemaIds, resolverIdsEcossistema } from '@/lib/ecossistemas'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const senhaRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
@@ -220,6 +221,24 @@ export async function POST(req: NextRequest) {
         { error: 'Erro ao inserir empresa', step: 'insertEmpresa', details: safeSupabaseError(insertErr), createdUserId },
         { status: 500 }
       )
+    }
+
+    const ecoIdsInformados = parseEcossistemaIds(form.get('ecossistemaIds'))
+    let ecoIdsFinais = ecoIdsInformados
+    try {
+      const resolved = await resolverIdsEcossistema(admin, ecoIdsInformados)
+      ecoIdsFinais = resolved.ids
+    } catch {
+      ecoIdsFinais = []
+    }
+    const { data: emp } = createdUserId
+      ? await admin.from('empresas').select('id').eq('usuario_id', createdUserId).maybeSingle()
+      : { data: null }
+    if (emp?.id && ecoIdsFinais.length > 0) {
+      const vinculo = await gravarVinculosEcossistema(admin, 'empresa', String(emp.id), ecoIdsFinais)
+      if (!vinculo.ok) {
+        console.error('[cadastro/empresa] vinculos', vinculo.error)
+      }
     }
 
     return NextResponse.json({ ok: true, step: 'complete' })
