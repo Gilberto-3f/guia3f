@@ -62,29 +62,41 @@ const COLUNAS_EMPRESA_GUIA_SEM_PALAVRAS =
 export async function buscarEmpresasListagemGuia(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
-  opts: { categoria: string; cidade: string },
+  opts: {
+    categoria: string
+    cidade: string
+    idsEcossistema?: string[] | null
+    /** false = só o vínculo N:N do bloco (sem filtrar empresas.cidade). */
+    filtrarCidade?: boolean
+  },
 ): Promise<{ lista: Record<string, unknown>[]; error: string | null }> {
   const { categoria, cidade } = opts
   const categorias = aliasesCategoriaDbGuia(categoria)
-  const cidades = aliasesCidadeGuia(cidade)
+  const filtrarCidade = opts.filtrarCidade !== false
+  const cidades = filtrarCidade ? aliasesCidadeGuia(cidade) : []
 
-  if (categorias.length === 0 || cidades.length === 0) {
+  if (categorias.length === 0) {
+    return { lista: [], error: null }
+  }
+  if (filtrarCidade && cidades.length === 0) {
     return { lista: [], error: null }
   }
 
   const idsSet = await buscarIdsEmpresaPresencaPublicaVigente(supabase)
-  const ids = [...idsSet]
+  let ids = [...idsSet]
+  if (Array.isArray(opts.idsEcossistema)) {
+    const eco = new Set(opts.idsEcossistema)
+    ids = ids.filter((id) => eco.has(id))
+  }
   if (ids.length === 0) {
     return { lista: [], error: null }
   }
 
-  const base = (select: string, slice: string[]) =>
-    supabase
-      .from('empresas')
-      .select(select)
-      .in('id', slice)
-      .in('categoria', categorias)
-      .in('cidade', cidades)
+  const base = (select: string, slice: string[]) => {
+    let q = supabase.from('empresas').select(select).in('id', slice).in('categoria', categorias)
+    if (filtrarCidade && cidades.length > 0) q = q.in('cidade', cidades)
+    return q
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ordenar = (q: any) =>

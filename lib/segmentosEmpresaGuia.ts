@@ -55,6 +55,7 @@ export const VARIANTES_CIDADE_GUIA: Record<string, readonly string[]> = {
   ],
   'puerto iguazu': ['Puerto Iguazu', 'Puerto Iguazú'],
   cde: ['Ciudad del Este', 'Cidade do Leste', 'CDE', 'cde'],
+  londrina: ['Londrina'],
 }
 
 /** Título da página de filtros por slug da URL (GradeFiltros). */

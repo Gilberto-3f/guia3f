@@ -32,6 +32,11 @@ import {
   TITULO_SLUG_GUIA,
   type PaisGuiaFiltro,
 } from '@/lib/segmentosEmpresaGuia'
+import { useEcossistemaAtivo } from '@/context/EcossistemaAtivoContext'
+import {
+  buscarIdsEmpresaEcossistema,
+  chipsPaisDoBloco,
+} from '@/lib/ecossistemaFiltro'
 
 /** Slugs extras (fora dos 5 segmentos comerciais principais). */
 const SLUG_CATEGORIA_EXTRA: Record<string, string> = {
@@ -109,6 +114,8 @@ export default function ListagemCategoriaPage() {
   const degustacaoJaResolvidaRef = useRef(false)
   const [loading, setLoading] = useState(true)
   const [erroLista, setErroLista] = useState('')
+  const { ativo: ecoAtivo, carregou: ecoCarregou } = useEcossistemaAtivo()
+  const chipsPais = useMemo(() => chipsPaisDoBloco(ecoAtivo), [ecoAtivo])
   const [pais, setPais] = useState<PaisGuiaFiltro>('br')
   const [ordenacao, setOrdenacao] = useState<OrdenacaoModo>('avaliacao')
   const [geoCarregando, setGeoCarregando] = useState(false)
@@ -126,21 +133,38 @@ export default function ListagemCategoriaPage() {
   const ehPaginaHospedagem = slug === 'hospedagem'
 
   const categoriaDb = SLUG_CATEGORIA_EXTRA[slug] ?? categoriaDbPorSlugGuia(slug)
-  const cidadeDb = useMemo(() => cidadeGuiaPorPais(pais), [pais])
+  const cidadeDb = useMemo(() => {
+    const chip = chipsPais.find((c) => c.pais === pais)
+    if (chip) return chip.cidadeChave
+    if (ecoAtivo?.cidades[0]?.chave) return ecoAtivo.cidades[0].chave
+    return cidadeGuiaPorPais(pais)
+  }, [chipsPais, pais, ecoAtivo])
 
   const cacheKey = useMemo(
-    () => `guia:listagem:v3:${String(slug)}:${String(categoriaDb)}:${String(cidadeDb)}`,
-    [slug, categoriaDb, cidadeDb]
+    () =>
+      `guia:listagem:v4:${String(slug)}:${String(categoriaDb)}:${String(cidadeDb)}:${ecoAtivo?.id ?? 'padrao'}`,
+    [slug, categoriaDb, cidadeDb, ecoAtivo?.id],
   )
 
+  useEffect(() => {
+    if (chipsPais.length === 0) return
+    if (!chipsPais.some((c) => c.pais === pais)) {
+      setPais(chipsPais.find((c) => c.pais === 'br')?.pais ?? chipsPais[0].pais)
+    }
+  }, [chipsPais, pais])
+
   const carregarEmpresas = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!ecoCarregou) return
     const silent = Boolean(opts?.silent)
     if (!silent) setLoading(true)
     if (!silent) setErroLista('')
     try {
+      const idsEco = await buscarIdsEmpresaEcossistema(supabase, ecoAtivo?.id)
       const { lista, error } = await buscarEmpresasListagemGuia(supabase, {
         categoria: categoriaDb,
         cidade: cidadeDb,
+        idsEcossistema: idsEco ? [...idsEco] : null,
+        filtrarCidade: chipsPais.length > 1 || !idsEco,
       })
 
       if (error) {
@@ -157,7 +181,7 @@ export default function ListagemCategoriaPage() {
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [categoriaDb, cidadeDb])
+  }, [categoriaDb, cidadeDb, ecoAtivo?.id, ecoCarregou, cacheKey, chipsPais.length])
 
   useEffect(() => {
     let ativo = true
@@ -440,25 +464,21 @@ export default function ListagemCategoriaPage() {
 
           <div className="flex w-full min-w-0 flex-nowrap items-center justify-between gap-2">
             <div className="flex items-center gap-4">
-              {(
-                [
-                  { id: 'br' as const, emoji: '🇧🇷', alt: 'Brasil' },
-                  { id: 'py' as const, emoji: '🇵🇾', alt: 'Paraguai' },
-                  { id: 'ar' as const, emoji: '🇦🇷', alt: 'Argentina' },
-                ] as const
-              ).map((f) => {
-                const ativo = pais === f.id
+              {(chipsPais.length > 1 ? chipsPais : []).map((f) => {
+                const emoji = f.pais === 'br' ? '🇧🇷' : f.pais === 'py' ? '🇵🇾' : '🇦🇷'
+                const alt = f.label
+                const ativoFlag = pais === f.pais
                 return (
                   <button
-                    key={f.id}
+                    key={f.pais}
                     type="button"
-                    onClick={() => setPais(f.id)}
-                    aria-label={f.alt}
+                    onClick={() => setPais(f.pais)}
+                    aria-label={alt}
                     className={`p-0.5 leading-none drop-shadow-[0_0_2px_white] transition ${
-                      ativo ? 'scale-110 text-5xl' : 'scale-100 text-4xl'
+                      ativoFlag ? 'scale-110 text-5xl' : 'scale-100 text-4xl'
                     }`}
                   >
-                    <span aria-hidden>{f.emoji}</span>
+                    <span aria-hidden>{emoji}</span>
                   </button>
                 )
               })}

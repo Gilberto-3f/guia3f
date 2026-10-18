@@ -58,7 +58,7 @@ import {
   MOEDAS_MOBILIDADE,
   PAGAMENTOS_ORDEM,
 } from '@/lib/mobilidadePopupPesquisa'
-import type { RotaTabelada } from '@/lib/servicosTabeladosCatalogo'
+import type { CidadeOrigemTabeladoId, RotaTabelada } from '@/lib/servicosTabeladosCatalogo'
 import { labelIdiomaGuia } from '@/lib/idiomasGuia'
 import { forwardGeocodeMapbox } from '@/lib/mapboxForwardGeocode'
 import { reverseGeocodeMapbox } from '@/lib/mapboxReverseGeocode'
@@ -91,6 +91,8 @@ type Props = {
   destinoLabelCurto?: string | null
   /** Drawers 2–3: nome + endereço (empresa). */
   destinoLabelCompleto?: string | null
+  /** Origens tabeladas permitidas no bloco ativo (vazio = sem rotas tabeladas). */
+  cidadesTabeladoOk?: CidadeOrigemTabeladoId[] | null
   /** Empresas do mapa — autocomplete do destino (particular). */
   empresas?: {
     id: string
@@ -290,6 +292,7 @@ export default function DrawerPesquisaMobilidade({
   destinoLabelCurto = null,
   destinoLabelCompleto = null,
   empresas = [],
+  cidadesTabeladoOk = null,
   onResultado,
 }: Props) {
   const t = useTranslations('Mobilidade')
@@ -609,7 +612,7 @@ export default function DrawerPesquisaMobilidade({
   useEffect(() => {
     if (!aberto) return
     const tab = cidadeTripliceParaTabelado(cidadeOrigem)
-    if (!tab) {
+    if (!tab || (cidadesTabeladoOk != null && !cidadesTabeladoOk.includes(tab))) {
       setRotas([])
       setCarregandoValores(false)
       return
@@ -632,7 +635,7 @@ export default function DrawerPesquisaMobilidade({
     return () => {
       ativo = false
     }
-  }, [aberto, cidadeOrigem])
+  }, [aberto, cidadeOrigem, cidadesTabeladoOk])
 
   useEffect(() => {
     if (!aberto || modalidade !== 'guia' || modoParticular) return

@@ -33,6 +33,12 @@ import {
   limparChamarCorridaIntent,
 } from '@/lib/chamarCorridaIntent'
 import { type EmpresaMapaMobilidade } from '@/lib/mobilidadeMapaEmpresas'
+import { useEcossistemaAtivo } from '@/context/EcossistemaAtivoContext'
+import {
+  buscarIdsEmpresaEcossistema,
+  cidadePertenceAoBloco,
+  cidadesTabeladoDoBloco,
+} from '@/lib/ecossistemaFiltro'
 import { abreviarCidadeTriplice } from '@/lib/mobilidadeRegional'
 import {
   parseCidadesAtuacaoProf,
@@ -162,6 +168,8 @@ export default function VisaoTuristaMobilidade({
   const [empresas, setEmpresas] = useState<EmpresaMapaMobilidade[]>([])
   const [empresasErro, setEmpresasErro] = useState<string | null>(null)
   const [carregandoEmpresas, setCarregandoEmpresas] = useState(true)
+  const { ativo: ecoAtivo } = useEcossistemaAtivo()
+  const [idsEco, setIdsEco] = useState<Set<string> | null>(null)
   const [visitanteParceria, setVisitanteParceria] = useState<VisitanteParceriaMapa | null>(null)
   const [gpsCentro, setGpsCentro] = useState<{ lat: number; lng: number } | null>(null)
   const [origemLabelGps, setOrigemLabelGps] = useState<string | null>(null)
@@ -708,6 +716,24 @@ export default function VisaoTuristaMobilidade({
   }, [perfilEhProfissional])
 
   useEffect(() => {
+    let cancel = false
+    void buscarIdsEmpresaEcossistema(supabase, ecoAtivo?.id).then((s) => {
+      if (!cancel) setIdsEco(s)
+    })
+    return () => {
+      cancel = true
+    }
+  }, [ecoAtivo?.id])
+
+  const empresasDoBloco = useMemo(() => {
+    if (idsEco) return empresas.filter((e) => idsEco.has(e.id))
+    if (ecoAtivo) return empresas.filter((e) => cidadePertenceAoBloco(e.cidade, ecoAtivo))
+    return empresas
+  }, [empresas, idsEco, ecoAtivo])
+
+  const cidadesTabeladoOk = useMemo(() => cidadesTabeladoDoBloco(ecoAtivo), [ecoAtivo])
+
+  useEffect(() => {
     let ativo = true
     let retryTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -890,7 +916,7 @@ export default function VisaoTuristaMobilidade({
       {/* Mapa full-bleed — até a bottom bar; card flutua por cima. */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <MapaMobilidade
-          empresas={empresas}
+          empresas={empresasDoBloco}
           centro={gpsCentro}
           origem={origemEfetiva}
           destino={destinoEfetivo}
@@ -941,7 +967,7 @@ export default function VisaoTuristaMobilidade({
               destinoInicial={destinoInicialCard}
               destinoEmpresaIdInicial={destinoEmpresaIdCard}
               destinoSyncToken={destinoSyncToken}
-              empresas={empresas}
+              empresas={empresasDoBloco}
               forcarRecolhido={drawerAberto}
               expandidoInicial={Boolean(cardDestino) || anfitriaoChamarCorrida}
               pendenciaResultado={
@@ -1016,7 +1042,8 @@ export default function VisaoTuristaMobilidade({
           destinoNomeEmpresa={destinoNomeEmpresa}
           destinoLabelCurto={destinoLabelCurtoEmpresa}
           destinoLabelCompleto={destinoLabelCompletoEmpresa}
-          empresas={empresas}
+          empresas={empresasDoBloco}
+          cidadesTabeladoOk={cidadesTabeladoOk}
           onResultado={(r) => {
             setResultadoCorrida(r)
             setResultadoAberto(true)
