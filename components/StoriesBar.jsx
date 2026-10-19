@@ -30,6 +30,7 @@ import {
 } from '@/lib/story-open-order'
 import StoryCircle from '@/components/StoryCircle'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { useEcossistemaAtivo } from '@/context/EcossistemaAtivoContext'
 import { useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
 import { useGuiaModo } from '@/context/GuiaModoContext'
 import { useVanModo } from '@/context/VanModoContext'
@@ -101,6 +102,8 @@ function labelStoryEmpresa(e) {
 export default function StoriesBar({ hidden = false, userEmail, onOpenStory, reloadSignal = 0 }) {
   const [barMounted, setBarMounted] = useState(false)
   const { podeInteragir, notificarSomenteLeitura, modoAtivo, perfilSimulado } = useModoApresentacao()
+  const { ativo: ecoAtivo, carregou: ecoCarregou } = useEcossistemaAtivo()
+  const ecoId = ecoAtivo?.id ?? null
   const { ehAnfitriao, modo, empresaHospedagemId, empresaHospedagemLiberada } = useAnfitriaoModo()
   const {
     ehGuia,
@@ -143,6 +146,7 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
   const [meuUserId, setMeuUserId] = useState(/** @type {string | null} */ (null))
 
   const load = useCallback(async () => {
+    if (!ecoCarregou) return
     setStoriesBarLoading(true)
     const {
       data: { session },
@@ -226,15 +230,22 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
         select: 'usuario_id, nome_fantasia, nome_usuario, foto_url, somente_modo_apresentacao',
         usuarioIds: storyAutorIds,
         incluirModoApresentacao: simulandoEmpresa,
+        ecossistemaId: ecoId,
       })
     }
 
-    /** Stories permitidos: próprio utilizador; empresa (global); profissional/turista só se seguido. */
+    const empresasUsuarioIds = new Set(
+      (empresasRows ?? []).map((e) => String(e.usuario_id)).filter(Boolean),
+    )
+
+    /** Stories: próprio; empresa do bloco; qualquer autor seguido (qualquer região). */
     const storiesFiltradas = storiesValidas.filter((s) => {
       if (isTipoVideoPost(s.tipo)) return false
       const aid = String(s.autor_id)
       if (aid === uid) return true
-      if (isAutorEmpresa(s.autor_tipo)) return true
+      if (isAutorEmpresa(s.autor_tipo)) {
+        return empresasUsuarioIds.has(aid) || seguidosIds.has(aid)
+      }
       return seguidosIds.has(aid)
     })
 
@@ -401,6 +412,8 @@ export default function StoriesBar({ hidden = false, userEmail, onOpenStory, rel
     modoVanEfetivo,
     empresaAgenciaVanId,
     empresaAgenciaVanLiberada,
+    ecoCarregou,
+    ecoId,
   ])
 
   useEffect(() => {

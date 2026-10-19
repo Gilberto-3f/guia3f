@@ -61,6 +61,7 @@ import {
 import { buscarPerfisPorIds, getPerfilHref } from '@/lib/perfil-utils'
 import { formatarDataAtividades } from '@/lib/formatarDataPublicacao'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { useEcossistemaAtivo } from '@/context/EcossistemaAtivoContext'
 import { podeVerConteudoEmpresaPreviewApp } from '@/lib/modoApresentacaoVisibilidade'
 import { GUIA_ATIVIDADES_BADGE_EVENT, GUIA_ATIVIDADES_RELOAD_EVENT, zerarBadgeAtividadesMinhaConta } from '@/lib/atividades-events'
 import { resolverUsernameOriginalRepostStory, normalizarUsernameAtividade } from '@/lib/formatarTextoRepostStory'
@@ -225,6 +226,8 @@ const USUARIOS_SELECT = `
 export default function AtividadesPage() {
   const router = useRouter()
   const { modoAtivo, perfilSimulado, contextoEmpresaId } = useModoApresentacao()
+  const { ativo: ecoAtivo, carregou: ecoCarregou } = useEcossistemaAtivo()
+  const ecoId = ecoAtivo?.id ?? null
   const {
     ehAnfitriao,
     modoEfetivo,
@@ -1761,9 +1764,11 @@ export default function AtividadesPage() {
     const [{ rede: seguindoRede, empresas: seguindoEmpresas }, gestoresAnfitriao] = await Promise.all([
       fetchSeguidosRedeEEmpresasAtividades(supabase, uid, {
         incluirModoApresentacao: modoAtivo,
+        ecossistemaId: ecoId,
       }),
       fetchUsuarioIdsGestoresAnfitriaoGuia(supabase, {
         incluirModoApresentacao: modoAtivo,
+        ecossistemaId: ecoId,
       }),
     ])
     if (!aindaValido()) return
@@ -1897,6 +1902,7 @@ export default function AtividadesPage() {
     modoVanEfetivo,
     empresaAgenciaVanId,
     empresaAgenciaVanLiberada,
+    ecoId,
   ])
 
   const carregarMaisAtividades = useCallback(async () => {
@@ -2012,9 +2018,9 @@ export default function AtividadesPage() {
   }, [carregarMaisAtividades])
 
   useEffect(() => {
-    if (!dualModoPronto) return
+    if (!dualModoPronto || !ecoCarregou) return
     void recarregar()
-  }, [recarregar, dualModoPronto])
+  }, [recarregar, dualModoPronto, ecoCarregou])
 
   useEffect(() => {
     const onModoDual = () => {
@@ -3250,7 +3256,7 @@ export default function AtividadesPage() {
     return null
   }
 
-  if (carregando || !dualModoPronto) {
+  if (carregando || !dualModoPronto || !ecoCarregou) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <p className="text-gray-400">Carregando atividades…</p>

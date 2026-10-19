@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { aplicarFiltroEmpresasGuiaPublico } from '@/lib/empresaGuiaVisibilidade'
+import { buscarIdsEmpresaEcossistema } from '@/lib/ecossistemaFiltro'
 import {
   buscarIdsEmpresaPresencaPublicaVigente,
   buscarUsuarioIdsEmpresaPresencaPublicaVigente,
@@ -16,6 +17,18 @@ type EmpresasGuiaOpts = {
   incluirModoApresentacao?: boolean
   /** Colunas do select Supabase (padrão: `usuario_id`). */
   select?: string
+  /** Empresas globais do feed/stories/atividades: só as vinculadas a este bloco. */
+  ecossistemaId?: string | null
+}
+
+async function usuarioIdsPorEmpresaIds(
+  supabase: SupabaseClient,
+  empIds: string[],
+): Promise<string[]> {
+  if (empIds.length === 0) return []
+  const { data, error } = await supabase.from('empresas').select('usuario_id').in('id', empIds)
+  if (error || !data?.length) return []
+  return [...new Set(data.map(usuarioIdDeRow).filter(Boolean))]
 }
 
 /**
@@ -43,24 +56,49 @@ function queryEmpresasGuiaAprovadas(
 
 /**
  * `usuario_id` das empresas do guia cujo conteúdo entra no feed/stories/atividades para todos.
+ * Com `ecossistemaId`, só empresas vinculadas ao bloco (seguidos entram à parte, qualquer região).
  */
 export async function fetchUsuarioIdsTodasEmpresasGuia(
   supabase: SupabaseClient,
-  opts?: { incluirModoApresentacao?: boolean },
+  opts?: { incluirModoApresentacao?: boolean; ecossistemaId?: string | null },
 ): Promise<string[]> {
-  if (opts?.incluirModoApresentacao) {
-    const [vigentes, previewRes] = await Promise.all([
-      buscarUsuarioIdsEmpresaPresencaPublicaVigente(supabase),
-      supabase.from('empresas').select('usuario_id').eq('somente_modo_apresentacao', true),
-    ])
-    const ids = [
-      ...vigentes,
-      ...(previewRes.data ?? []).map(usuarioIdDeRow).filter(Boolean),
-    ]
-    return [...new Set(ids)]
+  const ecoSet = opts?.ecossistemaId
+    ? await buscarIdsEmpresaEcossistema(supabase, opts.ecossistemaId)
+    : null
+
+  if (!ecoSet) {
+    if (opts?.incluirModoApresentacao) {
+      const [vigentes, previewRes] = await Promise.all([
+        buscarUsuarioIdsEmpresaPresencaPublicaVigente(supabase),
+        supabase.from('empresas').select('usuario_id').eq('somente_modo_apresentacao', true),
+      ])
+      const ids = [
+        ...vigentes,
+        ...(previewRes.data ?? []).map(usuarioIdDeRow).filter(Boolean),
+      ]
+      return [...new Set(ids)]
+    }
+    return buscarUsuarioIdsEmpresaPresencaPublicaVigente(supabase)
   }
 
-  return buscarUsuarioIdsEmpresaPresencaPublicaVigente(supabase)
+  const vigentesEmp = [...(await buscarIdsEmpresaPresencaPublicaVigente(supabase))].filter((id) =>
+    ecoSet.has(id),
+  )
+  const vigentes = await usuarioIdsPorEmpresaIds(supabase, vigentesEmp)
+
+  if (opts?.incluirModoApresentacao) {
+    const previewRes = await supabase
+      .from('empresas')
+      .select('id, usuario_id')
+      .eq('somente_modo_apresentacao', true)
+    const previewIds = (previewRes.data ?? [])
+      .filter((r) => ecoSet.has(String((r as { id?: unknown }).id ?? '')))
+      .map(usuarioIdDeRow)
+      .filter(Boolean)
+    return [...new Set([...vigentes, ...previewIds])]
+  }
+
+  return vigentes
 }
 
 /**
@@ -72,19 +110,40 @@ export async function fetchEmpresasGuiaRows<T extends Record<string, unknown> = 
 ): Promise<T[]> {
   const select = opts?.select ?? 'usuario_id'
   const filterUsuarioIds = (opts?.usuarioIds ?? []).map((id) => String(id).trim()).filter(Boolean)
-  const empIdsVigentes = [...(await buscarIdsEmpresaPresencaPublicaVigente(supabase))]
+  const empIdsVigentesRaw = [...(await buscarIdsEmpresaPresencaPublicaVigente(supabase))]
+  const ecoSet = opts?.ecossistemaId
+    ? await buscarIdsEmpresaEcossistema(supabase, opts.ecossistemaId)
+    : null
+  const empIdsVigentes =
+    ecoSet == null ? empIdsVigentesRaw : empIdsVigentesRaw.filter((id) => ecoSet.has(id))
 
   if (opts?.incluirModoApresentacao) {
-    const aprovadasQ = queryEmpresasGuiaAprovadas(supabase, {
-      select,
-      incluirModoApresentacao: false,
-      empresaIds: empIdsVigentes,
-    })
-    const previewQ = supabase.from('empresas').select(select).eq('somente_modo_apresentacao', true)
-    const [aprovadasRes, previewRes] = await Promise.all([
-      filterUsuarioIds.length > 0 ? aprovadasQ.in('usuario_id', filterUsuarioIds) : aprovadasQ,
-      filterUsuarioIds.length > 0 ? previewQ.in('usuario_id', filterUsuarioIds) : previewQ,
-    ])
+    const aprovadasPromise =
+      empIdsVigentes.length === 0
+        ? Promise.resolve({ data: [] as unknown[] })
+        : (() => {
+            const aprovadasQ = queryEmpresasGuiaAprovadas(supabase, {
+              select,
+              incluirModoApresentacao: false,
+              empresaIds: empIdsVigentes,
+            })
+            return filterUsuarioIds.length > 0
+              ? aprovadasQ.in('usuario_id', filterUsuarioIds)
+              : aprovadasQ
+          })()
+
+    const previewPromise =
+      ecoSet && ecoSet.size === 0
+        ? Promise.resolve({ data: [] as unknown[] })
+        : (() => {
+            let previewQ = supabase.from('empresas').select(select).eq('somente_modo_apresentacao', true)
+            if (ecoSet) previewQ = previewQ.in('id', [...ecoSet])
+            return filterUsuarioIds.length > 0
+              ? previewQ.in('usuario_id', filterUsuarioIds)
+              : previewQ
+          })()
+
+    const [aprovadasRes, previewRes] = await Promise.all([aprovadasPromise, previewPromise])
     const merged = [...(aprovadasRes.data ?? []), ...(previewRes.data ?? [])] as unknown as T[]
     const seen = new Set<string>()
     return merged.filter((row) => {
@@ -134,7 +193,7 @@ export async function fetchUsuarioIdsEmpresasFavoritas(
 export async function fetchAutorIdsSeguidosAmigos(
   supabase: SupabaseClient,
   meuId: string | null,
-  opts?: { incluirModoApresentacao?: boolean },
+  opts?: { incluirModoApresentacao?: boolean; ecossistemaId?: string | null },
 ): Promise<string[]> {
   const { rede, empresas } = await fetchSeguidosRedeEEmpresasAtividades(supabase, meuId, opts)
   return [...new Set([...rede, ...empresas])].filter((id) => Boolean(id) && id !== meuId)
@@ -165,7 +224,7 @@ export async function fetchSeguidosRedeAtividades(
 export async function fetchSeguidosRedeEEmpresasAtividades(
   supabase: SupabaseClient,
   meuId: string | null,
-  opts?: { incluirModoApresentacao?: boolean },
+  opts?: { incluirModoApresentacao?: boolean; ecossistemaId?: string | null },
 ): Promise<{ rede: string[]; empresas: string[] }> {
   const [rede, empresas] = await Promise.all([
     fetchSeguidosRedeAtividades(supabase, meuId),
@@ -179,13 +238,14 @@ export async function fetchSeguidosRedeEEmpresasAtividades(
  */
 export async function fetchUsuarioIdsGestoresAnfitriaoGuia(
   supabase: SupabaseClient,
-  opts?: { incluirModoApresentacao?: boolean },
+  opts?: { incluirModoApresentacao?: boolean; ecossistemaId?: string | null },
 ): Promise<string[]> {
   const rows = await fetchEmpresasGuiaRows<{ usuario_id: string; somente_anfitriao?: boolean | null }>(
     supabase,
     {
       select: 'usuario_id, somente_anfitriao',
       incluirModoApresentacao: opts?.incluirModoApresentacao,
+      ecossistemaId: opts?.ecossistemaId,
     },
   )
   return [

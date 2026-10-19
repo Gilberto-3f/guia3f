@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay, sanearAutoresPostsEmpresaPreview } from '@/lib/feed-autor'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
+import { useEcossistemaAtivo } from '@/context/EcossistemaAtivoContext'
 import { isPostOcultoDoFeed, postRawVisivelNoFeed } from '@/lib/feedFiltroSeguidos'
 import {
   fetchUsuarioIdsGestoresAnfitriaoGuia,
@@ -183,6 +184,8 @@ function FeedPageInner() {
   const [meuId, setMeuId] = useState<string | null>(null)
   const [email, setEmail] = useState<string | null>(null)
   const { modoAtivo } = useModoApresentacao()
+  const { ativo: ecoAtivo, carregou: ecoCarregou } = useEcossistemaAtivo()
+  const ecoId = ecoAtivo?.id ?? null
   /** Evita marcar o feed como “pronto” antes da sessão existir (corrida: ready com listas vazias e sem re-fetch). */
   const [authReady, setAuthReady] = useState(false)
   const [feedRede, setFeedRede] = useState<{
@@ -424,15 +427,17 @@ function FeedPageInner() {
         ready: boolean
         meuId?: string | null
       }
-      if (!ready) return { posts: [], fetchCheio: false }
+      if (!ready || !ecoCarregou) return { posts: [], fetchCheio: false }
 
       const meu = uidRef ?? meuId
       const [autoresEmpresas, gestoresAnfitriao] = await Promise.all([
         fetchUsuarioIdsTodasEmpresasGuia(supabase, {
           incluirModoApresentacao: modoAtivo,
+          ecossistemaId: ecoId,
         }),
         fetchUsuarioIdsGestoresAnfitriaoGuia(supabase, {
           incluirModoApresentacao: modoAtivo,
+          ecossistemaId: ecoId,
         }),
       ])
       const allowedAutorIds = [
@@ -475,7 +480,7 @@ function FeedPageInner() {
       const posts = await enriquecerComVisualizacoes(saneados as PostFeedRow[], opts)
       return { posts, fetchCheio }
     },
-    [mapRow, meuId, email, modoAtivo, enriquecerComVisualizacoes]
+    [mapRow, meuId, email, modoAtivo, enriquecerComVisualizacoes, ecoCarregou, ecoId]
   )
 
   const refetchPostsFeed = useCallback(async () => {
@@ -508,7 +513,7 @@ function FeedPageInner() {
   }, [refetchPostsFeed])
 
   useEffect(() => {
-    if (!feedRede.ready || bloqueioEmpresaFeed) return
+    if (!feedRede.ready || !ecoCarregou || bloqueioEmpresaFeed) return
     const run = async () => {
       setLoading(true)
       mergeGenRef.current = 0
@@ -528,14 +533,14 @@ function FeedPageInner() {
       }
     }
     void run()
-  }, [rebuildMergedPosts, feedRede.ready, meuId, feedRede.seguidos, bloqueioEmpresaFeed])
+  }, [rebuildMergedPosts, feedRede.ready, ecoCarregou, meuId, feedRede.seguidos, bloqueioEmpresaFeed])
 
   useEffect(() => {
     fetchPostAttempted.current = null
   }, [postParam])
 
   useEffect(() => {
-    if (!postParam || loading || !feedRede.ready) return
+    if (!postParam || loading || !feedRede.ready || !ecoCarregou) return
     if (posts.some((p) => p.id === postParam)) return
     if (fetchPostAttempted.current === postParam) return
     fetchPostAttempted.current = postParam
@@ -558,9 +563,11 @@ function FeedPageInner() {
       const { seguidos, meuId: uidRef } = feedRedeRef.current
       const autoresEmpresas = await fetchUsuarioIdsTodasEmpresasGuia(supabase, {
         incluirModoApresentacao: modoAtivo,
+        ecossistemaId: ecoId,
       })
       const gestoresAnfitriao = await fetchUsuarioIdsGestoresAnfitriaoGuia(supabase, {
         incluirModoApresentacao: modoAtivo,
+        ecossistemaId: ecoId,
       })
       const raw = data as { autor_id?: unknown; autor_tipo?: unknown; deleted_at?: string | null }
       if (
@@ -584,7 +591,7 @@ function FeedPageInner() {
         return [row, ...prev]
       })
     })()
-  }, [postParam, loading, posts, mapRow, feedRede.ready, meuId, email, modoAtivo])
+  }, [postParam, loading, posts, mapRow, feedRede.ready, ecoCarregou, ecoId, meuId, email, modoAtivo])
 
   useEffect(() => {
     if (!postParam || posts.length === 0) return
