@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
+import { destinoTileSextoHome } from '@/lib/ecossistemas'
 import PublicidadeHome from '@/components/PublicidadeHome'
 import GradeFiltros from '@/components/GradeFiltros'
 import ConclusaoAtendimentoMobilidadeListener from '@/components/mobilidade/ConclusaoAtendimentoMobilidadeListener'
@@ -13,8 +14,15 @@ export default function GuiaPage() {
   const [abaAtiva, setAbaAtiva] = useState<'guia' | 'mobilidade'>('guia')
 
   const handleFiltroClick = (filtroId: string) => {
-    if (filtroId === 'compras') {
-      router.push('/compras-cde')
+    if (filtroId === 'aguarde') return
+    const destSexto =
+      filtroId === 'compras' || filtroId === 'compras_cde'
+        ? destinoTileSextoHome('compras_cde')
+        : filtroId === 'servicos_locais_sexto'
+          ? destinoTileSextoHome('servicos_locais')
+          : null
+    if (destSexto) {
+      router.push(destSexto)
       return
     }
     router.push(`/guia/${filtroId}`)

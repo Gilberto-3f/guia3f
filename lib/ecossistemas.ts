@@ -35,6 +35,13 @@ export const TILE_SEXTO_OPCOES: { id: EcossistemaTileSexto; label: string }[] = 
   { id: 'servicos_locais', label: 'Serviços locais' },
 ]
 
+/** Destino do 6º botão da home. `null` = AGUARDE, não navega. */
+export function destinoTileSextoHome(tile: EcossistemaTileSexto | null | undefined): string | null {
+  if (tile === 'compras_cde') return '/compras-cde'
+  if (tile === 'servicos_locais') return '/guia/servicos_locais'
+  return null
+}
+
 export function slugDeNome(nome: string): string {
   return String(nome ?? '')
     .normalize('NFD')
