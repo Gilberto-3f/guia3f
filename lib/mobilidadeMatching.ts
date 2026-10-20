@@ -23,6 +23,7 @@ import {
 import { parseMobilidadeStatus } from '@/lib/mobilidadeStatusProfissional'
 import { mediaNotaAlvo } from '@/lib/notaMediaAvaliacoes'
 import { modalidadeUsaDeslocamentoProprio } from '@/lib/mobilidadeOfertaAtendimento'
+import { buscarIdsProfissionalEcossistema } from '@/lib/ecossistemaFiltro'
 
 /** Tempo total para aceitar no matching da home (ms). */
 export const MOBILIDADE_OFERTA_TIMEOUT_MS = 45_000
@@ -99,9 +100,17 @@ export async function buscarCandidatosMobilidade(
     cidadeOrigem: CidadeTriplice | null
     /** Capacidade mínima do veículo (van/táxi/guia). */
     lugares?: number
+    /** Só profissionais vinculados a este bloco (N:N). */
+    ecossistemaId?: string | null
+    /** Tríplice: cidade GPS + placa na fronteira. Cidade avulsa: desliga. */
+    regraFronteira?: boolean
   },
 ): Promise<CandidatoMatch[]> {
   const lugaresPedidos = Math.max(1, Number(params.lugares) || 1)
+  const regraFronteira = params.regraFronteira !== false
+  const cruzamento = regraFronteira && params.cruzamentoFronteira
+  const idsEco = await buscarIdsProfissionalEcossistema(admin, params.ecossistemaId)
+  if (idsEco && idsEco.size === 0) return []
 
   let data: Record<string, unknown>[] | null = null
   let error: { message: string } | null = null
@@ -145,7 +154,10 @@ export async function buscarCandidatosMobilidade(
     const placa = Boolean(row.placa_vermelha)
     if (!modalidadeMatchaCategorias(params.modalidade, cats, placa)) continue
 
-    if (params.cruzamentoFronteira) {
+    const profId = String(row.id)
+    if (idsEco && !idsEco.has(profId)) continue
+
+    if (cruzamento) {
       if (!placa) continue
       if (params.modalidade === 'motorista_app') continue
     }
@@ -156,8 +168,8 @@ export async function buscarCandidatosMobilidade(
 
     const cidadeProf = inferirCidadeTriplicePorCoords(lat, lng)
 
-    // Dentro da cidade: preferir mesma cidade de origem
-    if (!params.cruzamentoFronteira && params.cidadeOrigem && cidadeProf) {
+    // Tríplice urbana: mesma cidade de origem. Bloco 1 país: só N:N + distância.
+    if (regraFronteira && !cruzamento && params.cidadeOrigem && cidadeProf) {
       if (cidadeProf !== params.cidadeOrigem) continue
     }
 
@@ -254,6 +266,8 @@ export type SolicitarMobilidadeInput = {
   profissionalFixadoId: string | null
   idiomaPreferido?: string | null
   moedasDinheiro?: string[]
+  ecossistemaId?: string | null
+  regraFronteira?: boolean
 }
 
 /** Resolve profissionais.id a partir de recomendação e/ou usuario_id. */
@@ -430,6 +444,8 @@ export async function criarSolicitacaoEOfertar(
     origemLng: input.origemLng,
     cidadeOrigem: input.cidadeOrigem,
     lugares: input.lugares,
+    ecossistemaId: input.ecossistemaId,
+    regraFronteira: input.regraFronteira,
   })
 
   candidatos = ordenarCandidatosSoftRank(candidatos, {

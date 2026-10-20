@@ -24,6 +24,8 @@ import {
   X,
 } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
+import { useEcossistemaAtivo } from '@/context/EcossistemaAtivoContext'
+import { blocoPermiteCruzamentoFronteira } from '@/lib/ecossistemaFiltro'
 import { supabase } from '@/lib/supabase'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
 import { propsUmToque } from '@/lib/umToque'
@@ -297,6 +299,8 @@ export default function DrawerPesquisaMobilidade({
 }: Props) {
   const t = useTranslations('Mobilidade')
   const router = useRouter()
+  const { ativo: ecoAtivo } = useEcossistemaAtivo()
+  const permiteFronteira = blocoPermiteCruzamentoFronteira(ecoAtivo)
   useModalScrollLock(aberto)
   useEffect(() => {
     if (aberto) refreshAppViewportHeight()
@@ -313,7 +317,7 @@ export default function DrawerPesquisaMobilidade({
       },
       destinoCidadeEmpresa,
     )
-  const cruzamentoBoot = ehCruzamentoFronteira(cidadeOrigemBoot, cidadeDestinoBoot)
+  const cruzamentoBoot = permiteFronteira && ehCruzamentoFronteira(cidadeOrigemBoot, cidadeDestinoBoot)
   const disponiveisBoot = modalidadesDisponiveis(cruzamentoBoot)
   const tabBoot = cidadeTripliceParaTabelado(cidadeOrigemBoot)
   const rotasBoot = tabBoot ? peekRotasTabeladasCache(tabBoot) : null
@@ -421,7 +425,7 @@ export default function DrawerPesquisaMobilidade({
       )
     )
   }, [destinoEfetiva, destEmpresaEfetiva, empresas, destinoCidadeEmpresa, destinoLabelBase])
-  const cruzamento = ehCruzamentoFronteira(cidadeOrigem, cidadeDestino)
+  const cruzamento = permiteFronteira && ehCruzamentoFronteira(cidadeOrigem, cidadeDestino)
 
   const disponiveisBase = useMemo(() => modalidadesDisponiveis(cruzamento), [cruzamento])
 
@@ -922,6 +926,7 @@ export default function DrawerPesquisaMobilidade({
           destino_empresa_id: destEmpId,
           destino_cidade: destinoCidadeEmpresa,
           cruzamento_fronteira: cruzamento,
+          ecossistema_id: ecoAtivo?.id ?? null,
           valor_estimado: valor,
           pagamento,
           moedas_dinheiro: pagamento === 'dinheiro' ? [moedaDinheiro] : [],

@@ -10,6 +10,7 @@ import {
 import type { ModalidadeMobilidadeId } from '@/lib/mobilidadePopupPesquisa'
 import type { CidadeTriplice } from '@/lib/mobilidadeRegional'
 import { validarRecusaMobilidade } from '@/lib/mobilidadeRecusaJustificativas'
+import { buscarIdsProfissionalEcossistema } from '@/lib/ecossistemaFiltro'
 
 export type AgendamentoMobilidadeInput = {
   turistaUsuarioId: string
@@ -30,6 +31,7 @@ export type AgendamentoMobilidadeInput = {
   dataAgendada: string | null
   recomendacaoId: string | null
   profissionalFixadoId: string | null
+  ecossistemaId?: string | null
 }
 
 /** Corridas com partida a mais de 2h usam fluxo de agendamento. */
@@ -94,6 +96,7 @@ export async function buscarSlotsDisponiveis(
     modalidade: ModalidadeMobilidadeId
     lugares: number
     profissionalFixadoId?: string | null
+    ecossistemaId?: string | null
   },
 ): Promise<
   Array<
@@ -122,6 +125,11 @@ export async function buscarSlotsDisponiveis(
   const { data, error } = await q
   if (error || !data) return []
 
+  const idsEco = params.profissionalFixadoId
+    ? null
+    : await buscarIdsProfissionalEcossistema(admin, params.ecossistemaId)
+  if (idsEco && idsEco.size === 0) return []
+
   const out: Array<
     SlotDisponibilidade & { nome: string; username: string | null; usuario_id: string }
   > = []
@@ -136,6 +144,7 @@ export async function buscarSlotsDisponiveis(
 
     const prof = Array.isArray(row.profissionais) ? row.profissionais[0] : row.profissionais
     if (!prof || !Boolean((prof as { placa_vermelha?: boolean }).placa_vermelha)) continue
+    if (idsEco && !idsEco.has(String(row.profissional_id))) continue
 
     const cats = normalizarCategoriasProfissional(
       Array.isArray((prof as { categorias?: unknown }).categorias)
@@ -204,6 +213,7 @@ export async function criarSolicitacaoAgendada(
     modalidade: input.modalidade,
     lugares: input.lugares,
     profissionalFixadoId: input.profissionalFixadoId,
+    ecossistemaId: input.ecossistemaId,
   })
 
   // Modelo hospedagem: com profissional fixado, agenda livre salvo datas bloqueadas.

@@ -138,6 +138,23 @@ export async function listarEcossistemasDb(db: { from: (table: string) => any })
   )
 }
 
+export async function resolverBlocoPorId(
+  db: { from: (table: string) => any },
+  ecoId?: string | null,
+): Promise<EcossistemaBloco | null> {
+  try {
+    const todos = await listarEcossistemasDb(db)
+    const pedido = String(ecoId ?? '').trim()
+    if (pedido) {
+      const hit = todos.find((e) => e.id === pedido)
+      if (hit) return hit
+    }
+    return todos.find((e) => e.padrao) ?? todos[0] ?? null
+  } catch {
+    return null
+  }
+}
+
 export function tabelaVinculoEcossistema(tipo: 'empresa' | 'profissional'): {
   table: 'empresa_ecossistemas' | 'profissional_ecossistemas'
   fk: 'empresa_id' | 'profissional_id'

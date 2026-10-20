@@ -8,6 +8,8 @@ import {
 } from '@/lib/mobilidadeMatching'
 import type { ModalidadeMobilidadeId } from '@/lib/mobilidadePopupPesquisa'
 import { ehCruzamentoFronteira, inferirCidadeDePonto } from '@/lib/mobilidadePopupPesquisa'
+import { blocoPermiteCruzamentoFronteira } from '@/lib/ecossistemaFiltro'
+import { resolverBlocoPorId } from '@/lib/ecossistemas'
 import { normalizarMoedasPreferencia } from '@/lib/mobilidadePerfilProfissional'
 import {
   enriquecerCoordsSolicitacaoMobilidade,
@@ -86,8 +88,12 @@ export async function POST(req: Request) {
 
   const cidadeOrigem = inferirCidadeDePonto(origem)
   const cidadeDestino = inferirCidadeDePonto(destino, destCidade)
+  const ecoIdBody = body.ecossistema_id != null ? String(body.ecossistema_id).trim() || null : null
+  const bloco = await resolverBlocoPorId(admin, ecoIdBody)
+  const regraFronteira = blocoPermiteCruzamentoFronteira(bloco)
   const cruzamento =
-    body.cruzamento_fronteira === true || ehCruzamentoFronteira(cidadeOrigem, cidadeDestino)
+    regraFronteira &&
+    (body.cruzamento_fronteira === true || ehCruzamentoFronteira(cidadeOrigem, cidadeDestino))
 
   const { data: cfg } = await admin
     .from('config_apis')
@@ -95,8 +101,10 @@ export async function POST(req: Request) {
     .limit(1)
     .maybeSingle()
 
-  const canalParceiro = canalParceiroPorTrecho(cidadeOrigem, cidadeDestino)
-  const apiMobilidadeUrl = resolverUrlApiMobilidadeParceiro(cfg, canalParceiro)
+  const canalParceiro = regraFronteira ? canalParceiroPorTrecho(cidadeOrigem, cidadeDestino) : null
+  const apiMobilidadeUrl = regraFronteira
+    ? resolverUrlApiMobilidadeParceiro(cfg, canalParceiro)
+    : null
 
   const recRaw =
     body.recomendacao_id != null
@@ -148,6 +156,8 @@ export async function POST(req: Request) {
         ? String(body.idioma_preferido).trim().toLowerCase()
         : null,
     moedasDinheiro: normalizarMoedasPreferencia(body.moedas_dinheiro),
+    ecossistemaId: bloco?.id ?? ecoIdBody,
+    regraFronteira,
   }
 
   const res = await criarSolicitacaoEOfertar(

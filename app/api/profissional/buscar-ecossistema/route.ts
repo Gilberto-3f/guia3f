@@ -5,6 +5,10 @@ import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { normalizarCategoriasProfissional } from '@/lib/cartaoVisitaProfissional'
 import { bandeiraProfissionalRegistro } from '@/lib/bandeiraProfissional'
 import { profissionalElegivelBuscaEcossistema } from '@/lib/mobilidadeStatusProfissional'
+import {
+  buscarEcoIdsDoProfissional,
+  buscarIdsProfissionaisDosEcossistemas,
+} from '@/lib/ecossistemaFiltro'
 
 export type ProfissionalEcossistemaRow = {
   id: string
@@ -148,6 +152,9 @@ export async function GET(req: Request) {
   }
 
   const euId = String(eu.id)
+  const meusEco = await buscarEcoIdsDoProfissional(admin, euId)
+  const idsDoBloco =
+    meusEco == null ? null : await buscarIdsProfissionaisDosEcossistemas(admin, meusEco)
 
   /** Modo algoritmo: online agora. */
   if (modo === 'online') {
@@ -169,6 +176,7 @@ export async function GET(req: Request) {
 
     const filtrados = ((data ?? []) as Row[]).filter((r) => {
       if (String(r.id) === euId) return false
+      if (idsDoBloco && !idsDoBloco.has(String(r.id))) return false
       const cats = normalizarCategoriasProfissional(
         Array.isArray(r.categorias) ? r.categorias.map(String) : null,
       )
@@ -231,6 +239,7 @@ export async function GET(req: Request) {
   for (const row of [...(porUser.data ?? []), ...(porNome.data ?? [])] as Row[]) {
     const id = String(row.id)
     if (id === euId) continue
+    if (idsDoBloco && !idsDoBloco.has(id)) continue
     const cats = normalizarCategoriasProfissional(
       Array.isArray(row.categorias) ? row.categorias.map(String) : null,
     )

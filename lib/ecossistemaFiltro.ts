@@ -102,3 +102,75 @@ export async function buscarIdsEmpresaEcossistema(
   }
   return new Set((data ?? []).map((r: { empresa_id?: unknown }) => String(r.empresa_id ?? '')).filter(Boolean))
 }
+
+/** `profissionais.id` vinculados ao bloco. `null` = tabela ausente (não filtrar). */
+export async function buscarIdsProfissionalEcossistema(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  ecoId: string | null | undefined,
+): Promise<Set<string> | null> {
+  const id = String(ecoId ?? '').trim()
+  if (!id) return null
+  const { data, error } = await supabase
+    .from('profissional_ecossistemas')
+    .select('profissional_id')
+    .eq('ecossistema_id', id)
+  if (error) {
+    if (vinculoEcossistemaIgnoravel(error)) return null
+    return null
+  }
+  return new Set(
+    (data ?? []).map((r: { profissional_id?: unknown }) => String(r.profissional_id ?? '')).filter(Boolean),
+  )
+}
+
+/** IDs de bloco do profissional. `null` = tabela ausente. */
+export async function buscarEcoIdsDoProfissional(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  profissionalId: string | null | undefined,
+): Promise<string[] | null> {
+  const id = String(profissionalId ?? '').trim()
+  if (!id) return []
+  const { data, error } = await supabase
+    .from('profissional_ecossistemas')
+    .select('ecossistema_id')
+    .eq('profissional_id', id)
+  if (error) {
+    if (vinculoEcossistemaIgnoravel(error)) return null
+    return null
+  }
+  return [...new Set((data ?? []).map((r: { ecossistema_id?: unknown }) => String(r.ecossistema_id ?? '')).filter(Boolean))]
+}
+
+/** Profissionais em qualquer um dos blocos. `null` = tabela ausente. */
+export async function buscarIdsProfissionaisDosEcossistemas(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  ecoIds: string[],
+): Promise<Set<string> | null> {
+  const ids = [...new Set(ecoIds.map((id) => String(id ?? '').trim()).filter(Boolean))]
+  if (ids.length === 0) return new Set()
+  const { data, error } = await supabase
+    .from('profissional_ecossistemas')
+    .select('profissional_id')
+    .in('ecossistema_id', ids)
+  if (error) {
+    if (vinculoEcossistemaIgnoravel(error)) return null
+    return null
+  }
+  return new Set(
+    (data ?? []).map((r: { profissional_id?: unknown }) => String(r.profissional_id ?? '')).filter(Boolean),
+  )
+}
+
+/** Tríplice (e qualquer bloco com 2+ países): matching de fronteira. Londrina (1 país): não. */
+export function blocoPermiteCruzamentoFronteira(bloco: EcossistemaBloco | null | undefined): boolean {
+  if (!bloco) return true
+  const paises = new Set<PaisGuiaFiltro>()
+  for (const c of bloco.cidades) {
+    const pais = paisDeCodigo(c.pais) ?? paisInferidoDaCidade(c.chave) ?? paisInferidoDaCidade(c.label)
+    if (pais) paises.add(pais)
+  }
+  return paises.size >= 2
+}
