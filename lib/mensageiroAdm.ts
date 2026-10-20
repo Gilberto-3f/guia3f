@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { marcarCanalComoLido } from '@/lib/canalBadge'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
+import { filtrarCanaisDoBlocoPadrao } from '@/lib/canaisEcossistema'
 
 export type ContextoMensageiroAdm = {
   origem: 'emergencia' | 'falar_adm' | 'sistema'
@@ -22,14 +23,14 @@ export async function enviarMensagemMensageiroAdm(
 
   const { data: canais } = await supabase
     .from('canais')
-    .select('id, nome')
+    .select('id, nome, empresa_id, ecossistema_id')
     .eq('tipo_publico', 'admin')
     .eq('ativo', true)
 
-  const canal = (canais ?? []).find((c) => {
-    const n = String(c.nome ?? '').trim().toUpperCase()
-    return n === 'MENSAGEIRO ADM'
-  })
+  const visiveis = await filtrarCanaisDoBlocoPadrao(supabase, canais ?? [])
+  const canal =
+    visiveis.find((c) => String(c.nome ?? '').trim().toUpperCase() === 'MENSAGEIRO ECOSSISTEMA') ??
+    visiveis.find((c) => String(c.nome ?? '').trim().toUpperCase() === 'MENSAGEIRO ADM')
 
   if (!canal?.id) {
     return { ok: false, error: 'Canal Mensageiro ADM não encontrado.' }

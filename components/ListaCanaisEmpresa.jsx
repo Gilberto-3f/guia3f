@@ -36,6 +36,7 @@ import CanalListaRow from '@/components/CanalListaRow'
 import { fetchNomeUsuarioParaStory } from '@/lib/feed-autor'
 import { garantirCanaisEmpresaComunidade } from '@/lib/canaisEmpresaGarantir'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
+import { filtrarCanaisDoBlocoPadrao } from '@/lib/canaisEcossistema'
 
 /** @type {readonly string[]} */
 const COMUNIDADES_PROFISSIONAIS_SLUG = ['guia', 'taxista', 'van', 'motorista_app', 'anfitriao']
@@ -380,7 +381,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
       const [{ data, error }, finCanalId] = await Promise.all([
         supabase
           .from('canais')
-          .select('id, nome, tipo_publico, categoria, comunidade_prof, empresa_id, ultima_mensagem_em, ordem_tipo, ordem_posicao')
+          .select('id, nome, tipo_publico, categoria, comunidade_prof, empresa_id, ultima_mensagem_em, ordem_tipo, ordem_posicao, ecossistema_id')
           .eq('tipo_publico', 'empresa')
           .eq('ativo', true),
         buscarIdCanalFinanceiroEmpresaGlobal(supabase),
@@ -389,7 +390,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
       setFinanceiroCanalIdGlobal(finCanalId)
 
       if (error) throw error
-      const lista = /** @type {Canal[]} */ (data ?? [])
+      const lista = /** @type {Canal[]} */ (await filtrarCanaisDoBlocoPadrao(supabase, data ?? []))
       const admGlobal = lista.find((c) => c.empresa_id == null && nomeNorm(c.nome) === 'ADM')
       setAdmCanalIdGlobal(admGlobal?.id != null ? String(admGlobal.id) : null)
 

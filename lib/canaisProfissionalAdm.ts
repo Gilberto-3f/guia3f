@@ -6,6 +6,7 @@ import {
   isCanalAdmProfissionalGlobal,
   slugCanalComunidadeProfissional,
 } from '@/lib/canaisProfissionalSlugs'
+import { filtrarCanaisDoBlocoPadrao } from '@/lib/canaisEcossistema'
 
 export type CanalAdmInboxConfig = {
   canalAdmId: string
@@ -39,7 +40,7 @@ export async function resolverInboxCanalAdmProfissional(
 
   let q = supabase
     .from('canais')
-    .select('id, nome, categoria, tipo_publico, empresa_id, ativo')
+    .select('id, nome, categoria, tipo_publico, empresa_id, ativo, ecossistema_id')
     .eq('tipo_publico', 'profissional')
     .eq('ativo', true)
     .is('empresa_id', null)
@@ -49,9 +50,10 @@ export async function resolverInboxCanalAdmProfissional(
   }
 
   const { data: canais } = await q
+  const visiveis = await filtrarCanaisDoBlocoPadrao(supabase, canais ?? [])
 
   const canaisBroadcastIds: string[] = []
-  for (const c of canais ?? []) {
+  for (const c of visiveis) {
     if (isCanalAdmProfissionalGlobal(c)) continue
     const slug = slugCanalComunidadeProfissional(
       c.categoria != null ? String(c.categoria) : null,

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { nomeNormCanal } from '@/lib/rotulosCanaisAdministracao'
 import { contarNaoLidasEcossistemaAdm } from '@/lib/ecossistemaConversas'
+import { filtrarCanaisDoBlocoPadrao } from '@/lib/canaisEcossistema'
 
 /** Remetentes que geram notificação para o perfil admin (inbox Mensageiro ADM). */
 export const ROLES_REMETENTE_NOTIFICAM_ADMIN = ['turista', 'profissional', 'empresa'] as const
@@ -35,7 +36,7 @@ export function ehCanalInboxEcossistemaAdm(c: {
 export async function obterIdCanalInboxMensageiroAdm(supabase: SupabaseClient): Promise<string | null> {
   const { data, error } = await supabase
     .from('canais')
-    .select('id, nome, tipo_publico')
+    .select('id, nome, tipo_publico, empresa_id, ecossistema_id')
     .eq('ativo', true)
     .eq('tipo_publico', 'admin')
 
@@ -44,9 +45,10 @@ export async function obterIdCanalInboxMensageiroAdm(supabase: SupabaseClient): 
     return null
   }
 
+  const visiveis = await filtrarCanaisDoBlocoPadrao(supabase, data ?? [])
   const canal =
-    (data ?? []).find((c) => nomeNormCanal(c.nome) === 'MENSAGEIRO ECOSSISTEMA') ??
-    (data ?? []).find((c) => nomeNormCanal(c.nome) === 'MENSAGEIRO ADM')
+    visiveis.find((c) => nomeNormCanal(c.nome) === 'MENSAGEIRO ECOSSISTEMA') ??
+    visiveis.find((c) => nomeNormCanal(c.nome) === 'MENSAGEIRO ADM')
   return canal?.id != null ? String(canal.id) : null
 }
 

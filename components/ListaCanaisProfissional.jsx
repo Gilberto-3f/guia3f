@@ -27,6 +27,7 @@ import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
 import { GUIA_CANAIS_BADGE_EVENT, notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import AvisoDocsProfissionalBloqueado from '@/components/AvisoDocsProfissionalBloqueado'
+import { filtrarCanaisDoBlocoPadrao } from '@/lib/canaisEcossistema'
 
 /** @type {readonly string[]} */
 const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'anfitriao']
@@ -369,7 +370,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
         .from('canais')
         .select(
           `
-          id, nome, tipo_publico, categoria, comunidade_prof, empresa_id, empresa_categoria, ultima_mensagem_em, ordem_tipo, ordem_posicao,
+          id, nome, tipo_publico, categoria, comunidade_prof, empresa_id, empresa_categoria, ultima_mensagem_em, ordem_tipo, ordem_posicao, ecossistema_id,
           empresas:empresa_id ( id, nome_fantasia, foto_url, cidade, status )
           `,
         )
@@ -377,7 +378,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
         .in('tipo_publico', ['profissional', 'empresa'])
 
       if (error) throw error
-      const lista = /** @type {Canal[]} */ (data ?? [])
+      const lista = /** @type {Canal[]} */ (await filtrarCanaisDoBlocoPadrao(supabase, data ?? []))
       const filtrada = lista.filter((c) => {
         if (c.tipo_publico === 'profissional') {
           if (isCanalAdmProfissionalGlobal(c)) return false

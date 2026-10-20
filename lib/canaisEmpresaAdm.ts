@@ -7,6 +7,7 @@ import {
   isCanalFinanceiroEmpresa,
   slugCanalSegmentoEmpresa,
 } from '@/lib/canaisEmpresaSlugs'
+import { filtrarCanaisDoBlocoPadrao } from '@/lib/canaisEcossistema'
 
 export type CanalAdmEmpresaInboxConfig = {
   canalAdmId: string
@@ -33,12 +34,13 @@ export async function buscarIdCanalFinanceiroEmpresaGlobal(
 ): Promise<string | null> {
   const { data } = await supabase
     .from('canais')
-    .select('id, nome, tipo_publico, empresa_id, ativo')
+    .select('id, nome, tipo_publico, empresa_id, ativo, ecossistema_id')
     .eq('tipo_publico', 'empresa')
     .eq('ativo', true)
     .is('empresa_id', null)
 
-  for (const c of data ?? []) {
+  const visiveis = await filtrarCanaisDoBlocoPadrao(supabase, data ?? [])
+  for (const c of visiveis) {
     if (isCanalFinanceiroEmpresa(c.nome != null ? String(c.nome) : null)) return String(c.id)
   }
   return null
@@ -50,12 +52,13 @@ export async function buscarIdCanalAdmEmpresaGlobal(
 ): Promise<string | null> {
   const { data } = await supabase
     .from('canais')
-    .select('id, nome, tipo_publico, empresa_id, ativo')
+    .select('id, nome, tipo_publico, empresa_id, ativo, ecossistema_id')
     .eq('tipo_publico', 'empresa')
     .eq('ativo', true)
     .is('empresa_id', null)
 
-  for (const c of data ?? []) {
+  const visiveis = await filtrarCanaisDoBlocoPadrao(supabase, data ?? [])
+  for (const c of visiveis) {
     if (isCanalAdmEmpresaGlobal(c)) return String(c.id)
   }
   return null
@@ -86,13 +89,14 @@ export async function resolverInboxCanalAdmEmpresa(
 
   const { data: canais } = await supabase
     .from('canais')
-    .select('id, nome, categoria, tipo_publico, empresa_id, ativo')
+    .select('id, nome, categoria, tipo_publico, empresa_id, ativo, ecossistema_id')
     .eq('tipo_publico', 'empresa')
     .eq('ativo', true)
     .is('empresa_id', null)
 
+  const visiveis = await filtrarCanaisDoBlocoPadrao(supabase, canais ?? [])
   const canaisBroadcastIds: string[] = []
-  for (const c of canais ?? []) {
+  for (const c of visiveis) {
     if (isCanalAdmEmpresaGlobal(c)) continue
     const n = String(c.nome ?? '').trim().toUpperCase()
     if (n === 'FINANCEIRO') continue

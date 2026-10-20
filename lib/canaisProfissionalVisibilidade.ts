@@ -15,6 +15,7 @@ import {
   type CanalFinanceiroRowEmpresa,
 } from '@/lib/canaisEmpresaVisibilidade'
 import { itemCanalFinanceiroEhAvisoManifesto } from '@/lib/recomendacaoContratacaoDestino'
+import { filtrarCanaisDoBlocoPadrao } from '@/lib/canaisEcossistema'
 
 export type CanalVisibilidadeRow = {
   id: string
@@ -86,12 +87,13 @@ export async function obterIdsCanaisMensagensProfissional(
   if (slugs.length === 0) {
     const { data: fin } = await supabase
       .from('canais')
-      .select('id, nome, tipo_publico, empresa_id')
+      .select('id, nome, tipo_publico, empresa_id, ecossistema_id')
       .eq('ativo', true)
       .eq('tipo_publico', 'profissional')
       .is('empresa_id', null)
+    const globais = await filtrarCanaisDoBlocoPadrao(supabase, fin ?? [])
     const ids = new Set<string>()
-    for (const c of fin ?? []) {
+    for (const c of globais) {
       if (isCanalFinanceiroProfissional(c.nome)) ids.add(String(c.id))
     }
     return ids
@@ -107,7 +109,7 @@ export async function obterIdsCanaisMensagensProfissional(
 
   const { data: canais, error: canaisErr } = await supabase
     .from('canais')
-    .select('id, nome, tipo_publico, categoria, comunidade_prof, empresa_id')
+    .select('id, nome, tipo_publico, categoria, comunidade_prof, empresa_id, ecossistema_id')
     .eq('ativo', true)
     .in('tipo_publico', ['profissional', 'empresa'])
 
@@ -116,8 +118,9 @@ export async function obterIdsCanaisMensagensProfissional(
     return new Set()
   }
 
+  const visiveis = await filtrarCanaisDoBlocoPadrao(supabase, canais ?? [])
   const ids = new Set<string>()
-  for (const c of canais ?? []) {
+  for (const c of visiveis) {
     const row: CanalVisibilidadeRow = {
       id: String(c.id),
       nome: c.nome,
