@@ -46,7 +46,7 @@ export default function CabecalhoAbasGuiaMobilidade({
   return (
     <header className="relative z-50 isolate shrink-0 bg-[#0097b2] pt-safe pointer-events-auto">
       {mostrarLogo ? (
-        <div className="flex justify-center py-4">
+        <div className="flex justify-center overflow-hidden py-4">
           <Image
             src="/logo.png"
             alt="Guia 3F"

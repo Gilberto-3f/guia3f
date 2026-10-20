@@ -32,7 +32,7 @@ export function aplicarClasseModoNoturno(ativo: boolean): void {
   } else {
     root.classList.remove('dark')
     root.style.colorScheme = 'light'
-    root.style.background = '#ffffff'
+    root.style.background = '#0097b2'
   }
   try {
     const meta = document.querySelector('meta[name="theme-color"]')
@@ -43,4 +43,4 @@ export function aplicarClasseModoNoturno(ativo: boolean): void {
 }
 
 /** Script inline (antes do paint) — evita flash branco ao reabrir o app. */
-export const MODO_NOTURNO_BOOT_SCRIPT = `(function(){try{var k=${JSON.stringify(MODO_NOTURNO_STORAGE_KEY)};var v=localStorage.getItem(k);if(v==='1'||v==='true'){var r=document.documentElement;r.classList.add('dark');r.style.colorScheme='dark';r.style.background='#000000';}else{document.documentElement.classList.remove('dark');}}catch(e){}})();`
+export const MODO_NOTURNO_BOOT_SCRIPT = `(function(){try{var k=${JSON.stringify(MODO_NOTURNO_STORAGE_KEY)};var v=localStorage.getItem(k);var r=document.documentElement;if(v==='1'||v==='true'){r.classList.add('dark');r.style.colorScheme='dark';r.style.background='#000000';}else{r.classList.remove('dark');r.style.background='#0097b2';}}catch(e){}})();`
