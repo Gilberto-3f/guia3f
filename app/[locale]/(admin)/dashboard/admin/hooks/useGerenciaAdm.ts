@@ -16,6 +16,7 @@ export type AdminRow = {
   cargo: string
   comunidade: string | null
   pais: string | null
+  ecossistema_id: string | null
   participacao_percentual: number | null
   permissoes: unknown
   created_at: string
@@ -99,7 +100,7 @@ export function useGerenciaAdm() {
       // `usuarios` não tem nome_completo — nome social vem de profissionais/turistas.
       const { data, error: e } = await supabase
         .from('usuarios')
-        .select('id, email, username, role, admin_level, admin_permissoes, created_at')
+        .select('id, email, username, role, admin_level, admin_permissoes, ecossistema_id, created_at')
         .eq('role', 'admin')
       if (e) throw e
 
@@ -148,12 +149,15 @@ export function useGerenciaAdm() {
               comunidade?: string | null
               pais?: string | null
               participacao_percentual?: number | null
+              ecossistema_id?: string | null
             }
+            ecossistema_id?: string | null
             created_at?: string | null
           }
           const perf = perfilMap.get(String(r.id))
           const perms = r.admin_permissoes ?? {}
           const pct = perms.participacao_percentual
+          const ecoId = r.ecossistema_id ?? perms.ecossistema_id ?? null
           const usernameFallback =
             String(r.username ?? '').replace(/^@+/, '') || r.email?.split('@')[0] || ''
           return {
@@ -168,6 +172,7 @@ export function useGerenciaAdm() {
             cargo: perms.cargo ?? '',
             comunidade: perms.comunidade ?? null,
             pais: perms.pais ?? null,
+            ecossistema_id: ecoId != null ? String(ecoId) : null,
             participacao_percentual:
               pct != null && Number.isFinite(Number(pct)) ? Number(pct) : null,
             permissoes: r.admin_permissoes ?? {},
@@ -183,20 +188,28 @@ export function useGerenciaAdm() {
   }, [isAdminGeral])
 
   const criarAdmin = useCallback(
-    async (usuarioId: string, nivel: number, comunidade?: string, permissoes?: { modulos?: string[]; recursos?: string[] }) => {
+    async (
+      usuarioId: string,
+      nivel: number,
+      comunidade?: string,
+      permissoes?: { modulos?: string[]; recursos?: string[]; ecossistema_id?: string | null },
+    ) => {
       if (!isAdminGeral || !admin) throw new Error('Apenas ADM GERAL')
       setLoading(true)
       try {
         const cargo = nivel === 2 ? 'MODERADOR' : nivel === 3 ? 'FINANCEIRO' : 'AUXILIAR_ADM'
+        const ecoId = nivel === 2 || nivel === 4 ? permissoes?.ecossistema_id ?? null : null
         const { error: upErr } = await supabase
           .from('usuarios')
           .update({
             role: 'admin',
             admin_level: nivel,
+            ecossistema_id: ecoId,
             admin_permissoes: {
               nivel,
               cargo,
               comunidade: comunidade ?? null,
+              ecossistema_id: ecoId,
               modulos: permissoes?.modulos ?? [],
               recursos: permissoes?.recursos ?? [],
             },
@@ -233,15 +246,20 @@ export function useGerenciaAdm() {
         const cargo = updates.cargo
         const nivel = updates.admin_level
         const comunidade = updates.comunidade
-        const permissoes = updates.permissoes as { modulos?: string[]; recursos?: string[] } | undefined
+        const permissoes = updates.permissoes as
+          | { modulos?: string[]; recursos?: string[]; ecossistema_id?: string | null }
+          | undefined
+        const ecoId = Number(nivel) === 2 || Number(nivel) === 4 ? updates.ecossistema_id ?? permissoes?.ecossistema_id ?? null : null
         const { error: upErr } = await supabase
           .from('usuarios')
           .update({
             admin_level: nivel,
+            ecossistema_id: ecoId,
             admin_permissoes: {
               nivel,
               cargo,
               comunidade: comunidade ?? null,
+              ecossistema_id: ecoId,
               modulos: permissoes?.modulos ?? [],
               recursos: permissoes?.recursos ?? [],
             },
@@ -303,7 +321,7 @@ export function useGerenciaAdm() {
   )
 
   const criarConvite = useCallback(
-    async (usuarioId: string, nivel: number, comunidade?: string, pais?: string) => {
+    async (usuarioId: string, nivel: number, comunidade?: string, pais?: string, ecossistemaId?: string) => {
       if (!isAdminGeral || !admin) throw new Error('Apenas ADM GERAL')
       const res = await fetch('/api/admin/convites/criar', {
         method: 'POST',
@@ -314,6 +332,7 @@ export function useGerenciaAdm() {
           nivel,
           comunidade: comunidade ?? null,
           pais: pais ?? null,
+          ecossistema_id: ecossistemaId ?? null,
         }),
       })
       const json = await res.json().catch(() => ({}))
@@ -456,6 +475,25 @@ export function useGerenciaAdm() {
     [admin, isAdminGeral]
   )
 
+  const atualizarEcossistemaColaborador = useCallback(
+    async (usuarioId: string, ecossistemaId: string) => {
+      if (!isAdminGeral) throw new Error('Apenas ADM GERAL')
+      const res = await fetch('/api/admin/colaboradores/ecossistema', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ usuario_id: usuarioId, ecossistema_id: ecossistemaId }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error ?? 'Não foi possível salvar o bloco.')
+      }
+      await listarAdmins()
+      return json
+    },
+    [isAdminGeral, listarAdmins],
+  )
+
   const atualizarBonificacao = useCallback(
     async (usuarioId: string, participacaoPercentual: number) => {
       if (!isAdminGeral) throw new Error('Apenas ADM GERAL')
@@ -496,6 +534,7 @@ export function useGerenciaAdm() {
     atualizarAdmin,
     removerAdmin,
     criarConvite,
+    atualizarEcossistemaColaborador,
     atualizarBonificacao,
     listarAdmins,
     listarConvites,

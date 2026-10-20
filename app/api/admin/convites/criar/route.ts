@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { assertUserSession } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { cargoPorNivel, permissoesPadraoPorNivel } from '@/lib/adminConvites'
+import { adminNivelTemBlocoFixo } from '@/lib/adminEcossistema'
 
 export async function POST(req: Request) {
   try {
@@ -31,6 +32,7 @@ export async function POST(req: Request) {
     const comunidade = body.comunidade != null ? String(body.comunidade).trim() : ''
     const paisRaw = body.pais != null ? String(body.pais).trim().toUpperCase() : ''
     const pais = ['BR', 'AR', 'PY'].includes(paisRaw) ? paisRaw : ''
+    const ecoId = body.ecossistema_id != null ? String(body.ecossistema_id).trim() : ''
 
     if (!usuarioId || ![2, 3, 4].includes(nivel)) {
       return NextResponse.json({ error: 'params' }, { status: 400 })
@@ -40,6 +42,9 @@ export async function POST(req: Request) {
     }
     if (nivel === 2 && !pais) {
       return NextResponse.json({ error: 'Selecione o país do moderador.' }, { status: 400 })
+    }
+    if (adminNivelTemBlocoFixo(nivel) && !ecoId) {
+      return NextResponse.json({ error: 'Selecione a cidade ou região do colaborador.' }, { status: 400 })
     }
 
     const { data: alvo } = await adminDb
@@ -67,11 +72,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Já existe convite pendente para este usuário.' }, { status: 409 })
     }
 
+    let ecoValidado: string | null = null
+    if (adminNivelTemBlocoFixo(nivel)) {
+      const { data: eco } = await adminDb.from('ecossistemas').select('id').eq('id', ecoId).maybeSingle()
+      if (!eco?.id) {
+        return NextResponse.json({ error: 'Ecossistema inválido.' }, { status: 400 })
+      }
+      ecoValidado = String(eco.id)
+    }
+
     const email = String(alvo.email ?? '').trim() || `${String(alvo.username ?? usuarioId).replace(/^@+/, '')}@guia3f.local`
     const codigo = Math.random().toString(36).slice(2, 10).toUpperCase()
     const permissoes = permissoesPadraoPorNivel(nivel, {
       comunidade: nivel === 2 ? comunidade : null,
       pais: nivel === 2 ? pais : null,
+      ecossistema_id: ecoValidado,
     })
 
     const { data: convite, error: insErr } = await adminDb
@@ -82,6 +97,7 @@ export async function POST(req: Request) {
         nivel,
         comunidade: nivel === 2 ? comunidade : null,
         pais: nivel === 2 ? pais : null,
+        ecossistema_id: ecoValidado,
         permissoes,
         convidado_por: session.userId,
         codigo,
@@ -107,6 +123,7 @@ export async function POST(req: Request) {
         nivel,
         comunidade: nivel === 2 ? comunidade : null,
         pais: nivel === 2 ? pais : null,
+        ecossistema_id: ecoValidado,
         cargo: cargoPorNivel(nivel),
       },
     })

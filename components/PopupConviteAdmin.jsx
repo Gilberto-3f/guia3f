@@ -9,6 +9,7 @@ import { ShieldCheck, X } from 'lucide-react'
  *   funcao: string
  *   comunidade?: string
  *   pais?: string
+ *   ecossistema?: string
  *   convidadoPor?: string
  *   onAceitar: () => void | Promise<void>
  *   onRecusar: () => void | Promise<void>
@@ -20,6 +21,7 @@ export default function PopupConviteAdmin({
   funcao,
   comunidade = '',
   pais = '',
+  ecossistema = '',
   convidadoPor = 'ADM GERAL',
   onAceitar,
   onRecusar,
@@ -77,6 +79,12 @@ export default function PopupConviteAdmin({
               <>
                 {' '}
                 ({pais})
+              </>
+            ) : null}
+            {ecossistema ? (
+              <>
+                {' '}
+                no ecossistema <strong className="text-white">{ecossistema}</strong>
               </>
             ) : null}
             . Ao aceitar, a pasta <strong className="text-white">Admin</strong> ficará disponível no seu menu com

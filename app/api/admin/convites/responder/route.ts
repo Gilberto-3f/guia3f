@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { assertUserSession } from '@/lib/apiUserSession'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { cargoPorNivel, permissoesPadraoPorNivel } from '@/lib/adminConvites'
+import { adminNivelTemBlocoFixo } from '@/lib/adminEcossistema'
 
 export async function POST(req: Request) {
   try {
@@ -51,7 +52,11 @@ export async function POST(req: Request) {
     const nivel = Number(convite.nivel)
     const comunidade = convite.comunidade != null ? String(convite.comunidade) : null
     const pais = convite.pais != null ? String(convite.pais) : null
-    const perms = permissoesPadraoPorNivel(nivel, { comunidade, pais })
+    const ecoId =
+      convite.ecossistema_id != null && adminNivelTemBlocoFixo(nivel)
+        ? String(convite.ecossistema_id)
+        : null
+    const perms = permissoesPadraoPorNivel(nivel, { comunidade, pais, ecossistema_id: ecoId })
 
     const { error: upUserErr } = await adminDb
       .from('usuarios')
@@ -59,6 +64,7 @@ export async function POST(req: Request) {
         role: 'admin',
         admin_level: nivel,
         admin_permissoes: perms,
+        ecossistema_id: ecoId,
       })
       .eq('id', session.userId)
 
@@ -76,7 +82,7 @@ export async function POST(req: Request) {
       perfil_id: session.userId,
       acao: 'aceitou_convite_admin',
       admin_id: session.userId,
-      detalhes: { nivel, cargo: cargoPorNivel(nivel), comunidade, pais },
+      detalhes: { nivel, cargo: cargoPorNivel(nivel), comunidade, pais, ecossistema_id: ecoId },
     })
 
     return NextResponse.json({ ok: true, status: 'aceito', admin_level: nivel })

@@ -34,7 +34,7 @@ export function GerenciaAdm() {
         corTitulo={COR_LOGO}
         aberta={novoAberto}
         onToggle={() => setNovoAberto((v) => !v)}
-        descricao="Localize o usuário, defina função, comunidade e país (moderador) e envie o convite."
+        descricao="Localize o usuário, defina função, bloco (cidade/região) e, no moderador, comunidade e país."
       >
         <ConvidarAdmin />
       </AdminSecaoChevron>

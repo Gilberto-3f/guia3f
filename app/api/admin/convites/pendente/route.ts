@@ -17,7 +17,7 @@ export async function GET() {
 
     const { data: convite } = await adminDb
       .from('convites_admin')
-      .select('id, nivel, comunidade, pais, convidado_em, expira_em, convidado_por')
+      .select('id, nivel, comunidade, pais, ecossistema_id, convidado_em, expira_em, convidado_por')
       .eq('usuario_id', session.userId)
       .eq('status', 'pendente')
       .gt('expira_em', new Date().toISOString())
@@ -55,6 +55,16 @@ export async function GET() {
         'ADM GERAL'
     }
 
+    let ecossistemaNome = ''
+    if (convite.ecossistema_id) {
+      const { data: eco } = await adminDb
+        .from('ecossistemas')
+        .select('nome')
+        .eq('id', String(convite.ecossistema_id))
+        .maybeSingle()
+      ecossistemaNome = String(eco?.nome ?? '').trim()
+    }
+
     return NextResponse.json({
       convite: {
         id: convite.id,
@@ -62,6 +72,7 @@ export async function GET() {
         funcao: rotuloFuncaoAdmin(Number(convite.nivel)),
         comunidade: rotuloComunidadeModerador(convite.comunidade),
         pais: rotuloPaisModerador(convite.pais),
+        ecossistema: ecossistemaNome,
         convidado_por: convidadoPorNome,
         expira_em: convite.expira_em,
       },

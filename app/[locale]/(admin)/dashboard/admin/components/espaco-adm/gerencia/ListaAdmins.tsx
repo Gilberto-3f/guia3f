@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useGerenciaAdm } from '../../../hooks/useGerenciaAdm'
 import {
@@ -8,31 +8,59 @@ import {
   rotuloFuncaoAdmin,
   rotuloPaisModerador,
 } from '@/lib/adminConvites'
+import { adminNivelTemBlocoFixo } from '@/lib/adminEcossistema'
+import type { EcossistemaBloco } from '@/lib/ecossistemas'
 import { CardUsuarioConvite } from './CardUsuarioConvite'
+import { SelectEcossistemaGerencia } from './SelectEcossistemaGerencia'
 
 const COR_LOGO = '#0097b2'
 
-function rotuloCargo(admin: {
-  admin_level: number
-  cargo: string
-  comunidade: string | null
-  pais: string | null
-}): string {
+function rotuloCargo(
+  admin: {
+    admin_level: number
+    cargo: string
+    comunidade: string | null
+    pais: string | null
+    ecossistema_id: string | null
+  },
+  nomeBloco: string,
+): string {
   if (admin.admin_level === 1) return 'ADM GERAL'
   const base = rotuloFuncaoAdmin(admin.admin_level)
   if (admin.admin_level === 2) {
     const com = rotuloComunidadeModerador(admin.comunidade)
     const p = rotuloPaisModerador(admin.pais)
-    return [base, com, p].filter(Boolean).join(' · ')
+    return [base, nomeBloco, com, p].filter(Boolean).join(' · ')
+  }
+  if (adminNivelTemBlocoFixo(admin.admin_level) && nomeBloco) {
+    return [base, nomeBloco].filter(Boolean).join(' · ')
   }
   return base
 }
 
 export function ListaAdmins() {
-  const { admins, loading, atualizarBonificacao, isAdminGeral } = useGerenciaAdm()
+  const { admins, loading, atualizarBonificacao, atualizarEcossistemaColaborador, isAdminGeral } =
+    useGerenciaAdm()
   const [abertos, setAbertos] = useState<Record<string, boolean>>({})
   const [pctDraft, setPctDraft] = useState<Record<string, string>>({})
   const [salvando, setSalvando] = useState<string | null>(null)
+  const [salvandoEco, setSalvandoEco] = useState<string | null>(null)
+  const [ecos, setEcos] = useState<EcossistemaBloco[]>([])
+
+  useEffect(() => {
+    let cancel = false
+    void fetch('/api/ecossistemas')
+      .then((r) => r.json())
+      .then((json: { ecossistemas?: EcossistemaBloco[] }) => {
+        if (!cancel) setEcos(Array.isArray(json.ecossistemas) ? json.ecossistemas : [])
+      })
+      .catch(() => {
+        if (!cancel) setEcos([])
+      })
+    return () => {
+      cancel = true
+    }
+  }, [])
 
   if (!isAdminGeral) return null
 
@@ -81,8 +109,23 @@ export function ListaAdmins() {
                 fotoUrl={a.foto_url}
               />
               <p className="mt-3 text-center text-sm font-bold" style={{ color: COR_LOGO }}>
-                {rotuloCargo(a)}
+                {rotuloCargo(a, ecos.find((e) => e.id === a.ecossistema_id)?.nome ?? '')}
               </p>
+              {adminNivelTemBlocoFixo(a.admin_level) ? (
+                <div className="mx-auto mt-3 max-w-xs text-left">
+                  <SelectEcossistemaGerencia
+                    id={`lista-admin-eco-${a.id}`}
+                    value={a.ecossistema_id ?? ''}
+                    onChange={(id) => {
+                      if (!id || id === a.ecossistema_id) return
+                      setSalvandoEco(a.id)
+                      void atualizarEcossistemaColaborador(a.id, id).finally(() => setSalvandoEco(null))
+                    }}
+                    opcoes={ecos.map((e) => ({ id: e.id, nome: e.nome }))}
+                    carregando={salvandoEco === a.id}
+                  />
+                </div>
+              ) : null}
               <button
                 type="button"
                 onClick={() => toggle(a.id)}

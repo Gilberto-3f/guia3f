@@ -186,7 +186,17 @@ export async function DELETE(_req: Request, ctx: Ctx) {
     }
 
     const { error } = await gate.adminDb.from('ecossistemas').delete().eq('id', ecoId)
-    if (error) return jsonAdminError(400, 'delete', error.message)
+    if (error) {
+      const msg = String(error.message ?? '')
+      if (msg.toLowerCase().includes('usuarios') || error.code === '23503') {
+        return jsonAdminError(
+          400,
+          'delete',
+          'Há colaboradores ADM vinculados a este bloco. Reatribua-os na Gerência antes de excluir.',
+        )
+      }
+      return jsonAdminError(400, 'delete', error.message)
+    }
     return NextResponse.json({ ok: true })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'erro'

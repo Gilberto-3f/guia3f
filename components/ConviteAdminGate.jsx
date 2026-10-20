@@ -55,6 +55,7 @@ export default function ConviteAdminGate() {
       funcao={convite.funcao ?? 'Administrador'}
       comunidade={convite.comunidade ?? ''}
       pais={convite.pais ?? ''}
+      ecossistema={convite.ecossistema ?? ''}
       convidadoPor={convite.convidado_por ?? 'ADM GERAL'}
       loading={loading}
       onAceitar={() => responder('aceitar')}

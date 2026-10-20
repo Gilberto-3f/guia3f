@@ -19,7 +19,7 @@ export const FUNCOES_ADMIN_CONVITE: ReadonlyArray<{
     nivel: 2,
     label: 'Moderador',
     descricao:
-      'Liderança de uma categoria e país: cadastros, denúncias da comunidade e Ecossistema.',
+      'Liderança de uma categoria num bloco (cidade/região): cadastros, denúncias da comunidade e Ecossistema.',
   },
   {
     nivel: 3,
@@ -29,7 +29,8 @@ export const FUNCOES_ADMIN_CONVITE: ReadonlyArray<{
   {
     nivel: 4,
     label: 'Auxiliar ADM',
-    descricao: 'Auxilia empresas que contratarem o serviço exclusivo de auxiliar administrativo.',
+    descricao:
+      'Auxilia empresas do bloco (cidade/região) que contratarem o serviço exclusivo de auxiliar administrativo.',
   },
 ]
 
@@ -86,14 +87,16 @@ export type PermissoesAdminGranulares = AdminPermissoes & {
   modulos: string[]
   recursos: string[]
   participacao_percentual?: number | null
+  ecossistema_id?: string | null
 }
 
 export function permissoesPadraoPorNivel(
   nivel: number,
-  opts?: { comunidade?: string | null; pais?: string | null },
+  opts?: { comunidade?: string | null; pais?: string | null; ecossistema_id?: string | null },
 ): PermissoesAdminGranulares {
   const comunidade = opts?.comunidade ?? null
   const pais = opts?.pais != null ? String(opts.pais).trim().toUpperCase() : null
+  const ecoId = opts?.ecossistema_id != null ? String(opts.ecossistema_id).trim() || null : null
 
   if (nivel === 2) {
     const com = comunidade
@@ -102,6 +105,7 @@ export function permissoesPadraoPorNivel(
       cargo: 'MODERADOR',
       comunidade: com,
       pais,
+      ecossistema_id: ecoId,
       modulos: modulosModerador(com),
       recursos: com ? [com] : [],
       participacao_percentual: null,
@@ -117,6 +121,7 @@ export function permissoesPadraoPorNivel(
       cargo: 'FINANCEIRO',
       comunidade: null,
       pais: null,
+      ecossistema_id: null,
       modulos: ['visao-geral', 'verificacao', 'denuncias', 'servicos-tabelados', 'espaco-adm'],
       recursos: ['financeiro', 'graficos', 'empresas'],
       participacao_percentual: null,
@@ -131,6 +136,7 @@ export function permissoesPadraoPorNivel(
     cargo: 'AUXILIAR_ADM',
     comunidade: null,
     pais: null,
+    ecossistema_id: ecoId,
     modulos: [],
     recursos: [],
     participacao_percentual: null,

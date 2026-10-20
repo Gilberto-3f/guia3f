@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Search, UserPlus } from 'lucide-react'
 import { useGerenciaAdm } from '../../../hooks/useGerenciaAdm'
 import {
@@ -8,7 +8,10 @@ import {
   FUNCOES_ADMIN_CONVITE,
   PAISES_MODERADOR,
 } from '@/lib/adminConvites'
+import { adminNivelTemBlocoFixo } from '@/lib/adminEcossistema'
+import type { EcossistemaBloco } from '@/lib/ecossistemas'
 import { CardUsuarioConvite } from './CardUsuarioConvite'
+import { SelectEcossistemaGerencia } from './SelectEcossistemaGerencia'
 
 type UsuarioConvite = {
   id: string
@@ -27,10 +30,33 @@ export function ConvidarAdmin() {
   const [nivel, setNivel] = useState<2 | 3 | 4>(2)
   const [comunidade, setComunidade] = useState('')
   const [pais, setPais] = useState('')
+  const [ecossistemaId, setEcossistemaId] = useState('')
+  const [ecos, setEcos] = useState<EcossistemaBloco[]>([])
+  const [carregandoEco, setCarregandoEco] = useState(false)
   const [usuario, setUsuario] = useState<UsuarioConvite | null>(null)
   const [buscando, setBuscando] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [mensagem, setMensagem] = useState<MensagemConvite | null>(null)
+
+  useEffect(() => {
+    let cancel = false
+    setCarregandoEco(true)
+    void fetch('/api/ecossistemas')
+      .then((r) => r.json())
+      .then((json: { ecossistemas?: EcossistemaBloco[] }) => {
+        if (cancel) return
+        setEcos(Array.isArray(json.ecossistemas) ? json.ecossistemas : [])
+      })
+      .catch(() => {
+        if (!cancel) setEcos([])
+      })
+      .finally(() => {
+        if (!cancel) setCarregandoEco(false)
+      })
+    return () => {
+      cancel = true
+    }
+  }, [])
 
   if (!isAdminGeral) return null
 
@@ -66,6 +92,10 @@ export function ConvidarAdmin() {
       setMensagem({ tipo: 'erro', texto: 'Selecione o país do moderador.' })
       return
     }
+    if (adminNivelTemBlocoFixo(nivel) && !ecossistemaId) {
+      setMensagem({ tipo: 'erro', texto: 'Selecione a cidade ou região do colaborador.' })
+      return
+    }
     setEnviando(true)
     setMensagem(null)
     try {
@@ -74,6 +104,7 @@ export function ConvidarAdmin() {
         nivel,
         nivel === 2 ? comunidade : undefined,
         nivel === 2 ? pais : undefined,
+        adminNivelTemBlocoFixo(nivel) ? ecossistemaId : undefined,
       )
       setMensagem({
         tipo: 'sucesso',
@@ -140,6 +171,16 @@ export function ConvidarAdmin() {
           <p className="mt-1.5 text-xs leading-relaxed text-gray-600">{funcaoSelecionada.descricao}</p>
         ) : null}
       </div>
+
+      {adminNivelTemBlocoFixo(nivel) ? (
+        <SelectEcossistemaGerencia
+          id="convite-admin-ecossistema"
+          value={ecossistemaId}
+          onChange={setEcossistemaId}
+          opcoes={ecos.map((e) => ({ id: e.id, nome: e.nome }))}
+          carregando={carregandoEco}
+        />
+      ) : null}
 
       {nivel === 2 ? (
         <>
