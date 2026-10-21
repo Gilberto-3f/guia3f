@@ -68,6 +68,13 @@ export async function garantirCanaisDoEcossistema(
   const id = String(ecoId ?? '').trim()
   if (!id) return { ok: false, error: 'ecossistema_id obrigatório' }
   const { error } = await db.rpc('garantir_canais_ecossistema', { p_ecossistema_id: id })
-  if (error) return { ok: false, error: error.message }
+  if (error) {
+    const code = String((error as { code?: string }).code ?? '')
+    const msg = String(error.message ?? '')
+    if (code === '23505' || /idx_canais_global_unique|duplicate key/i.test(msg)) {
+      return { ok: true }
+    }
+    return { ok: false, error: error.message }
+  }
   return { ok: true }
 }

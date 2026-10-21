@@ -164,6 +164,7 @@ USING (public.admin_acessa_ecossistema(ecossistema_id))
 WITH CHECK (public.admin_acessa_ecossistema(ecossistema_id));
 
 DROP FUNCTION IF EXISTS public.contar_ecossistema_nao_lidas_adm(TIMESTAMPTZ);
+DROP FUNCTION IF EXISTS public.contar_ecossistema_nao_lidas_adm(TIMESTAMPTZ, UUID);
 CREATE FUNCTION public.contar_ecossistema_nao_lidas_adm(
   p_visto_em TIMESTAMPTZ DEFAULT NULL,
   p_ecossistema_id UUID DEFAULT NULL
@@ -173,6 +174,9 @@ LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
 SET search_path = public
+SET row_security = off
+SET lock_timeout = '800ms'
+SET statement_timeout = '1500ms'
 AS $$
 DECLARE
   v_uid UUID := auth.uid();
@@ -195,12 +199,18 @@ BEGIN
     AND public.admin_acessa_ecossistema(c.ecossistema_id);
 
   RETURN COALESCE(v_count, 0);
+EXCEPTION
+  WHEN lock_not_available THEN
+    RETURN 0;
+  WHEN query_canceled THEN
+    RETURN 0;
 END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.contar_ecossistema_nao_lidas_adm(TIMESTAMPTZ, UUID) TO authenticated;
 
 DROP FUNCTION IF EXISTS public.contar_ecossistema_nao_lidas_membro(UUID);
+DROP FUNCTION IF EXISTS public.contar_ecossistema_nao_lidas_membro(UUID, UUID);
 CREATE FUNCTION public.contar_ecossistema_nao_lidas_membro(
   p_membro_id UUID,
   p_ecossistema_id UUID DEFAULT NULL
@@ -210,6 +220,9 @@ LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
 SET search_path = public
+SET row_security = off
+SET lock_timeout = '800ms'
+SET statement_timeout = '1500ms'
 AS $$
 DECLARE
   v_uid UUID := auth.uid();
@@ -242,6 +255,11 @@ BEGIN
     AND u.role = 'admin';
 
   RETURN COALESCE(v_count, 0);
+EXCEPTION
+  WHEN lock_not_available THEN
+    RETURN 0;
+  WHEN query_canceled THEN
+    RETURN 0;
 END;
 $$;
 

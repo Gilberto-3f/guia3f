@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import PopupConclusaoAtendimentoMobilidade, {
@@ -27,6 +27,9 @@ function formatBrl(n: number): string {
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
+let lastConclusaoFetchAt = 0
+const MIN_GAP_CONCLUSAO_MS = 5_000
+
 /**
  * Popup verde de conclusão + cadeia de avaliação (RECEBIDO → turista → profissional).
  */
@@ -37,6 +40,7 @@ export default function ConclusaoAtendimentoMobilidadeListener() {
   const [conclusao, setConclusao] = useState<ConclusaoPendente | null>(null)
   const [fase, setFase] = useState<FaseConclusaoUi>('resumo')
   const [dismissedId, setDismissedId] = useState<string | null>(null)
+  const falhasRef = useRef(0)
 
   const elegivel =
     !loading &&
@@ -47,9 +51,16 @@ export default function ConclusaoAtendimentoMobilidadeListener() {
 
   const carregar = useCallback(async () => {
     if (!elegivel) return
+    const agora = Date.now()
+    if (agora - lastConclusaoFetchAt < MIN_GAP_CONCLUSAO_MS) return
+    lastConclusaoFetchAt = agora
     try {
       const res = await fetch('/api/mobilidade/conclusao-pendente')
-      if (!res.ok) return
+      if (!res.ok) {
+        falhasRef.current = Math.min(4, falhasRef.current + 1)
+        return
+      }
+      falhasRef.current = 0
       const json = (await res.json()) as { conclusao?: ConclusaoPendente | null }
       const next = json.conclusao ?? null
       if (!next) {
@@ -64,13 +75,15 @@ export default function ConclusaoAtendimentoMobilidadeListener() {
       setConclusao(next)
       setFase(next.fase === 'avaliar' || next.fase === 'aguardando' ? next.fase : 'resumo')
     } catch {
-      /* ignore */
+      falhasRef.current = Math.min(4, falhasRef.current + 1)
     }
   }, [elegivel, dismissedId])
 
   useEffect(() => {
     if (!elegivel) return
-    const intervalo = conclusao ? MOBILIDADE_POLL_CONCLUSAO_ATIVA_MS : MOBILIDADE_POLL_CONCLUSAO_IDLE_MS
+    const backoff = falhasRef.current > 0 ? MOBILIDADE_POLL_CONCLUSAO_IDLE_MS * (falhasRef.current + 1) : 0
+    const intervalo =
+      backoff || (conclusao ? MOBILIDADE_POLL_CONCLUSAO_ATIVA_MS : MOBILIDADE_POLL_CONCLUSAO_IDLE_MS)
     void carregar()
     const id = window.setInterval(() => void carregar(), intervalo)
     const onRefresh = () => void carregar()
