@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter } from '@/i18n/navigation'
 import { GUIA_CANAIS_BADGE_EVENT } from '@/lib/canais-badge-events'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
@@ -18,6 +18,8 @@ import ListaCanais from '@/components/ListaCanais'
 import ListaCanaisEmpresa from '@/components/ListaCanaisEmpresa'
 import ListaCanaisProfissional from '@/components/ListaCanaisProfissional'
 import CanalMensagens from '@/components/CanalMensagens'
+import ChevronEcossistemaCanaisAdm from '@/components/ChevronEcossistemaCanaisAdm'
+import { useEcossistemaCanaisAdm } from '@/hooks/useEcossistemaCanaisAdm'
 
 type TipoUsuario = 'turista' | 'profissional' | 'empresa' | 'admin' | null
 
@@ -35,6 +37,7 @@ export default function CanalPage() {
   const [loading, setLoading] = useState(true)
   const [turismoCanalId, setTurismoCanalId] = useState<string | null>(null)
   const [carregandoTurismo, setCarregandoTurismo] = useState(false)
+  const canaisEco = useEcossistemaCanaisAdm()
 
   const userTipoEfetivo = useMemo((): TipoUsuario => {
     if (modoColaboradorDual && emModoAdm && colaboradorTemModoDual(adminLevel)) {
@@ -207,18 +210,35 @@ export default function CanalPage() {
     return (
       <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
         <div className="sticky top-0 z-10 bg-[#0097b2] px-4 pb-3 pt-safe text-white shadow-sm">
-          <h1 className="text-xl font-bold">Canais ADM</h1>
+          <div className="flex min-w-0 items-center gap-2">
+            <h1 className="shrink-0 text-xl font-bold">Canais ADM</h1>
+            {canaisEco.carregou ? (
+              <ChevronEcossistemaCanaisAdm
+                lista={canaisEco.lista}
+                ativo={canaisEco.ativo}
+                podeTrocar={canaisEco.podeTrocar}
+                onChange={canaisEco.setAtivoId}
+              />
+            ) : null}
+          </div>
         </div>
         <div className="flex min-h-0 min-h-[calc(100dvh-7rem)] flex-1 flex-col overflow-y-auto">
-          <ListaCanais
-            tipoPublico={null}
-            agruparPorTipo
-            onSelectCanal={(c) => {
-              if (!c?.id) return
-              router.prefetch(`/canal/${c.id}`)
-              router.push(`/canal/${c.id}`)
-            }}
-          />
+          {!canaisEco.carregou ? (
+            <div className="flex flex-1 items-center justify-center">
+              <div className="animate-pulse text-gray-400">Carregando...</div>
+            </div>
+          ) : (
+            <ListaCanais
+              tipoPublico={null}
+              agruparPorTipo
+              ecossistemaId={canaisEco.ativo?.id ?? null}
+              onSelectCanal={(c) => {
+                if (!c?.id) return
+                router.prefetch(`/canal/${c.id}`)
+                router.push(`/canal/${c.id}`)
+              }}
+            />
+          )}
         </div>
       </div>
     )

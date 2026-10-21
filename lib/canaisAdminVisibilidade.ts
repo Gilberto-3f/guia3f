@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { nomeNormCanal } from '@/lib/rotulosCanaisAdministracao'
 import { contarNaoLidasEcossistemaAdm } from '@/lib/ecossistemaConversas'
-import { filtrarCanaisDoBlocoPadrao } from '@/lib/canaisEcossistema'
+import { filtrarCanaisDoBloco } from '@/lib/canaisEcossistema'
+import { resolverIdBlocoCanaisAdm } from '@/lib/ecossistemaCanaisAdm'
 
 /** Remetentes que geram notificação para o perfil admin (inbox Mensageiro ADM). */
 export const ROLES_REMETENTE_NOTIFICAM_ADMIN = ['turista', 'profissional', 'empresa'] as const
@@ -33,7 +34,10 @@ export function ehCanalInboxEcossistemaAdm(c: {
 /**
  * ID do canal inbox Mensageiro ADM (único canal que entra no contador da barra para admin).
  */
-export async function obterIdCanalInboxMensageiroAdm(supabase: SupabaseClient): Promise<string | null> {
+export async function obterIdCanalInboxMensageiroAdm(
+  supabase: SupabaseClient,
+  blocoId?: string | null,
+): Promise<string | null> {
   const { data, error } = await supabase
     .from('canais')
     .select('id, nome, tipo_publico, empresa_id, ecossistema_id')
@@ -45,7 +49,11 @@ export async function obterIdCanalInboxMensageiroAdm(supabase: SupabaseClient): 
     return null
   }
 
-  const visiveis = await filtrarCanaisDoBlocoPadrao(supabase, data ?? [])
+  const alvo =
+    blocoId != null && String(blocoId).trim() !== ''
+      ? String(blocoId).trim()
+      : await resolverIdBlocoCanaisAdm(supabase)
+  const visiveis = filtrarCanaisDoBloco(data ?? [], alvo)
   const canal =
     visiveis.find((c) => nomeNormCanal(c.nome) === 'MENSAGEIRO ECOSSISTEMA') ??
     visiveis.find((c) => nomeNormCanal(c.nome) === 'MENSAGEIRO ADM')

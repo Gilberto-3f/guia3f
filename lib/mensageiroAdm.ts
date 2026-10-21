@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { marcarCanalComoLido } from '@/lib/canalBadge'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
-import { filtrarCanaisDoBlocoPadrao } from '@/lib/canaisEcossistema'
+import { filtrarCanaisDoBloco } from '@/lib/canaisEcossistema'
+import { resolverIdBlocoCanaisAdm } from '@/lib/ecossistemaCanaisAdm'
 
 export type ContextoMensageiroAdm = {
   origem: 'emergencia' | 'falar_adm' | 'sistema'
@@ -27,7 +28,8 @@ export async function enviarMensagemMensageiroAdm(
     .eq('tipo_publico', 'admin')
     .eq('ativo', true)
 
-  const visiveis = await filtrarCanaisDoBlocoPadrao(supabase, canais ?? [])
+  const blocoId = await resolverIdBlocoCanaisAdm(supabase, remetenteId)
+  const visiveis = filtrarCanaisDoBloco(canais ?? [], blocoId)
   const canal =
     visiveis.find((c) => String(c.nome ?? '').trim().toUpperCase() === 'MENSAGEIRO ECOSSISTEMA') ??
     visiveis.find((c) => String(c.nome ?? '').trim().toUpperCase() === 'MENSAGEIRO ADM')

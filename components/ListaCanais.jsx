@@ -31,7 +31,7 @@ import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
 import { ehCanalInboxMensageiroAdm, obterIdCanalInboxMensageiroAdm } from '@/lib/canaisAdminVisibilidade'
 import { contarAvisosFinanceiroHubNaoLidos } from '@/lib/financeiroAvisosAdmHub'
 import { particionarVisaoAdminTodos } from '@/lib/canaisAdminParticao'
-import { filtrarCanaisDoBlocoPadrao } from '@/lib/canaisEcossistema'
+import { filtrarCanaisDoBloco, filtrarCanaisDoBlocoPadrao } from '@/lib/canaisEcossistema'
 import { GUIA_CANAIS_BADGE_EVENT, notificarBadgeCanais } from '@/lib/canais-badge-events'
 import CanalListaRow from '@/components/CanalListaRow'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
@@ -238,6 +238,7 @@ function idsEmParticao(part) {
  *   onSelectCanal: (c: Canal) => void
  *   canalSelecionadoId?: string
  *   agruparPorTipo?: boolean
+ *   ecossistemaId?: string | null
  * }} props
  */
 export default function ListaCanais({
@@ -246,6 +247,7 @@ export default function ListaCanais({
   onSelectCanal,
   canalSelecionadoId,
   agruparPorTipo = false,
+  ecossistemaId = null,
 }) {
   const [canais, setCanais] = useState(/** @type {Canal[]} */ ([]))
   const [loading, setLoading] = useState(true)
@@ -308,9 +310,9 @@ export default function ListaCanais({
   const resolverIdsContagemAdmin = useCallback(async () => {
     const inboxNaLista = canais.filter((c) => ehCanalInboxMensageiroAdm(c)).map((c) => c.id)
     if (inboxNaLista.length > 0) return inboxNaLista
-    const inboxId = await obterIdCanalInboxMensageiroAdm(supabase)
+    const inboxId = await obterIdCanalInboxMensageiroAdm(supabase, ecossistemaId)
     return inboxId ? [inboxId] : []
-  }, [canais])
+  }, [canais, ecossistemaId])
 
   const somarBadgeHubFinanceiroAdm = useCallback(async (contagens, uid, listaCanais) => {
     if (!uid || !ehVisaoAdminBadges) return contagens
@@ -394,7 +396,9 @@ export default function ListaCanais({
 
         if (error) throw error
 
-        const lista = await filtrarCanaisDoBlocoPadrao(supabase, data ?? [])
+        const lista = ecossistemaId
+          ? filtrarCanaisDoBloco(data ?? [], ecossistemaId)
+          : await filtrarCanaisDoBlocoPadrao(supabase, data ?? [])
         const fixos = lista.filter((c) => c.ordem_tipo === 'fixo').sort((a, b) => (a.ordem_posicao ?? 0) - (b.ordem_posicao ?? 0))
         const rotativos = lista.filter((c) => c.ordem_tipo !== 'fixo')
         rotativos.sort((a, b) => {
@@ -410,7 +414,7 @@ export default function ListaCanais({
         if (agruparPorTipo || tipoPublico === 'admin') {
           const inboxNaLista = ordenados.filter((c) => ehCanalInboxMensageiroAdm(c)).map((c) => c.id)
           const inboxId =
-            inboxNaLista.length > 0 ? inboxNaLista[0] : await obterIdCanalInboxMensageiroAdm(supabase)
+            inboxNaLista.length > 0 ? inboxNaLista[0] : await obterIdCanalInboxMensageiroAdm(supabase, ecossistemaId)
           idsContagem = inboxId ? [inboxId] : []
         }
         const [ultimas, contagensBase] = await Promise.all([
@@ -433,7 +437,7 @@ export default function ListaCanais({
     }
 
     void carregarCanais()
-  }, [tipoPublico, paisFiltro])
+  }, [tipoPublico, paisFiltro, ecossistemaId])
 
   const idsMonitor = useMemo(() => canais.map((c) => c.id).filter((id) => !id.startsWith('__placeholder')), [canais])
 

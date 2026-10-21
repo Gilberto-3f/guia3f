@@ -53,8 +53,8 @@ export function filtrarCanaisDoBloco<T extends CanalComEcossistema>(
 }
 
 /**
- * Recorte temporário (etapa 1): listas e badges usam o bloco padrão
- * até o chevron de Canais ADM (etapa 3).
+ * Recorte profissional/empresa (etapa 4 ainda usa o bloco padrão).
+ * Canais ADM passam `ecossistemaId` explícito.
  */
 export async function filtrarCanaisDoBlocoPadrao<T extends CanalComEcossistema>(
   db: Pick<SupabaseClient, 'from'>,
