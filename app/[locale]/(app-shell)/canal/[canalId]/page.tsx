@@ -60,6 +60,13 @@ import {
   resolverInboxCanalAdmEmpresa,
   type CanalAdmEmpresaInboxConfig,
 } from '@/lib/canaisEmpresaAdm'
+import {
+  buscarEmpresasDosBlocosCanais,
+  mapaNomesEcossistema,
+  resolverIdsBlocosCanaisEmpresa,
+  resolverIdsBlocosCanaisProfissional,
+  sufixoNomeBloco,
+} from '@/lib/canaisEcossistemaPerfil'
 
 const CanalDrawer = dynamic(() => import('@/components/canal/CanalDrawer'), { ssr: false })
 
@@ -105,6 +112,7 @@ type CanalRow = {
   comunidade_prof: string | null
   categoria: string | null
   empresa_id: string | null
+  ecossistema_id: string | null
   empresas?: EmpresaCanalEmbed | null
 }
 
@@ -132,6 +140,7 @@ export default function CanalDetalhePage() {
   const [destaqueMensagemId, setDestaqueMensagemId] = useState<string | null>(null)
   const [paisLeituraProfissional, setPaisLeituraProfissional] = useState('geral')
   const [paisLeituraEmpresa, setPaisLeituraEmpresa] = useState('geral')
+  const [sufixoBloco, setSufixoBloco] = useState('')
 
   const paisesAbasColetivo = useMemo(() => [...PAISES_ABAS_CANAL_COLETIVO], [])
 
@@ -232,13 +241,14 @@ export default function CanalDetalhePage() {
       setCarregandoCanal(true)
       setCanalMissing(false)
       setInboxCanalAdm(null)
+      setSufixoBloco('')
 
       const rolePromise = supabase.from('usuarios').select('role').eq('id', uid).maybeSingle()
       const canalPromise = supabase
         .from('canais')
         .select(
           `
-          id, nome, tipo_publico, comunidade_prof, categoria, empresa_id,
+          id, nome, tipo_publico, comunidade_prof, categoria, empresa_id, ecossistema_id,
           empresas:empresa_id ( nome_fantasia, cidade, foto_url )
           `,
         )
@@ -329,6 +339,7 @@ export default function CanalDetalhePage() {
         comunidade_prof: data.comunidade_prof != null ? String(data.comunidade_prof) : null,
         categoria: data.categoria != null ? String(data.categoria) : null,
         empresa_id: data.empresa_id != null ? String(data.empresa_id) : null,
+        ecossistema_id: data.ecossistema_id != null ? String(data.ecossistema_id) : null,
         empresas: emp
           ? {
               nome_fantasia: emp.nome_fantasia != null ? String(emp.nome_fantasia) : null,
@@ -361,6 +372,37 @@ export default function CanalDetalhePage() {
         }
       }
 
+      const blocoIdsPerfil =
+        tipoLocal === 'profissional'
+          ? await resolverIdsBlocosCanaisProfissional(supabase, uid)
+          : tipoLocal === 'empresa'
+            ? await resolverIdsBlocosCanaisEmpresa(supabase, uid)
+            : []
+      if (cancelado) return
+
+      if ((tipoLocal === 'profissional' || tipoLocal === 'empresa') && !row.empresa_id && row.ecossistema_id) {
+        if (blocoIdsPerfil.length > 0 && !blocoIdsPerfil.includes(row.ecossistema_id)) {
+          setCanal(null)
+          setCanalMissing(true)
+          setCarregandoCanal(false)
+          return
+        }
+      }
+      if (tipoLocal === 'profissional' && row.empresa_id) {
+        const empresasDosBlocos = await buscarEmpresasDosBlocosCanais(supabase, blocoIdsPerfil)
+        if (empresasDosBlocos && !empresasDosBlocos.has(row.empresa_id)) {
+          setCanal(null)
+          setCanalMissing(true)
+          setCarregandoCanal(false)
+          return
+        }
+      }
+
+      if (blocoIdsPerfil.length > 1 && row.ecossistema_id && !row.empresa_id) {
+        const nomes = await mapaNomesEcossistema(supabase)
+        if (!cancelado) setSufixoBloco(sufixoNomeBloco(row.ecossistema_id, nomes, true))
+      }
+
       setCanal(row)
       setCanalMissing(false)
       setCarregandoCanal(false)
@@ -380,7 +422,12 @@ export default function CanalDetalhePage() {
 
       if (precisaInboxEmp) {
         void (async () => {
-          const admId = isCanalAdmEmpresaGlobal(row) ? row.id : await buscarIdCanalAdmEmpresaGlobal(supabase)
+          const admId = isCanalAdmEmpresaGlobal(row)
+            ? row.id
+            : await buscarIdCanalAdmEmpresaGlobal(supabase, {
+                ecossistemaId: row.ecossistema_id,
+                usuarioId: uid,
+              })
           if (!admId) return
           const inbox = await resolverInboxCanalAdmEmpresa(supabase, uid, admId)
           if (!cancelado) setInboxCanalAdm(inbox)
@@ -528,6 +575,8 @@ export default function CanalDetalhePage() {
     return canal.nome
   }, [canal, userTipoEfetivo, ehCanalEmpresaParaProfissional, empresaCategoria])
 
+  const tituloCanalComBloco = sufixoBloco ? `${tituloCanal}${sufixoBloco}` : tituloCanal
+
   const ehCanalFinanceiroAtual = useMemo(() => {
     if (!canal) return false
     if (userTipoEfetivo === 'admin' && isCanalFinanceiroHubAdm(canal)) return true
@@ -615,7 +664,7 @@ export default function CanalDetalhePage() {
         onFechar={fecharDrawerCanal}
         canalId={canalId}
         canal={canal}
-        tituloCanal={tituloCanal}
+        tituloCanal={tituloCanalComBloco}
         usuarioId={usuarioId}
         paisTab={paisTabDrawer}
         modoFiltroPais={modoFiltroPaisCanal}
@@ -694,14 +743,17 @@ export default function CanalDetalhePage() {
           </button>
           <CanalHeaderTitulo onAbrirDrawer={abrirDrawerCanal} disabled={isFinanceiro || profCanalBloqueadoPorDocs}>
             {isFinanceiro ? (
-              <CanalFinanceiroListaRotulo username={meuUsername} inverse />
+              <span className="inline-flex min-w-0 items-center">
+                <CanalFinanceiroListaRotulo username={meuUsername} inverse />
+                {sufixoBloco ? <span className="truncate">{sufixoBloco}</span> : null}
+              </span>
             ) : ehCanalEmpresaParaProfissional ? (
               <span className="flex min-w-0 items-center justify-center gap-2 truncate text-lg font-semibold">
                 <BandeiraPais cidade={canal?.empresas?.cidade} className="text-lg leading-none" />
-                <span className="truncate">{tituloCanal}</span>
+                <span className="truncate">{tituloCanalComBloco}</span>
               </span>
             ) : (
-              <span className="truncate text-lg font-semibold">{tituloCanal}</span>
+              <span className="truncate text-lg font-semibold">{tituloCanalComBloco}</span>
             )}
           </CanalHeaderTitulo>
           {isFinanceiro || profCanalBloqueadoPorDocs ? (
@@ -737,7 +789,7 @@ export default function CanalDetalhePage() {
               podePostar={false}
               podeReagir={podeInteragir}
               inboxCanalAdm={null}
-              canalNome={tituloCanal}
+              canalNome={tituloCanalComBloco}
               destaqueMensagemId={destaqueMensagemId}
             />
             </div>
@@ -784,9 +836,12 @@ export default function CanalDetalhePage() {
           </button>
           <CanalHeaderTitulo onAbrirDrawer={abrirDrawerCanal} disabled={isFinanceiro}>
             {isFinanceiro ? (
-              <CanalFinanceiroListaRotulo username={meuUsername} inverse />
+              <span className="inline-flex min-w-0 items-center">
+                <CanalFinanceiroListaRotulo username={meuUsername} inverse />
+                {sufixoBloco ? <span className="truncate">{sufixoBloco}</span> : null}
+              </span>
             ) : (
-              <span className="truncate text-lg font-semibold">{tituloCanal}</span>
+              <span className="truncate text-lg font-semibold">{tituloCanalComBloco}</span>
             )}
           </CanalHeaderTitulo>
           {isFinanceiro ? (
@@ -839,7 +894,7 @@ export default function CanalDetalhePage() {
                 podeReagir={podeInteragir}
                 inboxCanalAdm={isCanalAdmInbox ? inboxCanalAdm : null}
                 inboxModo="empresa"
-                canalNome={tituloCanal}
+                canalNome={tituloCanalComBloco}
                 destaqueMensagemId={destaqueMensagemId}
               />
               </div>

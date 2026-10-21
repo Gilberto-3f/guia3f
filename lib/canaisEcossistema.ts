@@ -52,10 +52,7 @@ export function filtrarCanaisDoBloco<T extends CanalComEcossistema>(
   return (canais ?? []).filter((c) => canalVisivelNoBlocoCanais(c, blocoId))
 }
 
-/**
- * Recorte profissional/empresa (etapa 4 ainda usa o bloco padrão).
- * Canais ADM passam `ecossistemaId` explícito.
- */
+/** Recorte ADM / fallback quando o perfil ainda não tem blocos N:N. */
 export async function filtrarCanaisDoBlocoPadrao<T extends CanalComEcossistema>(
   db: Pick<SupabaseClient, 'from'>,
   canais: T[] | null | undefined,

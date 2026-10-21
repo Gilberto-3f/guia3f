@@ -124,6 +124,44 @@ export async function buscarIdsProfissionalEcossistema(
   )
 }
 
+/** IDs de bloco da empresa. `null` = tabela ausente. */
+export async function buscarEcoIdsDaEmpresa(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  empresaId: string | null | undefined,
+): Promise<string[] | null> {
+  const id = String(empresaId ?? '').trim()
+  if (!id) return []
+  const { data, error } = await supabase
+    .from('empresa_ecossistemas')
+    .select('ecossistema_id')
+    .eq('empresa_id', id)
+  if (error) {
+    if (vinculoEcossistemaIgnoravel(error)) return null
+    return null
+  }
+  return [...new Set((data ?? []).map((r: { ecossistema_id?: unknown }) => String(r.ecossistema_id ?? '')).filter(Boolean))]
+}
+
+/** Empresas em qualquer um dos blocos. `null` = tabela ausente. */
+export async function buscarIdsEmpresasDosEcossistemas(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  ecoIds: string[],
+): Promise<Set<string> | null> {
+  const ids = [...new Set(ecoIds.map((id) => String(id ?? '').trim()).filter(Boolean))]
+  if (ids.length === 0) return new Set()
+  const { data, error } = await supabase
+    .from('empresa_ecossistemas')
+    .select('empresa_id')
+    .in('ecossistema_id', ids)
+  if (error) {
+    if (vinculoEcossistemaIgnoravel(error)) return null
+    return null
+  }
+  return new Set((data ?? []).map((r: { empresa_id?: unknown }) => String(r.empresa_id ?? '')).filter(Boolean))
+}
+
 /** IDs de bloco do profissional. `null` = tabela ausente. */
 export async function buscarEcoIdsDoProfissional(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

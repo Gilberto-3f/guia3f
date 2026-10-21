@@ -7,7 +7,11 @@ import {
   isCanalFinanceiroEmpresa,
   slugCanalSegmentoEmpresa,
 } from '@/lib/canaisEmpresaSlugs'
-import { filtrarCanaisDoBlocoPadrao } from '@/lib/canaisEcossistema'
+import { filtrarCanaisDoBloco } from '@/lib/canaisEcossistema'
+import {
+  filtrarCanaisGlobaisDosBlocos,
+  resolverIdsBlocosCanaisEmpresa,
+} from '@/lib/canaisEcossistemaPerfil'
 
 export type CanalAdmEmpresaInboxConfig = {
   canalAdmId: string
@@ -28,18 +32,38 @@ export type MensagemCanalRow = {
   pais: string | null
 }
 
-/** ID do canal global Financeiro pessoal (tipo empresa, pasta Administração). */
-export async function buscarIdCanalFinanceiroEmpresaGlobal(
+type CanalEmpresaGlobalOpts = {
+  ecossistemaId?: string | null
+  usuarioId?: string | null
+}
+
+async function globaisEmpresaVisiveis(
   supabase: SupabaseClient,
-): Promise<string | null> {
+  opts?: CanalEmpresaGlobalOpts,
+) {
   const { data } = await supabase
     .from('canais')
-    .select('id, nome, tipo_publico, empresa_id, ativo, ecossistema_id')
+    .select('id, nome, tipo_publico, empresa_id, ativo, categoria, ecossistema_id')
     .eq('tipo_publico', 'empresa')
     .eq('ativo', true)
     .is('empresa_id', null)
 
-  const visiveis = await filtrarCanaisDoBlocoPadrao(supabase, data ?? [])
+  const eco = opts?.ecossistemaId != null ? String(opts.ecossistemaId).trim() : ''
+  if (eco) return filtrarCanaisDoBloco(data ?? [], eco)
+  if (opts?.usuarioId) {
+    const blocoIds = await resolverIdsBlocosCanaisEmpresa(supabase, opts.usuarioId)
+    return filtrarCanaisGlobaisDosBlocos(data ?? [], blocoIds)
+  }
+  const blocoIds = await resolverIdsBlocosCanaisEmpresa(supabase, '')
+  return filtrarCanaisGlobaisDosBlocos(data ?? [], blocoIds)
+}
+
+/** ID do canal global Financeiro pessoal (tipo empresa, pasta Administração). */
+export async function buscarIdCanalFinanceiroEmpresaGlobal(
+  supabase: SupabaseClient,
+  opts?: CanalEmpresaGlobalOpts,
+): Promise<string | null> {
+  const visiveis = await globaisEmpresaVisiveis(supabase, opts)
   for (const c of visiveis) {
     if (isCanalFinanceiroEmpresa(c.nome != null ? String(c.nome) : null)) return String(c.id)
   }
@@ -48,16 +72,10 @@ export async function buscarIdCanalFinanceiroEmpresaGlobal(
 
 /** ID do canal global ADM (tipo empresa). */
 export async function buscarIdCanalAdmEmpresaGlobal(
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  opts?: CanalEmpresaGlobalOpts,
 ): Promise<string | null> {
-  const { data } = await supabase
-    .from('canais')
-    .select('id, nome, tipo_publico, empresa_id, ativo, ecossistema_id')
-    .eq('tipo_publico', 'empresa')
-    .eq('ativo', true)
-    .is('empresa_id', null)
-
-  const visiveis = await filtrarCanaisDoBlocoPadrao(supabase, data ?? [])
+  const visiveis = await globaisEmpresaVisiveis(supabase, opts)
   for (const c of visiveis) {
     if (isCanalAdmEmpresaGlobal(c)) return String(c.id)
   }
@@ -94,7 +112,18 @@ export async function resolverInboxCanalAdmEmpresa(
     .eq('ativo', true)
     .is('empresa_id', null)
 
-  const visiveis = await filtrarCanaisDoBlocoPadrao(supabase, canais ?? [])
+  const { data: admRow } = await supabase
+    .from('canais')
+    .select('ecossistema_id')
+    .eq('id', canalAdmId)
+    .maybeSingle()
+  const ecoAberto = admRow?.ecossistema_id != null ? String(admRow.ecossistema_id).trim() : ''
+  const visiveis = ecoAberto
+    ? filtrarCanaisDoBloco(canais ?? [], ecoAberto)
+    : filtrarCanaisGlobaisDosBlocos(
+        canais ?? [],
+        await resolverIdsBlocosCanaisEmpresa(supabase, usuarioId),
+      )
   const canaisBroadcastIds: string[] = []
   for (const c of visiveis) {
     if (isCanalAdmEmpresaGlobal(c)) continue

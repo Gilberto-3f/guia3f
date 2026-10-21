@@ -27,7 +27,15 @@ import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
 import { GUIA_CANAIS_BADGE_EVENT, notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import AvisoDocsProfissionalBloqueado from '@/components/AvisoDocsProfissionalBloqueado'
-import { filtrarCanaisDoBlocoPadrao } from '@/lib/canaisEcossistema'
+import {
+  buscarEmpresasDosBlocosCanais,
+  filtrarCanaisEmpresaDosBlocos,
+  filtrarCanaisGlobaisDosBlocos,
+  mapaNomesEcossistema,
+  resolverIdsBlocosCanaisProfissional,
+  rotuloCanalComBloco,
+  sufixoNomeBloco,
+} from '@/lib/canaisEcossistemaPerfil'
 
 /** @type {readonly string[]} */
 const CATEGORIAS_PROFISSIONAIS = ['motorista_app', 'van', 'taxista', 'guia', 'anfitriao']
@@ -162,6 +170,7 @@ function nomeNorm(nome) {
  *   comunidade_prof?: string | null
  *   empresa_id?: string | null
  *   empresa_categoria?: string | null
+ *   ecossistema_id?: string | null
  *   ordem_tipo: string | null
  *   ordem_posicao?: number | null
  *   ultima_mensagem_em: string | null
@@ -211,6 +220,8 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
   /** Enquanto o gate carrega, tratar como bloqueado (evita flash de canais liberados). */
   const canaisBloqueados = gateLoading || !recursosProfissionaisLiberados
   const [canais, setCanais] = useState(/** @type {Canal[]} */ ([]))
+  const [nomesBloco, setNomesBloco] = useState(/** @type {Map<string, string>} */ (new Map()))
+  const [mostrarBloco, setMostrarBloco] = useState(false)
   const [loading, setLoading] = useState(true)
   /** @type {Record<string, { preview: string, created_at: string }>} */
   const [ultimasMensagens, setUltimasMensagens] = useState({})
@@ -348,12 +359,22 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
       const uid = session?.user?.id
       if (!uid) {
         setCanais([])
+        setNomesBloco(new Map())
+        setMostrarBloco(false)
         return
       }
 
       const { data: prof } = await supabase.from('profissionais').select('categorias').eq('usuario_id', uid).maybeSingle()
       const cats = Array.isArray(prof?.categorias) ? prof.categorias.map(String) : []
       const slugsCarregados = cats.map((c) => toSlug(c)).filter(Boolean)
+
+      const blocoIds = await resolverIdsBlocosCanaisProfissional(supabase, uid)
+      const [empresasDosBlocos, nomes] = await Promise.all([
+        buscarEmpresasDosBlocosCanais(supabase, blocoIds),
+        mapaNomesEcossistema(supabase),
+      ])
+      setNomesBloco(nomes)
+      setMostrarBloco(blocoIds.length > 1)
 
       /** @type {Set<string> | null} */
       let empresasAprovadas = null
@@ -378,7 +399,12 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
         .in('tipo_publico', ['profissional', 'empresa'])
 
       if (error) throw error
-      const lista = /** @type {Canal[]} */ (await filtrarCanaisDoBlocoPadrao(supabase, data ?? []))
+      const lista = /** @type {Canal[]} */ (
+        filtrarCanaisEmpresaDosBlocos(
+          filtrarCanaisGlobaisDosBlocos(data ?? [], blocoIds),
+          empresasDosBlocos,
+        )
+      )
       const filtrada = lista.filter((c) => {
         if (c.tipo_publico === 'profissional') {
           if (isCanalAdmProfissionalGlobal(c)) return false
@@ -481,10 +507,20 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
     const ehAdministracao = opts.canalProfissional === true
     const ehFinanceiro = ehAdministracao && isCanalFinanceiroProfissional(canal.nome)
     const Icon = ehAdministracao ? iconeCanalProfissionalLista(canal) : getIcon(canal)
+    const mostrarSufixo = mostrarBloco && !canal.empresa_id
+    const sufixo = sufixoNomeBloco(canal.ecossistema_id, nomesBloco, mostrarSufixo)
     const label = ehFinanceiro ? (
-      <CanalFinanceiroListaRotulo username={meuUsername} />
+      <span className="inline-flex min-w-0 items-center">
+        <CanalFinanceiroListaRotulo username={meuUsername} />
+        {sufixo ? <span className="truncate">{sufixo}</span> : null}
+      </span>
     ) : ehAdministracao ? (
-      rotuloCanalListaProfissional(canal, isCanalFinanceiroProfissional)
+      rotuloCanalComBloco(
+        rotuloCanalListaProfissional(canal, isCanalFinanceiroProfissional),
+        canal.ecossistema_id,
+        nomesBloco,
+        mostrarSufixo,
+      )
     ) : (
       canal.nome
     )

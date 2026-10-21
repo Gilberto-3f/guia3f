@@ -36,7 +36,13 @@ import CanalListaRow from '@/components/CanalListaRow'
 import { fetchNomeUsuarioParaStory } from '@/lib/feed-autor'
 import { garantirCanaisEmpresaComunidade } from '@/lib/canaisEmpresaGarantir'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
-import { filtrarCanaisDoBlocoPadrao } from '@/lib/canaisEcossistema'
+import {
+  filtrarCanaisGlobaisDosBlocos,
+  mapaNomesEcossistema,
+  resolverIdsBlocosCanaisEmpresa,
+  rotuloCanalComBloco,
+  sufixoNomeBloco,
+} from '@/lib/canaisEcossistemaPerfil'
 
 /** @type {readonly string[]} */
 const COMUNIDADES_PROFISSIONAIS_SLUG = ['guia', 'taxista', 'van', 'motorista_app', 'anfitriao']
@@ -85,6 +91,7 @@ export { tituloCanalEmpresaLista }
  *   categoria: string | null
   *   comunidade_prof?: string | null
   *   empresa_id?: string | null
+ *   ecossistema_id?: string | null
  *   ordem_tipo: string | null
  *   ordem_posicao?: number | null
  *   ultima_mensagem_em: string | null
@@ -141,6 +148,8 @@ function ordenarCanaisAdministracaoEmpresa(lista) {
 export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }) {
   const { recursosEmpresaLiberados, loading: gateLoading, refreshGate } = useProfissionalGate()
   const [canais, setCanais] = useState(/** @type {Canal[]} */ ([]))
+  const [nomesBloco, setNomesBloco] = useState(/** @type {Map<string, string>} */ (new Map()))
+  const [mostrarBloco, setMostrarBloco] = useState(false)
   const [loading, setLoading] = useState(true)
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
   const [empresaPlano, setEmpresaPlano] = useState(/** @type {string | null} */ (null))
@@ -168,53 +177,63 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     const chaveEmp = chaveSegmentoPorCategoriaEmpresa(categoriaEmpresa)
     // Hospedagem: sem canal de segmento — dual mode usa comunidade Anfitrião / Hospedagem.
     const usarSegmento = chaveEmp != null && chaveEmp !== 'Hospedagem'
-    const segmento = !usarSegmento
-      ? null
-      : (lista.find(
+    const segmentos = !usarSegmento
+      ? []
+      : lista.filter(
           (c) =>
             ehCanalSegmentoEmpresaGlobal(c) && chaveSegmentoEmpresaDeCanal(c) === chaveEmp,
-        ) ?? {
+        )
+    const financeiros = lista.filter((c) => nomeNorm(c.nome) === 'FINANCEIRO')
+    /** @type {Canal[]} */
+    const out = []
+    if (usarSegmento) {
+      if (segmentos.length > 0) out.push(...segmentos)
+      else {
+        out.push({
           id: '__placeholder_segmento__',
           nome: chaveEmp,
           tipo_publico: 'empresa',
           categoria: categoriaEmpresa,
           comunidade_prof: null,
           empresa_id: null,
+          ecossistema_id: null,
           ordem_tipo: 'fixo',
           ordem_posicao: 1,
           ultima_mensagem_em: null,
         })
-    const fin =
-      lista.find((c) => nomeNorm(c.nome) === 'FINANCEIRO') ??
-      (financeiroIdResolvido
-        ? {
-            id: financeiroIdResolvido,
-            nome: 'Financeiro',
-            tipo_publico: 'empresa',
-            categoria: null,
-            comunidade_prof: null,
-            empresa_id: null,
-            ordem_tipo: 'fixo',
-            ordem_posicao: 2,
-            ultima_mensagem_em: null,
-          }
-        : null)
-    /** @type {Canal[]} */
-    const out = []
-    if (segmento) out.push(segmento)
-    out.push(
-      fin ?? {
-        id: '__placeholder_financeiro__',
-        nome: 'Financeiro',
-        tipo_publico: 'empresa',
-        categoria: null,
-        comunidade_prof: null,
-        empresa_id: null,
-        ordem_tipo: 'fixo',
-        ordem_posicao: 2,
-        ultima_mensagem_em: null,
-      },
-    )
+      }
+    }
+    if (financeiros.length > 0) {
+      out.push(...financeiros)
+    } else {
+      out.push(
+        financeiroIdResolvido
+          ? {
+              id: financeiroIdResolvido,
+              nome: 'Financeiro',
+              tipo_publico: 'empresa',
+              categoria: null,
+              comunidade_prof: null,
+              empresa_id: null,
+              ecossistema_id: null,
+              ordem_tipo: 'fixo',
+              ordem_posicao: 2,
+              ultima_mensagem_em: null,
+            }
+          : {
+              id: '__placeholder_financeiro__',
+              nome: 'Financeiro',
+              tipo_publico: 'empresa',
+              categoria: null,
+              comunidade_prof: null,
+              empresa_id: null,
+              ecossistema_id: null,
+              ordem_tipo: 'fixo',
+              ordem_posicao: 2,
+              ultima_mensagem_em: null,
+            },
+      )
+    }
     return out
   }
 
@@ -307,10 +326,24 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     })
   }, [gruposIniciais])
 
+  const admPorEco = useMemo(() => {
+    /** @type {Map<string, string>} */
+    const map = new Map()
+    for (const c of canais) {
+      if (c.empresa_id != null || nomeNorm(c.nome) !== 'ADM') continue
+      const eco = c.ecossistema_id != null ? String(c.ecossistema_id) : ''
+      if (eco) map.set(eco, c.id)
+    }
+    return map
+  }, [canais])
+
   const idsMonitor = useMemo(() => {
     const visiveis = [...administracaoExibicao, ...profissionaisExibicao]
-    return visiveis.map((c) => c.id).filter((id) => id && !String(id).startsWith('__placeholder'))
-  }, [administracaoExibicao, profissionaisExibicao])
+    const extraAdm = canais.filter((c) => c.empresa_id == null && nomeNorm(c.nome) === 'ADM')
+    return [...visiveis, ...extraAdm]
+      .map((c) => c.id)
+      .filter((id) => id && !String(id).startsWith('__placeholder'))
+  }, [administracaoExibicao, profissionaisExibicao, canais])
 
   const recarregarContagens = useCallback(async () => {
     const {
@@ -362,6 +395,8 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
       const uid = session?.user?.id
       if (!uid) {
         setCanais([])
+        setNomesBloco(new Map())
+        setMostrarBloco(false)
         return
       }
       const { data: emp } = await supabase.from('empresas').select('id, categoria, plano').eq('usuario_id', uid).maybeSingle()
@@ -377,26 +412,31 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
       }
 
       const chaveEmp = chaveSegmentoPorCategoriaEmpresa(catEmp)
+      const blocoIds = await resolverIdsBlocosCanaisEmpresa(supabase, uid)
 
-      const [{ data, error }, finCanalId] = await Promise.all([
+      const [{ data, error }, finCanalId, nomes] = await Promise.all([
         supabase
           .from('canais')
           .select('id, nome, tipo_publico, categoria, comunidade_prof, empresa_id, ultima_mensagem_em, ordem_tipo, ordem_posicao, ecossistema_id')
           .eq('tipo_publico', 'empresa')
           .eq('ativo', true),
-        buscarIdCanalFinanceiroEmpresaGlobal(supabase),
+        buscarIdCanalFinanceiroEmpresaGlobal(supabase, { usuarioId: uid }),
+        mapaNomesEcossistema(supabase),
       ])
 
+      setNomesBloco(nomes)
+      setMostrarBloco(blocoIds.length > 1)
       setFinanceiroCanalIdGlobal(finCanalId)
 
       if (error) throw error
-      const lista = /** @type {Canal[]} */ (await filtrarCanaisDoBlocoPadrao(supabase, data ?? []))
+      const lista = /** @type {Canal[]} */ (filtrarCanaisGlobaisDosBlocos(data ?? [], blocoIds))
       const admGlobal = lista.find((c) => c.empresa_id == null && nomeNorm(c.nome) === 'ADM')
       setAdmCanalIdGlobal(admGlobal?.id != null ? String(admGlobal.id) : null)
 
       const filtrada = lista.filter((c) => {
         if (c.empresa_id == null) {
           if (nomeNorm(c.nome) === 'FINANCEIRO') return true
+          if (nomeNorm(c.nome) === 'ADM') return true
           if (ehCanalSegmentoEmpresaGlobal(c) && chaveEmp) {
             return chaveSegmentoEmpresaDeCanal(c) === chaveEmp
           }
@@ -514,8 +554,10 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
    */
   const naoLidasExibidas = (canal) => {
     let n = naoLidasPorCanal[canal.id] ?? 0
-    if (ehCanalSegmentoEmpresaGlobal(canal) && admCanalIdGlobal) {
-      n += naoLidasPorCanal[admCanalIdGlobal] ?? 0
+    if (ehCanalSegmentoEmpresaGlobal(canal)) {
+      const eco = canal.ecossistema_id != null ? String(canal.ecossistema_id) : ''
+      const admId = (eco && admPorEco.get(eco)) || admCanalIdGlobal
+      if (admId) n += naoLidasPorCanal[admId] ?? 0
     }
     return n
   }
@@ -559,10 +601,20 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
       isPlaceholder &&
       !(ehFinanceiro && recursosEmpresaLiberados && financeiroCanalIdGlobal) &&
       !profissionalPlaceholder
+    const mostrarSufixo = mostrarBloco && !canal.empresa_id
+    const sufixo = sufixoNomeBloco(canal.ecossistema_id, nomesBloco, mostrarSufixo)
     const label = ehFinanceiro ? (
-      <CanalFinanceiroListaRotulo username={meuUsername} />
+      <span className="inline-flex min-w-0 items-center">
+        <CanalFinanceiroListaRotulo username={meuUsername} />
+        {sufixo ? <span className="truncate">{sufixo}</span> : null}
+      </span>
     ) : ehSegmentoAdm ? (
-      rotuloCanalSegmentoEmpresaParaEmpresa(canal)
+      rotuloCanalComBloco(
+        rotuloCanalSegmentoEmpresaParaEmpresa(canal),
+        canal.ecossistema_id,
+        nomesBloco,
+        mostrarSufixo,
+      )
     ) : ehProfissional ? (
       rotuloCanalProfissionalLista(canal)
     ) : (

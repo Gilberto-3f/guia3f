@@ -11,7 +11,10 @@ import {
   COMUNIDADES_PROFISSIONAIS_SLUG,
   slugComunidadeProfissionalDeCanalEmpresa,
 } from '@/lib/canaisProfissionaisListaUi'
-import { filtrarCanaisDoBlocoPadrao } from '@/lib/canaisEcossistema'
+import {
+  filtrarCanaisGlobaisDosBlocos,
+  resolverIdsBlocosCanaisEmpresa,
+} from '@/lib/canaisEcossistemaPerfil'
 
 export type CanalFinanceiroRowEmpresa = {
   id?: string | null
@@ -165,7 +168,8 @@ export async function obterIdsCanaisMensagensEmpresa(
     console.error('obterIdsCanaisMensagensEmpresa proprios:', propriosRes.error)
   }
 
-  const globais = await filtrarCanaisDoBlocoPadrao(supabase, globaisRes.data ?? [])
+  const blocoIds = await resolverIdsBlocosCanaisEmpresa(supabase, usuarioId)
+  const globais = filtrarCanaisGlobaisDosBlocos(globaisRes.data ?? [], blocoIds)
   const ids = new Set<string>()
   for (const c of globais) {
     const id = String(c.id)

@@ -6,7 +6,11 @@ import {
   isCanalAdmProfissionalGlobal,
   slugCanalComunidadeProfissional,
 } from '@/lib/canaisProfissionalSlugs'
-import { filtrarCanaisDoBlocoPadrao } from '@/lib/canaisEcossistema'
+import { filtrarCanaisDoBloco } from '@/lib/canaisEcossistema'
+import {
+  filtrarCanaisGlobaisDosBlocos,
+  resolverIdsBlocosCanaisProfissional,
+} from '@/lib/canaisEcossistemaPerfil'
 
 export type CanalAdmInboxConfig = {
   canalAdmId: string
@@ -50,7 +54,18 @@ export async function resolverInboxCanalAdmProfissional(
   }
 
   const { data: canais } = await q
-  const visiveis = await filtrarCanaisDoBlocoPadrao(supabase, canais ?? [])
+  const { data: admRow } = await supabase
+    .from('canais')
+    .select('ecossistema_id')
+    .eq('id', canalAdmId)
+    .maybeSingle()
+  const ecoAberto = admRow?.ecossistema_id != null ? String(admRow.ecossistema_id).trim() : ''
+  const visiveis = ecoAberto
+    ? filtrarCanaisDoBloco(canais ?? [], ecoAberto)
+    : filtrarCanaisGlobaisDosBlocos(
+        canais ?? [],
+        await resolverIdsBlocosCanaisProfissional(supabase, usuarioId),
+      )
 
   const canaisBroadcastIds: string[] = []
   for (const c of visiveis) {

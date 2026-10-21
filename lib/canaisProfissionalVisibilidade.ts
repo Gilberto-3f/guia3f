@@ -15,7 +15,12 @@ import {
   type CanalFinanceiroRowEmpresa,
 } from '@/lib/canaisEmpresaVisibilidade'
 import { itemCanalFinanceiroEhAvisoManifesto } from '@/lib/recomendacaoContratacaoDestino'
-import { filtrarCanaisDoBlocoPadrao } from '@/lib/canaisEcossistema'
+import {
+  buscarEmpresasDosBlocosCanais,
+  filtrarCanaisEmpresaDosBlocos,
+  filtrarCanaisGlobaisDosBlocos,
+  resolverIdsBlocosCanaisProfissional,
+} from '@/lib/canaisEcossistemaPerfil'
 
 export type CanalVisibilidadeRow = {
   id: string
@@ -84,6 +89,8 @@ export async function obterIdsCanaisMensagensProfissional(
   usuarioId: string,
 ): Promise<Set<string>> {
   const slugs = await buscarSlugsCategoriasProfissional(supabase, usuarioId)
+  const blocoIds = await resolverIdsBlocosCanaisProfissional(supabase, usuarioId)
+
   if (slugs.length === 0) {
     const { data: fin } = await supabase
       .from('canais')
@@ -91,7 +98,7 @@ export async function obterIdsCanaisMensagensProfissional(
       .eq('ativo', true)
       .eq('tipo_publico', 'profissional')
       .is('empresa_id', null)
-    const globais = await filtrarCanaisDoBlocoPadrao(supabase, fin ?? [])
+    const globais = filtrarCanaisGlobaisDosBlocos(fin ?? [], blocoIds)
     const ids = new Set<string>()
     for (const c of globais) {
       if (isCanalFinanceiroProfissional(c.nome)) ids.add(String(c.id))
@@ -118,7 +125,11 @@ export async function obterIdsCanaisMensagensProfissional(
     return new Set()
   }
 
-  const visiveis = await filtrarCanaisDoBlocoPadrao(supabase, canais ?? [])
+  const empresasDosBlocos = await buscarEmpresasDosBlocosCanais(supabase, blocoIds)
+  const visiveis = filtrarCanaisEmpresaDosBlocos(
+    filtrarCanaisGlobaisDosBlocos(canais ?? [], blocoIds),
+    empresasDosBlocos,
+  )
   const ids = new Set<string>()
   for (const c of visiveis) {
     const row: CanalVisibilidadeRow = {
