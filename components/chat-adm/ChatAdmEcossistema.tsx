@@ -23,6 +23,7 @@ type Props = {
   usuarioId: string
   urgenteInicial?: boolean
   motivoEmergencia?: MotivoEmergenciaEcossistema | null
+  ecossistemaId?: string | null
 }
 
 function ultimaMensagemIso(lista: EcossistemaMensagemRow[]): string | null {
@@ -34,6 +35,7 @@ export default function ChatAdmEcossistema({
   usuarioId,
   urgenteInicial = false,
   motivoEmergencia = null,
+  ecossistemaId = null,
 }: Props) {
   const [loading, setLoading] = useState(true)
   const [conversaAberta, setConversaAberta] = useState<EcossistemaConversaRow | null>(null)
@@ -90,7 +92,8 @@ export default function ChatAdmEcossistema({
     if (!silencioso) setLoading(true)
     setErro(null)
     try {
-      const res = await fetch('/api/ecossistema-conversas')
+      const ecoQs = ecossistemaId ? `?ecossistema_id=${encodeURIComponent(ecossistemaId)}` : ''
+      const res = await fetch(`/api/ecossistema-conversas${ecoQs}`)
       const json = (await res.json()) as {
         ok?: boolean
         conversaAberta?: EcossistemaConversaRow | null
@@ -111,7 +114,7 @@ export default function ChatAdmEcossistema({
     } finally {
       if (!silencioso) setLoading(false)
     }
-  }, [])
+  }, [ecossistemaId])
 
   const abrirChat = useCallback(
     async (opts?: { motivo?: MotivoEmergenciaEcossistema | null }) => {
@@ -126,6 +129,7 @@ export default function ChatAdmEcossistema({
           body: JSON.stringify({
             assunto: motivo ? assuntoPadraoMotivo(motivo) : 'Contato com administração',
             motivo_emergencia: motivo,
+            ecossistema_id: ecossistemaId,
           }),
         })
         const json = (await res.json()) as { ok?: boolean; conversa?: EcossistemaConversaRow; error?: string }
@@ -141,7 +145,7 @@ export default function ChatAdmEcossistema({
         setIniciando(false)
       }
     },
-    [motivoEmergencia],
+    [motivoEmergencia, ecossistemaId],
   )
 
   const carregarMensagens = useCallback(

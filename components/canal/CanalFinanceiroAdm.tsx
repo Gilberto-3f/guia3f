@@ -17,6 +17,7 @@ import {
 import { buscarVistoEmOutroFinanceiro } from '@/lib/financeiroMensageiroLeitura'
 import { idUltimaMensagemPropriaVistaPeloOutro } from '@/lib/chatVisto'
 import FinanceiroAvisosAdmHub from '@/components/canal/FinanceiroAvisosAdmHub'
+import { useEcossistemaCanaisAdm } from '@/hooks/useEcossistemaCanaisAdm'
 
 const INPUT_FIN = 'text-gray-900 placeholder:text-gray-500 caret-gray-900'
 const AVATAR_QUADRADO = 'shrink-0 rounded-md object-cover'
@@ -206,6 +207,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
   const [carregandoDesempenho, setCarregandoDesempenho] = useState(false)
   const [restaurado, setRestaurado] = useState(false)
   const [adminUserId, setAdminUserId] = useState('')
+  const { ativoId: ecoAdmId } = useEcossistemaCanaisAdm()
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => {
@@ -245,17 +247,19 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
 
   const carregarHistorico = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/financeiro-conversas')
+      const ecoQs = ecoAdmId ? `?ecossistema_id=${encodeURIComponent(ecoAdmId)}` : ''
+      const res = await fetch(`/api/admin/financeiro-conversas${ecoQs}`)
       const json = (await res.json()) as { ok?: boolean; conversas?: ConversaHistorico[] }
       if (json.ok && json.conversas) setHistorico(json.conversas)
     } catch {
       setHistorico([])
     }
-  }, [])
+  }, [ecoAdmId])
 
   const sincronizarConversasAbertas = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/financeiro-conversas?status=aberta')
+      const ecoQs = ecoAdmId ? `&ecossistema_id=${encodeURIComponent(ecoAdmId)}` : ''
+      const res = await fetch(`/api/admin/financeiro-conversas?status=aberta${ecoQs}`)
       const json = (await res.json()) as {
         ok?: boolean
         conversas?: Array<{
@@ -285,7 +289,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
     } catch {
       /* ignore */
     }
-  }, [])
+  }, [ecoAdmId])
 
   useEffect(() => {
     void sincronizarConversasAbertas().finally(() => setRestaurado(true))
@@ -394,6 +398,7 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
           body: JSON.stringify({
             alvo_usuario_id: selecionado!.usuarioId,
             alvo_tipo: abaBusca,
+            ecossistema_id: ecoAdmId,
           }),
         })
         const json = (await res.json()) as { ok?: boolean; conversa?: { id: string }; error?: string }
@@ -520,7 +525,8 @@ export default function CanalFinanceiroAdm({ embedded = false }: { embedded?: bo
 
     void (async () => {
       try {
-        const res = await fetch('/api/admin/financeiro-conversas?status=aberta')
+        const ecoQs = ecoAdmId ? `&ecossistema_id=${encodeURIComponent(ecoAdmId)}` : ''
+        const res = await fetch(`/api/admin/financeiro-conversas?status=aberta${ecoQs}`)
         const json = (await res.json()) as {
           conversas?: Array<{ id: string; alvo: Destinatario }>
         }

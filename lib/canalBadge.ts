@@ -15,12 +15,12 @@ import {
 import {
   canalFiltraLeituraPorPaisEmpresa,
   canalFiltraLeituraPorPaisProfissional,
-  empresaPaisParaAba,
   mensagemCanalVisivelNoFiltroPais,
-  profissionalPaisParaAba,
 } from '@/lib/canalAbasPaisColetivo'
 import { buscarUsuarioCached } from '@/lib/usuarioSessionCache'
 import { empresaGestorTemPresencaVigenteCached } from '@/lib/empresaPresencaPublica'
+import { abaCidadeDoPerfil, abasCidadeDoBloco } from '@/lib/canalAbasCidade'
+import { listarEcossistemasDb, type EcossistemaBloco } from '@/lib/ecossistemas'
 
 /** Janela curta — badge não precisa varrer 4 meses (causava statement timeout / 503). */
 const BADGE_JANELA_DIAS = 21
@@ -36,6 +36,7 @@ type CanalPaisRow = {
   categoria?: string | null
   comunidade_prof?: string | null
   empresa_id?: string | null
+  ecossistema_id?: string | null
 }
 
 /** @type {{ userId: string; at: number; value: number } | null} */
@@ -56,7 +57,7 @@ async function carregarMapaCanaisPorIds(
   if (ids.length === 0) return map
   const { data } = await supabase
     .from('canais')
-    .select('id, nome, tipo_publico, categoria, comunidade_prof, empresa_id')
+    .select('id, nome, tipo_publico, categoria, comunidade_prof, empresa_id, ecossistema_id')
     .in('id', ids)
   for (const c of data ?? []) {
     map.set(String(c.id), c as CanalPaisRow)
@@ -69,17 +70,20 @@ function mensagemContaParaLeituraColetiva(
   paisMsg: string | null | undefined,
   opts: {
     role: string
-    paisTabLeitura: string
+    bloco?: EcossistemaBloco | null
+    cidadePerfil?: string | string[] | null
+    paisPerfil?: string | null
   },
 ): boolean {
   if (!canal) return true
-  if (opts.role === 'profissional' && canalFiltraLeituraPorPaisProfissional(canal)) {
-    return mensagemCanalVisivelNoFiltroPais(paisMsg, opts.paisTabLeitura, 'leitura_publico')
-  }
-  if (opts.role === 'empresa' && canalFiltraLeituraPorPaisEmpresa(canal)) {
-    return mensagemCanalVisivelNoFiltroPais(paisMsg, opts.paisTabLeitura, 'leitura_publico')
-  }
-  return true
+  const precisaFiltro =
+    (opts.role === 'profissional' && canalFiltraLeituraPorPaisProfissional(canal)) ||
+    (opts.role === 'empresa' && canalFiltraLeituraPorPaisEmpresa(canal))
+  if (!precisaFiltro) return true
+  const abas = abasCidadeDoBloco(opts.bloco)
+  if (abas.length <= 1) return true
+  const tab = abaCidadeDoPerfil(opts.bloco, { pais: opts.paisPerfil, cidade: opts.cidadePerfil })
+  return mensagemCanalVisivelNoFiltroPais(paisMsg, tab, 'leitura_publico')
 }
 
 /**
@@ -252,8 +256,10 @@ export async function contarMensagensNaoLidasCanais(
 
       let canalIdsPermitidos: Set<string> | null = null
       let extraFinanceiro = 0
-      let paisTabLeitura = 'geral'
       let canalPorId = new Map<string, CanalPaisRow>()
+      let paisPerfil: string | null = null
+      let cidadePerfil: string | string[] | null = null
+      const blocosPorId = new Map<string, EcossistemaBloco>()
 
       if (role === 'profissional') {
         canalIdsPermitidos = await obterIdsCanaisMensagensProfissional(supabase, userId)
@@ -263,10 +269,8 @@ export async function contarMensagensNaoLidasCanais(
           .select('pais, cidade_atuacao')
           .eq('usuario_id', userId)
           .maybeSingle()
-        paisTabLeitura = profissionalPaisParaAba(
-          prof?.pais != null ? String(prof.pais) : null,
-          prof?.cidade_atuacao,
-        )
+        paisPerfil = prof?.pais != null ? String(prof.pais) : null
+        cidadePerfil = prof?.cidade_atuacao ?? null
         canalPorId = await carregarMapaCanaisPorIds(supabase, Array.from(canalIdsPermitidos))
       } else if (role === 'empresa') {
         // Ciclo vencido: só Financeiro no badge (sem varrer canais/comunidade — alivia o pool).
@@ -283,7 +287,7 @@ export async function contarMensagensNaoLidasCanais(
           .select('cidade')
           .eq('usuario_id', userId)
           .maybeSingle()
-        paisTabLeitura = empresaPaisParaAba(emp?.cidade != null ? String(emp.cidade) : null)
+        cidadePerfil = emp?.cidade != null ? String(emp.cidade) : null
         canalPorId = await carregarMapaCanaisPorIds(supabase, Array.from(canalIdsPermitidos))
       } else if (role === 'admin') {
         const [inbox, { data: adminRow }] = await Promise.all([
@@ -307,6 +311,12 @@ export async function contarMensagensNaoLidasCanais(
       }
 
       const ids = canalIdsPermitidos != null ? Array.from(canalIdsPermitidos) : []
+      try {
+        const ecos = await listarEcossistemasDb(supabase)
+        for (const b of ecos) blocosPorId.set(b.id, b)
+      } catch {
+        /* bloco ausente: lê todas as mensagens */
+      }
 
       const [{ data: mensagens, error: msgErr }, { data: leituras, error: leitErr }] =
         await Promise.all([
@@ -355,7 +365,9 @@ export async function contarMensagensNaoLidasCanais(
             row.pais != null ? String(row.pais) : null,
             {
               role,
-              paisTabLeitura,
+              bloco: blocosPorId.get(String(canalPorId.get(cid)?.ecossistema_id ?? '')),
+              paisPerfil,
+              cidadePerfil,
             },
           )
         ) {
@@ -403,8 +415,10 @@ export async function contarNaoLidasPorCanalIds(
 
   for (const id of canalIds) out[id] = 0
 
-  let paisTabLeitura = 'geral'
   let canalPorId = new Map<string, CanalPaisRow>()
+  let paisPerfil: string | null = null
+  let cidadePerfil: string | string[] | null = null
+  const blocosPorId = new Map<string, EcossistemaBloco>()
 
   if (role === 'profissional') {
     const { data: prof } = await supabase
@@ -412,15 +426,19 @@ export async function contarNaoLidasPorCanalIds(
       .select('pais, cidade_atuacao')
       .eq('usuario_id', userId)
       .maybeSingle()
-    paisTabLeitura = profissionalPaisParaAba(
-      prof?.pais != null ? String(prof.pais) : null,
-      prof?.cidade_atuacao,
-    )
+    paisPerfil = prof?.pais != null ? String(prof.pais) : null
+    cidadePerfil = prof?.cidade_atuacao ?? null
     canalPorId = await carregarMapaCanaisPorIds(supabase, canalIds)
   } else if (role === 'empresa') {
     const { data: emp } = await supabase.from('empresas').select('cidade').eq('usuario_id', userId).maybeSingle()
-    paisTabLeitura = empresaPaisParaAba(emp?.cidade != null ? String(emp.cidade) : null)
+    cidadePerfil = emp?.cidade != null ? String(emp.cidade) : null
     canalPorId = await carregarMapaCanaisPorIds(supabase, canalIds)
+  }
+  try {
+    const ecos = await listarEcossistemasDb(supabase)
+    for (const b of ecos) blocosPorId.set(b.id, b)
+  } catch {
+    /* ignore */
   }
 
   const { data: leituras } = await supabase
@@ -458,7 +476,9 @@ export async function contarNaoLidasPorCanalIds(
     if (
       !mensagemContaParaLeituraColetiva(canalPorId.get(cid), row.pais != null ? String(row.pais) : null, {
         role,
-        paisTabLeitura,
+        bloco: blocosPorId.get(String(canalPorId.get(cid)?.ecossistema_id ?? '')),
+        paisPerfil,
+        cidadePerfil,
       })
     ) {
       continue

@@ -79,7 +79,11 @@ export async function contarMensagensNaoLidasInboxAdmin(
   const inboxId = await obterIdCanalInboxMensageiroAdm(supabase)
   if (!inboxId || !adminUserId) return 0
 
-  const { data: canalRow } = await supabase.from('canais').select('nome').eq('id', inboxId).maybeSingle()
+  const { data: canalRow } = await supabase
+    .from('canais')
+    .select('nome, ecossistema_id')
+    .eq('id', inboxId)
+    .maybeSingle()
   const ecossistema = nomeNormCanal(canalRow?.nome ?? '') === 'MENSAGEIRO ECOSSISTEMA'
 
   const { data: leitura } = await supabase
@@ -93,7 +97,8 @@ export async function contarMensagensNaoLidasInboxAdmin(
   const vistoMs = Number.isNaN(visto) ? 0 : visto
 
   if (ecossistema) {
-    return contarNaoLidasEcossistemaAdm(supabase, adminUserId, vistoMs)
+    const ecoInbox = canalRow?.ecossistema_id != null ? String(canalRow.ecossistema_id) : null
+    return contarNaoLidasEcossistemaAdm(supabase, adminUserId, vistoMs, ecoInbox)
   }
 
   const desde = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString()

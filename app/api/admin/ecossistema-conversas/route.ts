@@ -10,9 +10,14 @@ import {
   somarNaoLidasEcossistemaPorAba,
   type MembroTipoEcossistema,
 } from '@/lib/ecossistemaConversas'
+import { resolverIdBlocoCanaisAdm } from '@/lib/ecossistemaCanaisAdm'
 
-async function enriquecerRespostaEcossistemaAdm(supabase: SupabaseClient, adminUserId: string) {
-  const todasAbertas = await listarConversasAbertasAdmEcossistema(supabase)
+async function enriquecerRespostaEcossistemaAdm(
+  supabase: SupabaseClient,
+  adminUserId: string,
+  ecossistemaId?: string | null,
+) {
+  const todasAbertas = await listarConversasAbertasAdmEcossistema(supabase, { ecossistemaId })
   const naoLidasMap = await contarNaoLidasEcossistemaAdmPorConversas(supabase, adminUserId, todasAbertas)
   const nao_lidas_por_aba = somarNaoLidasEcossistemaPorAba(todasAbertas, naoLidasMap)
   return { naoLidasMap, nao_lidas_por_aba }
@@ -30,9 +35,14 @@ export async function GET(req: Request) {
   const url = new URL(req.url)
   const status = url.searchParams.get('status')
   const membroTipo = parseMembroTipo(url.searchParams.get('membro_tipo'))
+  const ecoQuery = url.searchParams.get('ecossistema_id')
+  const ecossistemaId =
+    ecoQuery && String(ecoQuery).trim()
+      ? String(ecoQuery).trim()
+      : await resolverIdBlocoCanaisAdm(auth.supabase, auth.userId)
 
   if (status === 'aberta') {
-    const conversas = await listarConversasAbertasAdmEcossistema(auth.supabase, { membroTipo })
+    const conversas = await listarConversasAbertasAdmEcossistema(auth.supabase, { membroTipo, ecossistemaId })
     const perfis = await buscarPerfisMembroEcossistema(
       auth.supabase,
       conversas.map((c) => c.membro_usuario_id),
@@ -40,6 +50,7 @@ export async function GET(req: Request) {
     const { naoLidasMap, nao_lidas_por_aba } = await enriquecerRespostaEcossistemaAdm(
       auth.supabase,
       auth.userId,
+      ecossistemaId,
     )
 
     return NextResponse.json({
@@ -63,12 +74,12 @@ export async function GET(req: Request) {
     })
   }
 
-  const conversas = await listarHistoricoConversasAdmEcossistema(auth.supabase, { membroTipo })
+  const conversas = await listarHistoricoConversasAdmEcossistema(auth.supabase, { membroTipo, ecossistemaId })
   const perfis = await buscarPerfisMembroEcossistema(
     auth.supabase,
     conversas.map((c) => c.membro_usuario_id),
   )
-  const { nao_lidas_por_aba } = await enriquecerRespostaEcossistemaAdm(auth.supabase, auth.userId)
+  const { nao_lidas_por_aba } = await enriquecerRespostaEcossistemaAdm(auth.supabase, auth.userId, ecossistemaId)
 
   return NextResponse.json({
     ok: true,

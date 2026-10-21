@@ -1,12 +1,23 @@
 import { NextResponse } from 'next/server'
 import { assertAdminSession } from '@/lib/adminApiAuth'
+import { adminNivelTemBlocoFixo, lerEcossistemaIdAdmin } from '@/lib/adminEcossistema'
 import { listarAlertasUrgentesAdm, marcarAlertaUrgenteVisto } from '@/lib/ecossistemaConversas'
 
 export async function GET() {
   const auth = await assertAdminSession()
   if (!auth.ok) return auth.error
 
-  const alertas = await listarAlertasUrgentesAdm(auth.supabase, { motivo: 'socorro_legacy' })
+  const { data: row } = await auth.supabase
+    .from('usuarios')
+    .select('admin_level, ecossistema_id, admin_permissoes')
+    .eq('id', auth.userId)
+    .maybeSingle()
+
+  const eco = adminNivelTemBlocoFixo(row?.admin_level) ? lerEcossistemaIdAdmin(row) : null
+  const alertas = await listarAlertasUrgentesAdm(auth.supabase, {
+    motivo: 'socorro_legacy',
+    ecossistemaId: eco,
+  })
   return NextResponse.json({ ok: true, alertas })
 }
 

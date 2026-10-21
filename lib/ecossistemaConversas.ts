@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
 import { calcularVistoEmAposLeitura } from '@/lib/canalBadge'
 import { vistoEmParaMs } from '@/lib/chatVisto'
+import { buscarIdEcossistemaPadrao } from '@/lib/canaisEcossistema'
 
 /** Evita spam de 404 no Network quando a migration das RPCs ainda não foi aplicada no Supabase. */
 let rpcEcossistemaMembroDisponivel: boolean | null = null
@@ -40,6 +41,7 @@ export type EcossistemaConversaRow = {
   created_at: string
   updated_at: string
   encerrada_em: string | null
+  ecossistema_id: string
 }
 
 export type EcossistemaMensagemRow = {
@@ -68,13 +70,16 @@ const COLS_MENSAGEM_BASE = 'id, conversa_id, remetente_id, texto, created_at'
 export async function buscarConversaAbertaMembro(
   supabase: SupabaseClient,
   membroUsuarioId: string,
+  ecossistemaId?: string | null,
 ): Promise<EcossistemaConversaRow | null> {
-  const { data } = await supabase
+  let q = supabase
     .from('ecossistema_conversas')
     .select('*')
     .eq('membro_usuario_id', membroUsuarioId)
     .eq('status', 'aberta')
-    .maybeSingle()
+  const eco = ecossistemaId != null ? String(ecossistemaId).trim() : ''
+  if (eco) q = q.eq('ecossistema_id', eco)
+  const { data } = await q.maybeSingle()
 
   return data ? mapConversa(data) : null
 }
@@ -82,16 +87,19 @@ export async function buscarConversaAbertaMembro(
 export async function listarConversasEcossistemaMembro(
   supabase: SupabaseClient,
   membroUsuarioId: string,
-  opts?: { limit?: number },
+  opts?: { limit?: number; ecossistemaId?: string | null },
 ): Promise<EcossistemaConversaRow[]> {
   const limit = opts?.limit ?? 30
-  const { data } = await supabase
+  let q = supabase
     .from('ecossistema_conversas')
     .select('*')
     .eq('membro_usuario_id', membroUsuarioId)
     .order('updated_at', { ascending: false })
     .limit(limit)
+  const eco = opts?.ecossistemaId != null ? String(opts.ecossistemaId).trim() : ''
+  if (eco) q = q.eq('ecossistema_id', eco)
 
+  const { data } = await q
   return (data ?? []).map(mapConversa)
 }
 
@@ -103,9 +111,15 @@ export async function abrirConversaEcossistemaMembro(
     urgente?: boolean
     assunto?: string | null
     motivoEmergencia?: MotivoEmergenciaEcossistema | null
+    ecossistemaId?: string | null
   },
 ): Promise<{ ok: boolean; conversa?: EcossistemaConversaRow; criada?: boolean; error?: string }> {
-  const aberta = await buscarConversaAbertaMembro(supabase, params.membroUsuarioId)
+  const eco =
+    (params.ecossistemaId != null ? String(params.ecossistemaId).trim() : '') ||
+    (await buscarIdEcossistemaPadrao(supabase)) ||
+    ''
+  if (!eco) return { ok: false, error: 'Ecossistema não encontrado.' }
+  const aberta = await buscarConversaAbertaMembro(supabase, params.membroUsuarioId, eco)
   if (aberta) {
     if (params.motivoEmergencia && aberta.motivo_emergencia !== params.motivoEmergencia) {
       const { data: upd } = await supabase
@@ -134,6 +148,7 @@ export async function abrirConversaEcossistemaMembro(
       alerta_urgente_visto: false,
       assunto,
       motivo_emergencia: params.motivoEmergencia ?? null,
+      ecossistema_id: eco,
     })
     .select('*')
     .maybeSingle()
@@ -145,7 +160,7 @@ export async function abrirConversaEcossistemaMembro(
 
 export async function listarConversasAbertasAdmEcossistema(
   supabase: SupabaseClient,
-  opts?: { membroTipo?: MembroTipoEcossistema },
+  opts?: { membroTipo?: MembroTipoEcossistema; ecossistemaId?: string | null },
 ): Promise<EcossistemaConversaRow[]> {
   let q = supabase
     .from('ecossistema_conversas')
@@ -155,6 +170,8 @@ export async function listarConversasAbertasAdmEcossistema(
     .order('updated_at', { ascending: false })
 
   if (opts?.membroTipo) q = q.eq('membro_tipo', opts.membroTipo)
+  const eco = opts?.ecossistemaId != null ? String(opts.ecossistemaId).trim() : ''
+  if (eco) q = q.eq('ecossistema_id', eco)
 
   const { data } = await q
   return (data ?? []).map(mapConversa)
@@ -162,7 +179,7 @@ export async function listarConversasAbertasAdmEcossistema(
 
 export async function listarHistoricoConversasAdmEcossistema(
   supabase: SupabaseClient,
-  opts?: { limit?: number; membroTipo?: MembroTipoEcossistema },
+  opts?: { limit?: number; membroTipo?: MembroTipoEcossistema; ecossistemaId?: string | null },
 ): Promise<EcossistemaConversaRow[]> {
   const limit = opts?.limit ?? 50
   let q = supabase
@@ -173,6 +190,8 @@ export async function listarHistoricoConversasAdmEcossistema(
     .limit(limit)
 
   if (opts?.membroTipo) q = q.eq('membro_tipo', opts.membroTipo)
+  const eco = opts?.ecossistemaId != null ? String(opts.ecossistemaId).trim() : ''
+  if (eco) q = q.eq('ecossistema_id', eco)
 
   const { data } = await q
   return (data ?? []).map(mapConversa)
@@ -180,7 +199,7 @@ export async function listarHistoricoConversasAdmEcossistema(
 
 export async function listarAlertasUrgentesAdm(
   supabase: SupabaseClient,
-  opts?: { motivo?: MotivoEmergenciaEcossistema | 'socorro_legacy' },
+  opts?: { motivo?: MotivoEmergenciaEcossistema | 'socorro_legacy'; ecossistemaId?: string | null },
 ): Promise<Array<EcossistemaConversaRow & { membro: PerfilMembroEcossistema }>> {
   let q = supabase
     .from('ecossistema_conversas')
@@ -189,6 +208,9 @@ export async function listarAlertasUrgentesAdm(
     .eq('urgente', true)
     .eq('alerta_urgente_visto', false)
     .eq('membro_tipo', 'turista')
+
+  const eco = opts?.ecossistemaId != null ? String(opts.ecossistemaId).trim() : ''
+  if (eco) q = q.eq('ecossistema_id', eco)
 
   const motivo = opts?.motivo
   if (motivo === 'perdido') {
@@ -545,14 +567,17 @@ export async function buscarVistoEmOutroEcossistema(
   return maxOutro
 }
 
-/** Mensagens de ADM não lidas na conversa aberta do membro. */
+/** Mensagens de ADM não lidas na conversa aberta do membro (por bloco, se informado). */
 export async function contarNaoLidasChatAdmMembro(
   supabase: SupabaseClient,
   membroUserId: string,
+  ecossistemaId?: string | null,
 ): Promise<number> {
+  const eco = ecossistemaId != null ? String(ecossistemaId).trim() : ''
   if (rpcEcossistemaMembroDisponivel !== false) {
     const { data: rpcCount, error: rpcErr } = await supabase.rpc('contar_ecossistema_nao_lidas_membro', {
       p_membro_id: membroUserId,
+      ...(eco ? { p_ecossistema_id: eco } : {}),
     })
     if (!rpcErr) {
       rpcEcossistemaMembroDisponivel = true
@@ -565,7 +590,7 @@ export async function contarNaoLidasChatAdmMembro(
     }
   }
 
-  const conversa = await buscarConversaAbertaMembro(supabase, membroUserId)
+  const conversa = await buscarConversaAbertaMembro(supabase, membroUserId, eco || null)
   if (!conversa) return 0
 
   const { data: leitura } = await supabase
@@ -728,11 +753,14 @@ export async function contarNaoLidasEcossistemaAdm(
   supabase: SupabaseClient,
   adminUserId: string,
   vistoMs: number,
+  ecossistemaId?: string | null,
 ): Promise<number> {
   const desdeIso = vistoMs > 0 ? new Date(vistoMs).toISOString() : null
+  const eco = ecossistemaId != null ? String(ecossistemaId).trim() : ''
   if (rpcEcossistemaAdmDisponivel !== false) {
     const { data: rpcCount, error: rpcErr } = await supabase.rpc('contar_ecossistema_nao_lidas_adm', {
       p_visto_em: desdeIso,
+      ...(eco ? { p_ecossistema_id: eco } : {}),
     })
     if (!rpcErr) {
       rpcEcossistemaAdmDisponivel = true
@@ -745,10 +773,12 @@ export async function contarNaoLidasEcossistemaAdm(
     }
   }
 
-  const { data: conversas, error: convErr } = await supabase
+  let convQ = supabase
     .from('ecossistema_conversas')
     .select('id, created_at, membro_usuario_id')
     .eq('status', 'aberta')
+  if (eco) convQ = convQ.eq('ecossistema_id', eco)
+  const { data: conversas, error: convErr } = await convQ
 
   if (convErr) {
     console.error('contarNaoLidasEcossistemaAdm conversas:', convErr)
@@ -848,5 +878,6 @@ function mapConversa(row: Record<string, unknown>): EcossistemaConversaRow {
     created_at: String(row.created_at ?? ''),
     updated_at: String(row.updated_at ?? ''),
     encerrada_em: row.encerrada_em != null ? String(row.encerrada_em) : null,
+    ecossistema_id: row.ecossistema_id != null ? String(row.ecossistema_id) : '',
   }
 }

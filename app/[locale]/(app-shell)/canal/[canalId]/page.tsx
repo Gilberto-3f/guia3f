@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useParams, usePathname, useRouter } from 'next/navigation'
+import { useParams, usePathname } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import dynamic from 'next/dynamic'
 import { ChevronLeft, MoreVertical } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -29,10 +30,9 @@ import {
   canalFiltraLeituraPorPaisProfissional,
   canalFiltraLeituraPorPaisEmpresa,
   canalTemAbasPaisColetivo,
-  empresaPaisParaAba,
-  PAISES_ABAS_CANAL_COLETIVO,
-  profissionalPaisParaAba,
 } from '@/lib/canalAbasPaisColetivo'
+import { abaCidadeDoPerfil, abasCidadeDoBloco } from '@/lib/canalAbasCidade'
+import { resolverBlocoPorId, type EcossistemaBloco } from '@/lib/ecossistemas'
 import { buscarUltimaMensagemEcossistema } from '@/lib/ecossistemaConversas'
 import {
   isCanalEcossistemaHubAdm,
@@ -141,8 +141,7 @@ export default function CanalDetalhePage() {
   const [paisLeituraProfissional, setPaisLeituraProfissional] = useState('geral')
   const [paisLeituraEmpresa, setPaisLeituraEmpresa] = useState('geral')
   const [sufixoBloco, setSufixoBloco] = useState('')
-
-  const paisesAbasColetivo = useMemo(() => [...PAISES_ABAS_CANAL_COLETIVO], [])
+  const [blocoCanal, setBlocoCanal] = useState<EcossistemaBloco | null>(null)
 
   const userTipoEfetivo = useMemo((): TipoUsuario => {
     if (modoAtivo && perfilSimulado) {
@@ -219,21 +218,6 @@ export default function CanalDetalhePage() {
       else if (role === 'empresa') setUserTipo('empresa')
       else if (role === 'admin') setUserTipo('admin')
       else setUserTipo(null)
-      if (role === 'profissional') {
-        const { data: profPais } = await supabase
-          .from('profissionais')
-          .select('pais, cidade_atuacao')
-          .eq('usuario_id', uid)
-          .maybeSingle()
-        if (!cancelado) {
-          setPaisLeituraProfissional(
-            profissionalPaisParaAba(
-              profPais?.pais != null ? String(profPais.pais) : null,
-              profPais?.cidade_atuacao,
-            ),
-          )
-        }
-      }
       setAuthPronto(true)
       return
     }
@@ -242,6 +226,7 @@ export default function CanalDetalhePage() {
       setCanalMissing(false)
       setInboxCanalAdm(null)
       setSufixoBloco('')
+      setBlocoCanal(null)
 
       const rolePromise = supabase.from('usuarios').select('role').eq('id', uid).maybeSingle()
       const canalPromise = supabase
@@ -265,20 +250,17 @@ export default function CanalDetalhePage() {
       else if (role === 'admin') setUserTipo('admin')
       else setUserTipo(null)
 
+      let paisProf: string | null = null
+      let cidadeProf: string | string[] | null = null
+      let cidadeEmp: string | null = null
       if (role === 'profissional') {
         const { data: profPais } = await supabase
           .from('profissionais')
           .select('pais, cidade_atuacao')
           .eq('usuario_id', uid)
           .maybeSingle()
-        if (!cancelado) {
-          setPaisLeituraProfissional(
-            profissionalPaisParaAba(
-              profPais?.pais != null ? String(profPais.pais) : null,
-              profPais?.cidade_atuacao,
-            ),
-          )
-        }
+        paisProf = profPais?.pais != null ? String(profPais.pais) : null
+        cidadeProf = profPais?.cidade_atuacao ?? null
       }
 
       if (role === 'empresa') {
@@ -287,11 +269,7 @@ export default function CanalDetalhePage() {
           .select('cidade')
           .eq('usuario_id', uid)
           .maybeSingle()
-        if (!cancelado) {
-          setPaisLeituraEmpresa(
-            empresaPaisParaAba(empPais?.cidade != null ? String(empPais.cidade) : null),
-          )
-        }
+        cidadeEmp = empPais?.cidade != null ? String(empPais.cidade) : null
       }
 
       setAuthPronto(true)
@@ -401,6 +379,17 @@ export default function CanalDetalhePage() {
       if (blocoIdsPerfil.length > 1 && row.ecossistema_id && !row.empresa_id) {
         const nomes = await mapaNomesEcossistema(supabase)
         if (!cancelado) setSufixoBloco(sufixoNomeBloco(row.ecossistema_id, nomes, true))
+      }
+
+      const bloco = await resolverBlocoPorId(supabase, row.ecossistema_id)
+      if (!cancelado) {
+        setBlocoCanal(bloco)
+        if (role === 'profissional') {
+          setPaisLeituraProfissional(abaCidadeDoPerfil(bloco, { pais: paisProf, cidade: cidadeProf }))
+        }
+        if (role === 'empresa') {
+          setPaisLeituraEmpresa(abaCidadeDoPerfil(bloco, { cidade: cidadeEmp }))
+        }
       }
 
       setCanal(row)
@@ -583,9 +572,23 @@ export default function CanalDetalhePage() {
     return isCanalFinanceiroProfissional(canal.nome) || isCanalFinanceiroEmpresa(canal.nome)
   }, [canal, userTipoEfetivo])
 
+  const abasCidade = useMemo(() => abasCidadeDoBloco(blocoCanal), [blocoCanal])
+  const paisesAbasColetivo = useMemo(() => abasCidade.map((a) => a.id), [abasCidade])
+  const legendasAbasCidade = useMemo(() => {
+    const out: Record<string, { label?: string; pais?: string | null }> = {}
+    for (const a of abasCidade) {
+      if (a.id === 'geral') continue
+      out[a.id] = { label: a.label, pais: a.pais }
+    }
+    return out
+  }, [abasCidade])
+
   const mostrarAbasPaisColetivo = useMemo(
-    () => canal != null && canalTemAbasPaisColetivo(canal, userTipoEfetivo),
-    [canal, userTipoEfetivo],
+    () =>
+      canal != null &&
+      canalTemAbasPaisColetivo(canal, userTipoEfetivo) &&
+      abasCidade.length > 1,
+    [canal, userTipoEfetivo, abasCidade],
   )
 
 
@@ -778,6 +781,7 @@ export default function CanalDetalhePage() {
               tipo="profissional"
               empresaHospedagemId={ehAnfitriao ? empresaHospedagemId : null}
               ehAnfitriao={ehAnfitriao}
+              ecossistemaId={canal?.ecossistema_id ?? null}
             />
           ) : (
             <div className="min-h-0 flex-1 overflow-hidden">
@@ -862,7 +866,11 @@ export default function CanalDetalhePage() {
             gateLoading ? (
               <div className="flex flex-1 items-center justify-center text-sm text-gray-400">Carregando…</div>
             ) : recursosEmpresaLiberados ? (
-              <CanalFinanceiroLista usuarioId={financeUid} tipo="empresa" />
+              <CanalFinanceiroLista
+                usuarioId={financeUid}
+                tipo="empresa"
+                ecossistemaId={canal?.ecossistema_id ?? null}
+              />
             ) : (
               <div className="flex flex-1 flex-col items-center justify-start px-4 py-10 text-center text-sm text-gray-600">
                 <p>O canal financeiro é liberado após a verificação dos seus documentos.</p>
@@ -881,7 +889,12 @@ export default function CanalDetalhePage() {
                 <>
               {mostrarAbasPaisColetivo ? (
                 <div className="sticky top-0 z-[9] shrink-0 border-b border-gray-100 bg-white shadow-sm">
-                  <CanalAbasPais paises={paisesAbasColetivo} abaAtiva={abaPais} onAbaChange={setAbaPais} />
+                  <CanalAbasPais
+                    paises={paisesAbasColetivo}
+                    abaAtiva={abaPais}
+                    onAbaChange={setAbaPais}
+                    legendas={legendasAbasCidade}
+                  />
                 </div>
               ) : null}
               <div className="min-h-0 flex-1 overflow-hidden">
@@ -951,7 +964,12 @@ export default function CanalDetalhePage() {
             <>
               {mostrarAbasPais ? (
                 <div className="sticky top-0 z-[9] shrink-0 border-b border-gray-100 bg-white shadow-sm">
-                  <CanalAbasPais paises={paisesAbasColetivo} abaAtiva={abaPais} onAbaChange={setAbaPais} />
+                  <CanalAbasPais
+                    paises={paisesAbasColetivo}
+                    abaAtiva={abaPais}
+                    onAbaChange={setAbaPais}
+                    legendas={legendasAbasCidade}
+                  />
                 </div>
               ) : null}
               <div className="min-h-0 flex-1 overflow-hidden">

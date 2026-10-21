@@ -5,6 +5,7 @@ import {
   substituirLogConversaFinanceiro,
 } from '@/lib/financeiroConversaAuditoria'
 import { buscarRemetentesEmLote } from '@/lib/canalRemetentes'
+import { buscarIdEcossistemaPadrao } from '@/lib/canaisEcossistema'
 
 export type AlvoTipoFinanceiro = 'profissional' | 'empresa'
 export type StatusConversaFinanceiro = 'aberta' | 'encerrada'
@@ -56,6 +57,7 @@ export type FinanceiroConversaRow = {
   created_at: string
   updated_at: string
   encerrada_em: string | null
+  ecossistema_id: string
 }
 
 export type FinanceiroMensagemRow = {
@@ -138,13 +140,21 @@ export async function abrirConversaFinanceiroAdm(
     alvoUsuarioId: string
     alvoTipo: AlvoTipoFinanceiro
     assunto?: string | null
+    ecossistemaId?: string | null
   },
 ): Promise<{ ok: boolean; conversa?: FinanceiroConversaRow; error?: string }> {
+  const eco =
+    (params.ecossistemaId != null ? String(params.ecossistemaId).trim() : '') ||
+    (await buscarIdEcossistemaPadrao(supabase)) ||
+    ''
+  if (!eco) return { ok: false, error: 'Ecossistema não encontrado.' }
+
   const { data: aberta } = await supabase
     .from('financeiro_conversas')
     .select('*')
     .eq('adm_usuario_id', params.admUsuarioId)
     .eq('alvo_usuario_id', params.alvoUsuarioId)
+    .eq('ecossistema_id', eco)
     .eq('status', 'aberta')
     .maybeSingle()
 
@@ -163,6 +173,7 @@ export async function abrirConversaFinanceiroAdm(
       status: 'aberta',
       iniciada_por_adm: true,
       assunto: assuntoInicial,
+      ecossistema_id: eco,
     })
     .select('*')
     .maybeSingle()
@@ -196,10 +207,10 @@ export async function encerrarConversaFinanceiro(
 export async function listarHistoricoConversasAdm(
   supabase: SupabaseClient,
   admUsuarioId: string,
-  opts?: { limit?: number },
+  opts?: { limit?: number; ecossistemaId?: string | null },
 ): Promise<FinanceiroConversaRow[]> {
   const limit = opts?.limit ?? 40
-  const { data } = await supabase
+  let q = supabase
     .from('financeiro_conversas')
     .select('*')
     .eq('adm_usuario_id', admUsuarioId)
@@ -207,6 +218,9 @@ export async function listarHistoricoConversasAdm(
     .eq('status', 'encerrada')
     .order('encerrada_em', { ascending: false })
     .limit(limit)
+  const eco = opts?.ecossistemaId != null ? String(opts.ecossistemaId).trim() : ''
+  if (eco) q = q.eq('ecossistema_id', eco)
+  const { data } = await q
 
   return (data ?? []).map(mapConversa)
 }
@@ -215,14 +229,18 @@ export async function listarHistoricoConversasAdm(
 export async function listarConversasAbertasAdm(
   supabase: SupabaseClient,
   admUsuarioId: string,
+  opts?: { ecossistemaId?: string | null },
 ): Promise<FinanceiroConversaRow[]> {
-  const { data } = await supabase
+  let q = supabase
     .from('financeiro_conversas')
     .select('*')
     .eq('adm_usuario_id', admUsuarioId)
     .eq('iniciada_por_adm', true)
     .eq('status', 'aberta')
     .order('updated_at', { ascending: false })
+  const eco = opts?.ecossistemaId != null ? String(opts.ecossistemaId).trim() : ''
+  if (eco) q = q.eq('ecossistema_id', eco)
+  const { data } = await q
 
   return (data ?? []).map(mapConversa)
 }
@@ -348,8 +366,9 @@ export async function enviarMensagemConversaFinanceiro(
 export async function buscarConversaAbertaParaAlvo(
   supabase: SupabaseClient,
   alvoUsuarioId: string,
+  ecossistemaId?: string | null,
 ): Promise<FinanceiroConversaRow | null> {
-  const { data } = await supabase
+  let q = supabase
     .from('financeiro_conversas')
     .select('*')
     .eq('alvo_usuario_id', alvoUsuarioId)
@@ -357,7 +376,9 @@ export async function buscarConversaAbertaParaAlvo(
     .eq('iniciada_por_adm', true)
     .order('created_at', { ascending: false })
     .limit(1)
-    .maybeSingle()
+  const eco = ecossistemaId != null ? String(ecossistemaId).trim() : ''
+  if (eco) q = q.eq('ecossistema_id', eco)
+  const { data } = await q.maybeSingle()
 
   return data ? mapConversa(data) : null
 }
@@ -366,16 +387,19 @@ export async function buscarConversaAbertaParaAlvo(
 export async function listarConversasFinanceiroParaAlvo(
   supabase: SupabaseClient,
   alvoUsuarioId: string,
-  opts?: { limit?: number },
+  opts?: { limit?: number; ecossistemaId?: string | null },
 ): Promise<FinanceiroConversaRow[]> {
   const limit = opts?.limit ?? 30
-  const { data } = await supabase
+  let q = supabase
     .from('financeiro_conversas')
     .select('*')
     .eq('alvo_usuario_id', alvoUsuarioId)
     .eq('iniciada_por_adm', true)
     .order('updated_at', { ascending: false })
     .limit(limit)
+  const eco = opts?.ecossistemaId != null ? String(opts.ecossistemaId).trim() : ''
+  if (eco) q = q.eq('ecossistema_id', eco)
+  const { data } = await q
 
   return (data ?? []).map(mapConversa)
 }
@@ -404,5 +428,6 @@ function mapConversa(row: Record<string, unknown>): FinanceiroConversaRow {
     created_at: String(row.created_at ?? ''),
     updated_at: String(row.updated_at ?? ''),
     encerrada_em: row.encerrada_em != null ? String(row.encerrada_em) : null,
+    ecossistema_id: row.ecossistema_id != null ? String(row.ecossistema_id) : '',
   }
 }

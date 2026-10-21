@@ -60,6 +60,7 @@ import {
 } from '@/lib/menuLateralHistory'
 import { contarNaoLidasChatAdmMembro } from '@/lib/ecossistemaConversas'
 import { GUIA_CHAT_ADM_BADGE_EVENT } from '@/lib/chat-adm-badge-events'
+import { useEcossistemaAtivo } from '@/context/EcossistemaAtivoContext'
 
 import EmergenciaSocorro from '@/components/perfil/subpaginas/emergencia/EmergenciaSocorro'
 import EmergenciaMensageiroAdm from '@/components/perfil/subpaginas/emergencia/EmergenciaMensageiroAdm'
@@ -695,6 +696,7 @@ export default function MenuLateral({
   onFecharRef.current = onFechar
   const { historico: historicoDecisoes, fetchHistoricoUsuario } = useInfracoes()
   const { modoAtivo, perfilSimulado } = useModoApresentacao()
+  const { ativo: ecoAtivo } = useEcossistemaAtivo()
   const modoApresentacaoAtivo = modoAtivo
   const {
     emModoAdm: emModoAdmColaborador,
@@ -1190,12 +1192,12 @@ export default function MenuLateral({
       return
     }
     try {
-      const n = await contarNaoLidasChatAdmMembro(supabase, usuarioIdEfetivo)
+      const n = await contarNaoLidasChatAdmMembro(supabase, usuarioIdEfetivo, ecoAtivo?.id ?? null)
       setChatAdmNaoLido(n)
     } catch {
       setChatAdmNaoLido(0)
     }
-  }, [usuarioIdEfetivo, variant])
+  }, [usuarioIdEfetivo, variant, ecoAtivo?.id])
 
   useEffect(() => {
     if (!usuarioIdEfetivo || variant === 'admin') {

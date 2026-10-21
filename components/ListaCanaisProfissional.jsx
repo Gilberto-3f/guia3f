@@ -23,6 +23,11 @@ import CanalListaRow from '@/components/CanalListaRow'
 import { fetchNomeUsuarioParaStory } from '@/lib/feed-autor'
 import { buscarUltimasMensagensCanais, formatarListaHora, ordenarCanaisPorUltimaMensagem, patchUltimaMensagemCanal } from '@/lib/canalLista'
 import { contarFinanceiroNaoLidasProfissional } from '@/lib/canaisProfissionalVisibilidade'
+import {
+  contarMensageiroFinanceiroNaoLidasPorEcossistema,
+  mesclarBadgeFinanceiroLista,
+} from '@/lib/financeiroMensageiroLeitura'
+import { buscarIdEcossistemaPadrao } from '@/lib/canaisEcossistema'
 import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
 import { GUIA_CANAIS_BADGE_EVENT, notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
@@ -322,14 +327,22 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
       return
     }
 
-    const contagens = await contarNaoLidasPorCanalIds(supabase, uid, ids)
-    const fin = await contarFinanceiroNaoLidasProfissional(supabase, uid)
-    for (const c of canais) {
-      if (isCanalFinanceiroProfissional(c.nome)) {
-        contagens[c.id] = fin
-      }
-    }
-    setNaoLidasPorCanal(contagens)
+    const [contagens, fin, msgPorEco, padraoId] = await Promise.all([
+      contarNaoLidasPorCanalIds(supabase, uid, ids),
+      contarFinanceiroNaoLidasProfissional(supabase, uid),
+      contarMensageiroFinanceiroNaoLidasPorEcossistema(supabase, uid),
+      buscarIdEcossistemaPadrao(supabase),
+    ])
+    setNaoLidasPorCanal(
+      mesclarBadgeFinanceiroLista(
+        contagens,
+        canais,
+        isCanalFinanceiroProfissional,
+        fin,
+        msgPorEco,
+        padraoId,
+      ),
+    )
   }, [canais])
 
   useEffect(() => {
@@ -425,20 +438,26 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
       setCanais(ordenados)
 
       const ids = ordenados.map((c) => c.id).filter((id) => !String(id).startsWith('__placeholder'))
-      const [ultimas, contagens, fin, username] = await Promise.all([
+      const [ultimas, contagens, fin, username, msgPorEco, padraoId] = await Promise.all([
         buscarUltimasMensagensCanais(supabase, ids),
         contarNaoLidasPorCanalIds(supabase, uid, ids),
         contarFinanceiroNaoLidasProfissional(supabase, uid),
         fetchNomeUsuarioParaStory(supabase, uid),
+        contarMensageiroFinanceiroNaoLidasPorEcossistema(supabase, uid),
+        buscarIdEcossistemaPadrao(supabase),
       ])
       setMeuUsername(username)
       setUltimasMensagens(ultimas)
-      for (const c of ordenados) {
-        if (isCanalFinanceiroProfissional(c.nome)) {
-          contagens[c.id] = fin
-        }
-      }
-      setNaoLidasPorCanal(contagens)
+      setNaoLidasPorCanal(
+        mesclarBadgeFinanceiroLista(
+          contagens,
+          ordenados,
+          isCanalFinanceiroProfissional,
+          fin,
+          msgPorEco,
+          padraoId,
+        ),
+      )
     } catch (e) {
       console.error('Erro ao carregar canais profissional:', e)
     } finally {

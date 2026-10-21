@@ -1,18 +1,18 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, Link2, Loader2, MessageCircle, Radio, Send, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { useEcossistemaAtivo } from '@/context/EcossistemaAtivoContext'
 import { COMUNIDADES_PROFISSIONAIS_SLUG } from '@/lib/canaisProfissionaisListaUi'
 import {
   buscarContextoEmpresaUsuario,
   enviarPostFeedNoCanalEmpresa,
-  PAISES_COMUNIDADE_COMPARTILHAR,
   ROTULO_COMUNIDADE_CANAL,
-  ROTULO_PAIS_CANAL,
 } from '@/lib/compartilharPostCanal'
+import { abaCidadeDoPerfil, abasCidadeDoBloco } from '@/lib/canalAbasCidade'
 
 const LOGO_AZUL = '#0097b2'
 
@@ -34,12 +34,15 @@ export default function ModalCompartilhar({
 }) {
   const { modoAtivo, perfilSimulado } = useModoApresentacao()
   const { recursosEmpresaLiberados, loading: gateLoading } = useProfissionalGate()
+  const { ativo: ecoAtivo } = useEcossistemaAtivo()
+  const abasCidade = useMemo(() => abasCidadeDoBloco(ecoAtivo), [ecoAtivo])
+  const mostrarSeletorCidade = abasCidade.length > 1
 
   const [tela, setTela] = useState(/** @type {'principal' | 'canal'} */ ('principal'))
   const [ehEmpresa, setEhEmpresa] = useState(false)
   const [empresaId, setEmpresaId] = useState(/** @type {string | null} */ (null))
   const [usuarioId, setUsuarioId] = useState(/** @type {string | null} */ (null))
-  const [paisCanal, setPaisCanal] = useState('BR')
+  const [paisCanal, setPaisCanal] = useState('geral')
   const [comunidade, setComunidade] = useState('guia')
   const [enviando, setEnviando] = useState(false)
   const [erroCanal, setErroCanal] = useState('')
@@ -85,12 +88,20 @@ export default function ModalCompartilhar({
         ctx.role === 'empresa' || (modoAtivo && perfilSimulado?.tipo === 'empresa')
       setEhEmpresa(roleEmpresa)
       setEmpresaId(ctx.empresaId)
+
+      let cidadeEmp = null
+      if (ctx.empresaId) {
+        const { data: emp } = await supabase.from('empresas').select('cidade').eq('id', ctx.empresaId).maybeSingle()
+        cidadeEmp = emp?.cidade != null ? String(emp.cidade) : null
+      }
+      if (!ativo) return
+      setPaisCanal(abaCidadeDoPerfil(ecoAtivo, { cidade: cidadeEmp }))
     })()
 
     return () => {
       ativo = false
     }
-  }, [aberto, modoAtivo, perfilSimulado?.tipo])
+  }, [aberto, modoAtivo, perfilSimulado?.tipo, ecoAtivo])
 
   const compartilharWhatsApp = () => {
     const texto = `${tituloResumo} ${postUrl}`.trim()
@@ -137,7 +148,7 @@ export default function ModalCompartilhar({
         usuarioId,
         empresaId,
         comunidadeSlug: comunidade,
-        paisAba: paisCanal,
+        paisAba: mostrarSeletorCidade ? paisCanal : 'geral',
         postUrl,
         resumo: tituloResumo,
         imagemUrl,
@@ -237,23 +248,25 @@ export default function ModalCompartilhar({
           </select>
         </div>
 
-        <div>
-          <label htmlFor="compartilhar-comunidade" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-white/80">
-            Qual comunidade?
-          </label>
-          <select
-            id="compartilhar-comunidade"
-            value={paisCanal}
-            onChange={(e) => setPaisCanal(e.target.value)}
-            className="w-full rounded-xl border border-white/25 bg-white/10 px-3 py-2.5 text-sm font-medium text-white outline-none focus:border-white/50 focus:ring-2 focus:ring-white/20"
-          >
-            {PAISES_COMUNIDADE_COMPARTILHAR.map((p) => (
-              <option key={p} value={p} className="text-gray-900">
-                {ROTULO_PAIS_CANAL[p] ?? p}
-              </option>
-            ))}
-          </select>
-        </div>
+        {mostrarSeletorCidade ? (
+          <div>
+            <label htmlFor="compartilhar-comunidade" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-white/80">
+              Qual cidade?
+            </label>
+            <select
+              id="compartilhar-comunidade"
+              value={paisCanal}
+              onChange={(e) => setPaisCanal(e.target.value)}
+              className="w-full rounded-xl border border-white/25 bg-white/10 px-3 py-2.5 text-sm font-medium text-white outline-none focus:border-white/50 focus:ring-2 focus:ring-white/20"
+            >
+              {abasCidade.map((a) => (
+                <option key={a.id} value={a.id} className="text-gray-900">
+                  {a.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
 
         {gateLoading ? (
           <p className="text-center text-xs text-white/70">Verificando permissões…</p>

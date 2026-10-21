@@ -9,6 +9,7 @@ import {
 } from '@/lib/financeiroConversas'
 import { inserirNotificacaoCanalFinanceiroProfissional } from '@/lib/canalFinanceiroProfissional'
 import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresa'
+import { resolverIdBlocoCanaisAdm } from '@/lib/ecossistemaCanaisAdm'
 
 async function perfisAlvoConversas(
   supabase: SupabaseClient,
@@ -69,9 +70,14 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url)
   const status = url.searchParams.get('status')
+  const ecoQuery = url.searchParams.get('ecossistema_id')
+  const ecossistemaId =
+    ecoQuery && String(ecoQuery).trim()
+      ? String(ecoQuery).trim()
+      : await resolverIdBlocoCanaisAdm(auth.supabase, auth.userId)
 
   if (status === 'aberta') {
-    const conversas = await listarConversasAbertasAdm(auth.supabase, auth.userId)
+    const conversas = await listarConversasAbertasAdm(auth.supabase, auth.userId, { ecossistemaId })
     const perfis = await perfisAlvoConversas(auth.supabase, conversas)
 
     return NextResponse.json({
@@ -97,7 +103,7 @@ export async function GET(req: Request) {
     })
   }
 
-  const conversas = await listarHistoricoConversasAdm(auth.supabase, auth.userId)
+  const conversas = await listarHistoricoConversasAdm(auth.supabase, auth.userId, { ecossistemaId })
   const perfis = await perfisAlvoConversas(auth.supabase, conversas)
 
   return NextResponse.json({
@@ -130,6 +136,8 @@ export async function POST(req: Request) {
   const alvoTipo = body.alvo_tipo === 'empresa' ? 'empresa' : 'profissional'
   const assunto = body.assunto != null ? String(body.assunto) : null
   const notificar = body.notificar !== false
+  const ecoBody = body.ecossistema_id != null ? String(body.ecossistema_id).trim() : ''
+  const ecossistemaId = ecoBody || (await resolverIdBlocoCanaisAdm(auth.supabase, auth.userId))
 
   if (!alvoUsuarioId) {
     return NextResponse.json({ error: 'alvo_usuario_id obrigatório.' }, { status: 400 })
@@ -140,6 +148,7 @@ export async function POST(req: Request) {
     alvoUsuarioId,
     alvoTipo: alvoTipo as AlvoTipoFinanceiro,
     assunto,
+    ecossistemaId,
   })
 
   if (!res.ok || !res.conversa) {

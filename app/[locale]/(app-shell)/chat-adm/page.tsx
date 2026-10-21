@@ -7,6 +7,7 @@ import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import ChatAdmEcossistema from '@/components/chat-adm/ChatAdmEcossistema'
 import { roleParaMembroTipo, type MotivoEmergenciaEcossistema } from '@/lib/ecossistemaConversas'
+import { useEcossistemaAtivo } from '@/context/EcossistemaAtivoContext'
 
 function parseMotivoEmergencia(raw: string | null): MotivoEmergenciaEcossistema | null {
   const v = String(raw ?? '').trim().toLowerCase()
@@ -18,6 +19,7 @@ function parseMotivoEmergencia(raw: string | null): MotivoEmergenciaEcossistema 
 function ChatAdmConteudo() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { ativo: ecoAtivo } = useEcossistemaAtivo()
   const motivoEmergencia = parseMotivoEmergencia(searchParams.get('motivo'))
   const urgente = searchParams.get('urgente') === '1' || motivoEmergencia != null
   const [gate, setGate] = useState<'loading' | 'forbidden' | 'ok'>('loading')
@@ -84,6 +86,7 @@ function ChatAdmConteudo() {
         usuarioId={usuarioId}
         urgenteInicial={urgente}
         motivoEmergencia={motivoEmergencia}
+        ecossistemaId={ecoAtivo?.id ?? null}
       />
     </>
   )

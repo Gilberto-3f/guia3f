@@ -8,14 +8,18 @@ import { vistoEmParaMs } from '@/lib/chatVisto'
 export async function contarMensageiroFinanceiroNaoLidas(
   supabase: SupabaseClient,
   usuarioId: string,
+  ecossistemaId?: string | null,
 ): Promise<number> {
   if (!usuarioId) return 0
 
-  const { data: conversas, error: convErr } = await supabase
+  let convQ = supabase
     .from('financeiro_conversas')
     .select('id')
     .eq('alvo_usuario_id', usuarioId)
     .eq('iniciada_por_adm', true)
+  const eco = ecossistemaId != null ? String(ecossistemaId).trim() : ''
+  if (eco) convQ = convQ.eq('ecossistema_id', eco)
+  const { data: conversas, error: convErr } = await convQ
 
   if (convErr) {
     console.error('contarMensageiroFinanceiroNaoLidas conversas:', convErr)
@@ -65,19 +69,112 @@ export async function contarMensageiroFinanceiroNaoLidas(
   return n
 }
 
+export function mesclarBadgeFinanceiroLista(
+  contagens: Record<string, number>,
+  canais: Array<{ id: string; nome?: string | null; ecossistema_id?: string | null }>,
+  isFinanceiro: (nome: string | null | undefined) => boolean,
+  totalGlobal: number,
+  msgPorEco: Map<string, number>,
+  padraoId: string | null,
+): Record<string, number> {
+  const financeiros = canais.filter((c) => isFinanceiro(c.nome))
+  if (financeiros.length === 0) return contagens
+  let totalMsg = 0
+  for (const n of msgPorEco.values()) totalMsg += n
+  const relatorios = Math.max(0, totalGlobal - totalMsg)
+  const alvoRelatorio =
+    financeiros.find((c) => padraoId && String(c.ecossistema_id ?? '') === padraoId)?.id ?? financeiros[0]?.id
+  for (const c of financeiros) {
+    const eco = c.ecossistema_id != null ? String(c.ecossistema_id) : ''
+    const extra = c.id === alvoRelatorio ? relatorios : 0
+    contagens[c.id] = (msgPorEco.get(eco) ?? 0) + extra
+  }
+  return contagens
+}
+
+/** Não lidas do mensageiro 1:1 agrupadas pelo bloco. */
+export async function contarMensageiroFinanceiroNaoLidasPorEcossistema(
+  supabase: SupabaseClient,
+  usuarioId: string,
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>()
+  if (!usuarioId) return out
+
+  const { data: conversas, error: convErr } = await supabase
+    .from('financeiro_conversas')
+    .select('id, ecossistema_id')
+    .eq('alvo_usuario_id', usuarioId)
+    .eq('iniciada_por_adm', true)
+
+  if (convErr) {
+    console.error('contarMensageiroFinanceiroNaoLidasPorEcossistema:', convErr)
+    return out
+  }
+
+  const convIds = (conversas ?? []).map((c) => String(c.id)).filter(Boolean)
+  if (convIds.length === 0) return out
+
+  const [{ data: leituras }, { data: mensagens, error: msgErr }] = await Promise.all([
+    supabase
+      .from('financeiro_conversa_leitura')
+      .select('conversa_id, visto_em')
+      .eq('usuario_id', usuarioId)
+      .in('conversa_id', convIds),
+    supabase
+      .from('financeiro_mensagens')
+      .select('conversa_id, remetente_id, created_at')
+      .in('conversa_id', convIds)
+      .neq('remetente_id', usuarioId),
+  ])
+
+  if (msgErr) {
+    console.error('contarMensageiroFinanceiroNaoLidasPorEcossistema mensagens:', msgErr)
+    return out
+  }
+
+  const ecoPorConversa = new Map<string, string>()
+  for (const c of conversas ?? []) {
+    ecoPorConversa.set(String(c.id), c.ecossistema_id != null ? String(c.ecossistema_id) : '')
+  }
+
+  const vistoPorConversa = new Map<string, number>()
+  for (const row of leituras ?? []) {
+    const cid = String(row.conversa_id)
+    const t = new Date(String(row.visto_em ?? 0)).getTime()
+    if (!Number.isNaN(t)) vistoPorConversa.set(cid, t)
+  }
+
+  for (const row of mensagens ?? []) {
+    const cid = row.conversa_id != null ? String(row.conversa_id) : ''
+    if (!cid) continue
+    const created = new Date(String(row.created_at ?? 0)).getTime()
+    if (Number.isNaN(created)) continue
+    const visto = vistoPorConversa.get(cid) ?? 0
+    if (created <= visto) continue
+    const eco = ecoPorConversa.get(cid) || ''
+    out.set(eco, (out.get(eco) ?? 0) + 1)
+  }
+
+  return out
+}
+
 /** IDs de conversas com mensagens do ADM ainda não visualizadas pelo alvo. */
 export async function conversasMensageiroComNaoLidas(
   supabase: SupabaseClient,
   usuarioId: string,
+  ecossistemaId?: string | null,
 ): Promise<Set<string>> {
   const ids = new Set<string>()
   if (!usuarioId) return ids
 
-  const { data: conversas, error: convErr } = await supabase
+  let convQ = supabase
     .from('financeiro_conversas')
     .select('id')
     .eq('alvo_usuario_id', usuarioId)
     .eq('iniciada_por_adm', true)
+  const eco = ecossistemaId != null ? String(ecossistemaId).trim() : ''
+  if (eco) convQ = convQ.eq('ecossistema_id', eco)
+  const { data: conversas, error: convErr } = await convQ
 
   if (convErr) {
     console.error('conversasMensageiroComNaoLidas conversas:', convErr)

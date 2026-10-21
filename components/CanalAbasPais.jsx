@@ -28,9 +28,10 @@ const tabBandeira =
  *   abaAtiva: string
  *   onAbaChange: (pais: string) => void
  *   contadores?: Record<string, number>
+ *   legendas?: Record<string, { label?: string, pais?: string | null }>
  * }} props
  */
-export default function CanalAbasPais({ paises, abaAtiva, onAbaChange, contadores = {} }) {
+export default function CanalAbasPais({ paises, abaAtiva, onAbaChange, contadores = {}, legendas = {} }) {
   return (
     <div className="bg-white px-4 py-1.5">
       <div
@@ -39,8 +40,10 @@ export default function CanalAbasPais({ paises, abaAtiva, onAbaChange, contadore
         aria-label="Filtro por região"
       >
         {paises.map((pais) => {
+          const meta = legendas[pais]
           const ativo = abaAtiva === pais
-          const a11y = ARIA[/** @type {keyof typeof ARIA} */ (pais)] ?? pais
+          const a11y =
+            meta?.label || ARIA[/** @type {keyof typeof ARIA} */ (pais)] || pais
           const ring = ativo
             ? 'bg-[#0097b2]/10 text-[#0097b2] ring-2 ring-[#0097b2] ring-offset-1 ring-offset-white'
             : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
@@ -68,9 +71,13 @@ export default function CanalAbasPais({ paises, abaAtiva, onAbaChange, contadore
             )
           }
 
+          const codigoBandeira = String(meta?.pais || pais || '')
+            .trim()
+            .toUpperCase()
           const emoji =
-            EMOJI_PAIS[/** @type {keyof typeof EMOJI_PAIS} */ (pais)] ||
-            emojiBandeiraPais(/** @type {'BR'|'AR'|'PY'} */ (pais))
+            EMOJI_PAIS[/** @type {keyof typeof EMOJI_PAIS} */ (codigoBandeira)] ||
+            emojiBandeiraPais(/** @type {'BR'|'AR'|'PY'} */ (codigoBandeira))
+          const rotuloCidade = meta?.label && meta.label !== codigoBandeira ? meta.label : null
 
           return (
             <button
@@ -86,6 +93,9 @@ export default function CanalAbasPais({ paises, abaAtiva, onAbaChange, contadore
               <span className="text-[2rem] leading-none" aria-hidden>
                 {emoji}
               </span>
+              {rotuloCidade ? (
+                <span className="max-w-full truncate text-[9px] font-medium leading-tight">{rotuloCidade}</span>
+              ) : null}
               {contadores[pais] !== undefined ? (
                 <span className="rounded bg-gray-100 px-1 text-[9px] tabular-nums text-gray-600">
                   {contadores[pais]}

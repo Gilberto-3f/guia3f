@@ -9,6 +9,7 @@ import type { MenuEmpresaId } from '@/lib/planosEmpresaServicosGate'
 import { supabase } from '@/lib/supabase'
 import { contarNaoLidasChatAdmMembro } from '@/lib/ecossistemaConversas'
 import { GUIA_CHAT_ADM_BADGE_EVENT } from '@/lib/chat-adm-badge-events'
+import { useEcossistemaAtivo } from '@/context/EcossistemaAtivoContext'
 
 interface MenuItem {
   id: MenuEmpresaId
@@ -35,6 +36,7 @@ export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolea
   const pathname = usePathname()
   const { dados } = useDashboardEmpresa()
   const { menuVisivel } = useEmpresaServicosPlano(dados?.plano, dados?.id)
+  const { ativo: ecoAtivo } = useEcossistemaAtivo()
   const [chatAdmNaoLido, setChatAdmNaoLido] = useState(0)
 
   const usuarioId = dados?.usuario_id ?? null
@@ -45,12 +47,12 @@ export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolea
       return
     }
     try {
-      const n = await contarNaoLidasChatAdmMembro(supabase, usuarioId)
+      const n = await contarNaoLidasChatAdmMembro(supabase, usuarioId, ecoAtivo?.id ?? null)
       setChatAdmNaoLido(n)
     } catch {
       setChatAdmNaoLido(0)
     }
-  }, [usuarioId])
+  }, [usuarioId, ecoAtivo?.id])
 
   useEffect(() => {
     if (!usuarioId) {

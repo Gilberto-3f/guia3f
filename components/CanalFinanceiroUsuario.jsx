@@ -93,13 +93,14 @@ function itemRelatorioContaComoNaoLido(item, tipo, statusDegustacaoPorCanal, emp
 
 /**
  * Canal financeiro do profissional ou empresa: relatórios do app + mensageiro ADM.
- * @param {{ usuarioId: string, tipo: 'profissional' | 'empresa', empresaHospedagemId?: string | null, ehAnfitriao?: boolean }} props
+ * @param {{ usuarioId: string, tipo: 'profissional' | 'empresa', empresaHospedagemId?: string | null, ehAnfitriao?: boolean, ecossistemaId?: string | null }} props
  */
 export default function CanalFinanceiroUsuario({
   usuarioId,
   tipo,
   empresaHospedagemId = null,
   ehAnfitriao: ehAnfitriaoProp = false,
+  ecossistemaId = null,
 }) {
   const modoAnfitriaoFinanceiro = tipo === 'profissional' && Boolean(empresaHospedagemId)
   const [aba, setAba] = useState(/** @type {'relatorios' | 'mensageiro' | 'planos'} */ ('relatorios'))
@@ -494,7 +495,7 @@ export default function CanalFinanceiroUsuario({
           ),
         ).length,
       )
-      const msgNaoLidas = await contarMensageiroFinanceiroNaoLidas(supabase, usuarioId)
+      const msgNaoLidas = await contarMensageiroFinanceiroNaoLidas(supabase, usuarioId, ecossistemaId)
       if (seq !== carregarSeqRef.current) return
       setNaoLidasMensageiro(msgNaoLidas)
     } catch (e) {
@@ -502,7 +503,7 @@ export default function CanalFinanceiroUsuario({
     } finally {
       if (!silencioso && seq === carregarSeqRef.current) setLoading(false)
     }
-  }, [usuarioId, tipo, empresaHospedagemId, modoAnfitriaoFinanceiro, ehAnfitriaoProp, aplicarLeituraLocalNosItens])
+  }, [usuarioId, tipo, empresaHospedagemId, modoAnfitriaoFinanceiro, ehAnfitriaoProp, aplicarLeituraLocalNosItens, ecossistemaId])
 
   useEffect(() => {
     void carregar()
@@ -725,7 +726,7 @@ export default function CanalFinanceiroUsuario({
       ) : aba === 'planos' && tipo === 'empresa' ? (
         <CanalFinanceiroAbaPlanos usuarioId={usuarioId} />
       ) : (
-        <CanalFinanceiroMensageiro usuarioId={usuarioId} />
+        <CanalFinanceiroMensageiro usuarioId={usuarioId} ecossistemaId={ecossistemaId} />
       )}
     </div>
   )

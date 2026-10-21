@@ -10,6 +10,7 @@ import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { idUltimaMensagemPropriaVistaPeloOutro } from '@/lib/chatVisto'
 import ChatReciboVisto from '@/components/chat/ChatReciboVisto'
 import type { ProfissionalAtendimentoTurista } from '@/lib/emergenciaTurista'
+import { useEcossistemaCanaisAdm } from '@/hooks/useEcossistemaCanaisAdm'
 
 type AbaEcossistema = 'turista' | 'profissional' | 'empresa' | 'historico'
 
@@ -75,6 +76,7 @@ export default function CanalEcossistemaAdm({
   const [carregandoProfissionais, setCarregandoProfissionais] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const painelAbertoRef = useRef(false)
+  const { ativoId: ecoAdmId } = useEcossistemaCanaisAdm()
 
   useEffect(() => {
     painelAbertoRef.current = painelAberto
@@ -115,8 +117,9 @@ export default function CanalEcossistemaAdm({
         aba === 'historico'
           ? ''
           : `&membro_tipo=${encodeURIComponent(aba)}`
+      const ecoQs = ecoAdmId ? `&ecossistema_id=${encodeURIComponent(ecoAdmId)}` : ''
       const res = await fetch(
-        `/api/admin/ecossistema-conversas?status=${status === 'aberta' ? 'aberta' : 'encerrada'}${qs}`,
+        `/api/admin/ecossistema-conversas?status=${status === 'aberta' ? 'aberta' : 'encerrada'}${qs}${ecoQs}`,
       )
       const json = (await res.json()) as {
         ok?: boolean
@@ -130,7 +133,7 @@ export default function CanalEcossistemaAdm({
     } finally {
       if (!silencioso) setCarregando(false)
     }
-  }, [aba])
+  }, [aba, ecoAdmId])
 
   const carregarMensagens = useCallback(
     async (conversaId: string, membroUsuarioId: string) => {

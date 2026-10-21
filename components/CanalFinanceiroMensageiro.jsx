@@ -43,9 +43,9 @@ function rotuloDataConversa(c) {
 
 /**
  * Mensageiro ADM no canal financeiro (profissional/empresa).
- * @param {{ usuarioId: string }} props
+ * @param {{ usuarioId: string, ecossistemaId?: string | null }} props
  */
-export default function CanalFinanceiroMensageiro({ usuarioId }) {
+export default function CanalFinanceiroMensageiro({ usuarioId, ecossistemaId = null }) {
   const [loading, setLoading] = useState(true)
   const [conversaAberta, setConversaAberta] = useState(
     /** @type {import('@/lib/financeiroConversas').FinanceiroConversaRow | null} */ (null),
@@ -132,8 +132,8 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
     setLoading(true)
     try {
       const [aberta, todas] = await Promise.all([
-        buscarConversaAbertaParaAlvo(supabase, usuarioId),
-        listarConversasFinanceiroParaAlvo(supabase, usuarioId),
+        buscarConversaAbertaParaAlvo(supabase, usuarioId, ecossistemaId),
+        listarConversasFinanceiroParaAlvo(supabase, usuarioId, { ecossistemaId }),
       ])
       const encerradas = todas.filter((c) => c.status === 'encerrada')
       setConversaAberta(aberta)
@@ -143,14 +143,14 @@ export default function CanalFinanceiroMensageiro({ usuarioId }) {
       const admIds = [...new Set(todas.map((c) => c.adm_usuario_id))]
       const [perfis, naoLidas] = await Promise.all([
         buscarPerfisAdmFinanceiro(supabase, admIds),
-        conversasMensageiroComNaoLidas(supabase, usuarioId),
+        conversasMensageiroComNaoLidas(supabase, usuarioId, ecossistemaId),
       ])
       setPerfisAdm(perfis)
       setConversasNaoLidas(naoLidas)
     } finally {
       setLoading(false)
     }
-  }, [usuarioId])
+  }, [usuarioId, ecossistemaId])
 
   const carregarMensagens = useCallback(
     async (conversaId) => {

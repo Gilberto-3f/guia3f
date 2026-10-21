@@ -7,7 +7,7 @@ import {
   roleParaMembroTipo,
 } from '@/lib/ecossistemaConversas'
 
-export async function GET() {
+export async function GET(req: Request) {
   const auth = await assertUserSession()
   if (!auth.ok) return auth.error
 
@@ -16,9 +16,13 @@ export async function GET() {
     return NextResponse.json({ error: 'Perfil não autorizado.' }, { status: 403 })
   }
 
+  const url = new URL(req.url)
+  const eco = url.searchParams.get('ecossistema_id')
+  const ecossistemaId = eco != null && String(eco).trim() ? String(eco).trim() : null
+
   const [aberta, todas] = await Promise.all([
-    buscarConversaAbertaMembro(auth.supabase, auth.userId),
-    listarConversasEcossistemaMembro(auth.supabase, auth.userId),
+    buscarConversaAbertaMembro(auth.supabase, auth.userId, ecossistemaId),
+    listarConversasEcossistemaMembro(auth.supabase, auth.userId, { ecossistemaId }),
   ])
 
   const arquivadas = todas.filter((c) => c.status === 'encerrada')
@@ -45,12 +49,14 @@ export async function POST(req: Request) {
   const motivoRaw = String(body.motivo_emergencia ?? body.motivo ?? '').trim()
   const motivoEmergencia =
     motivoRaw === 'socorro' || motivoRaw === 'item_esquecido' ? motivoRaw : null
+  const ecossistemaId = body.ecossistema_id != null ? String(body.ecossistema_id).trim() : ''
 
   const res = await abrirConversaEcossistemaMembro(auth.supabase, {
     membroUsuarioId: auth.userId,
     membroTipo,
     assunto,
     motivoEmergencia,
+    ecossistemaId: ecossistemaId || null,
   })
 
   if (!res.ok || !res.conversa) {

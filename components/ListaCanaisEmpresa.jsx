@@ -25,6 +25,11 @@ import { canalExibeContagemMembros, formatarLegendaMembrosCanal } from '@/lib/ca
 import { useContagemMembrosCanais } from '@/hooks/useContagemMembrosCanais'
 import { buscarUltimasMensagensCanais, formatarListaHora, patchUltimaMensagemCanal } from '@/lib/canalLista'
 import { contarFinanceiroNaoLidasEmpresa } from '@/lib/canaisEmpresaVisibilidade'
+import {
+  contarMensageiroFinanceiroNaoLidasPorEcossistema,
+  mesclarBadgeFinanceiroLista,
+} from '@/lib/financeiroMensageiroLeitura'
+import { buscarIdEcossistemaPadrao } from '@/lib/canaisEcossistema'
 import { contarNaoLidasPorCanalIds } from '@/lib/canalBadge'
 import { GUIA_CANAIS_BADGE_EVENT, notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { buscarIdCanalFinanceiroEmpresaGlobal } from '@/lib/canaisEmpresaAdm'
@@ -358,14 +363,15 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
       return
     }
 
-    const contagens = await contarNaoLidasPorCanalIds(supabase, uid, ids)
-    const fin = await contarFinanceiroNaoLidasEmpresa(supabase, uid)
-    for (const c of canais) {
-      if (isCanalFinanceiroEmpresa(c.nome)) {
-        contagens[c.id] = fin
-      }
-    }
-    setNaoLidasPorCanal(contagens)
+    const [contagens, fin, msgPorEco, padraoId] = await Promise.all([
+      contarNaoLidasPorCanalIds(supabase, uid, ids),
+      contarFinanceiroNaoLidasEmpresa(supabase, uid),
+      contarMensageiroFinanceiroNaoLidasPorEcossistema(supabase, uid),
+      buscarIdEcossistemaPadrao(supabase),
+    ])
+    setNaoLidasPorCanal(
+      mesclarBadgeFinanceiroLista(contagens, canais, isCanalFinanceiroEmpresa, fin, msgPorEco, padraoId),
+    )
   }, [canais])
 
   useEffect(() => {
@@ -462,20 +468,19 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
       }
 
       const ids = ordenados.map((c) => c.id).filter((id) => !String(id).startsWith('__placeholder'))
-      const [ultimas, contagens, fin, username] = await Promise.all([
+      const [ultimas, contagens, fin, username, msgPorEco, padraoId] = await Promise.all([
         buscarUltimasMensagensCanais(supabase, ids),
         contarNaoLidasPorCanalIds(supabase, uid, ids),
         contarFinanceiroNaoLidasEmpresa(supabase, uid),
         fetchNomeUsuarioParaStory(supabase, uid),
+        contarMensageiroFinanceiroNaoLidasPorEcossistema(supabase, uid),
+        buscarIdEcossistemaPadrao(supabase),
       ])
       setMeuUsername(username)
       setUltimasMensagens(ultimas)
-      for (const c of ordenados) {
-        if (isCanalFinanceiroEmpresa(c.nome)) {
-          contagens[c.id] = fin
-        }
-      }
-      setNaoLidasPorCanal(contagens)
+      setNaoLidasPorCanal(
+        mesclarBadgeFinanceiroLista(contagens, ordenados, isCanalFinanceiroEmpresa, fin, msgPorEco, padraoId),
+      )
     } catch (e) {
       console.error('Erro ao carregar canais empresa:', e)
     } finally {
