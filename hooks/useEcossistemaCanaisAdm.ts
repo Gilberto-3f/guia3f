@@ -99,5 +99,5 @@ export function useEcossistemaCanaisAdm() {
 
   const ativo = useMemo(() => lista.find((e) => e.id === ativoId) ?? null, [lista, ativoId])
 
-  return { lista, ativo, setAtivoId, podeTrocar, carregou }
+  return { lista, ativo, ativoId, setAtivoId, podeTrocar, carregou }
 }

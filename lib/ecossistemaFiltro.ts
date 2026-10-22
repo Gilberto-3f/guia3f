@@ -21,6 +21,19 @@ function paisDeCodigo(raw: string | null | undefined): PaisGuiaFiltro | null {
   return null
 }
 
+function colunasTextoUnicas(rows: unknown, chave: string): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  if (!Array.isArray(rows)) return out
+  for (const row of rows) {
+    const v = String((row as Record<string, unknown> | null)?.[chave] ?? '').trim()
+    if (!v || seen.has(v)) continue
+    seen.add(v)
+    out.push(v)
+  }
+  return out
+}
+
 function paisInferidoDaCidade(chaveOuLabel: string): PaisGuiaFiltro | null {
   const n = normalizarChaveCidadeGuia(chaveOuLabel)
   if (n.includes('foz') || n.includes('londrina')) return 'br'
@@ -100,7 +113,7 @@ export async function buscarIdsEmpresaEcossistema(
     if (vinculoEcossistemaIgnoravel(error)) return null
     return null
   }
-  return new Set((data ?? []).map((r: { empresa_id?: unknown }) => String(r.empresa_id ?? '')).filter(Boolean))
+  return new Set(colunasTextoUnicas(data, 'empresa_id'))
 }
 
 /** `profissionais.id` vinculados ao bloco. `null` = tabela ausente (não filtrar). */
@@ -119,9 +132,7 @@ export async function buscarIdsProfissionalEcossistema(
     if (vinculoEcossistemaIgnoravel(error)) return null
     return null
   }
-  return new Set(
-    (data ?? []).map((r: { profissional_id?: unknown }) => String(r.profissional_id ?? '')).filter(Boolean),
-  )
+  return new Set(colunasTextoUnicas(data, 'profissional_id'))
 }
 
 /** IDs de bloco da empresa. `null` = tabela ausente. */
@@ -140,7 +151,7 @@ export async function buscarEcoIdsDaEmpresa(
     if (vinculoEcossistemaIgnoravel(error)) return null
     return null
   }
-  return [...new Set((data ?? []).map((r: { ecossistema_id?: unknown }) => String(r.ecossistema_id ?? '')).filter(Boolean))]
+  return colunasTextoUnicas(data, 'ecossistema_id')
 }
 
 /** Empresas em qualquer um dos blocos. `null` = tabela ausente. */
@@ -149,7 +160,10 @@ export async function buscarIdsEmpresasDosEcossistemas(
   supabase: any,
   ecoIds: string[],
 ): Promise<Set<string> | null> {
-  const ids = [...new Set(ecoIds.map((id) => String(id ?? '').trim()).filter(Boolean))]
+  const ids = colunasTextoUnicas(
+    ecoIds.map((id) => ({ id: String(id ?? '').trim() })),
+    'id',
+  )
   if (ids.length === 0) return new Set()
   const { data, error } = await supabase
     .from('empresa_ecossistemas')
@@ -159,7 +173,7 @@ export async function buscarIdsEmpresasDosEcossistemas(
     if (vinculoEcossistemaIgnoravel(error)) return null
     return null
   }
-  return new Set((data ?? []).map((r: { empresa_id?: unknown }) => String(r.empresa_id ?? '')).filter(Boolean))
+  return new Set(colunasTextoUnicas(data, 'empresa_id'))
 }
 
 /** IDs de bloco do profissional. `null` = tabela ausente. */
@@ -178,7 +192,7 @@ export async function buscarEcoIdsDoProfissional(
     if (vinculoEcossistemaIgnoravel(error)) return null
     return null
   }
-  return [...new Set((data ?? []).map((r: { ecossistema_id?: unknown }) => String(r.ecossistema_id ?? '')).filter(Boolean))]
+  return colunasTextoUnicas(data, 'ecossistema_id')
 }
 
 /** Profissionais em qualquer um dos blocos. `null` = tabela ausente. */
@@ -187,7 +201,10 @@ export async function buscarIdsProfissionaisDosEcossistemas(
   supabase: any,
   ecoIds: string[],
 ): Promise<Set<string> | null> {
-  const ids = [...new Set(ecoIds.map((id) => String(id ?? '').trim()).filter(Boolean))]
+  const ids = colunasTextoUnicas(
+    ecoIds.map((id) => ({ id: String(id ?? '').trim() })),
+    'id',
+  )
   if (ids.length === 0) return new Set()
   const { data, error } = await supabase
     .from('profissional_ecossistemas')
@@ -197,9 +214,7 @@ export async function buscarIdsProfissionaisDosEcossistemas(
     if (vinculoEcossistemaIgnoravel(error)) return null
     return null
   }
-  return new Set(
-    (data ?? []).map((r: { profissional_id?: unknown }) => String(r.profissional_id ?? '')).filter(Boolean),
-  )
+  return new Set(colunasTextoUnicas(data, 'profissional_id'))
 }
 
 /** Tríplice (e qualquer bloco com 2+ países): matching de fronteira. Londrina (1 país): não. */
