@@ -38,6 +38,7 @@ import {
   mimeTypeGravacaoCanal,
 } from '@/lib/canalAudioGravacao'
 import { mensagemCanalVisivelNoFiltroPais } from '@/lib/canalAbasPaisColetivo'
+import { normalizarPaisAbaCanal } from '@/lib/canalAbasCidade'
 import { textoExibicaoMensagemCanal } from '@/lib/compartilharPostCanal'
 
 const TECLADO_BOTTOM_BAR_EVENT = 'guia-criar-keyboard'
@@ -691,7 +692,7 @@ export default function CanalMensagens({
         }
       }
 
-      const paisMsg = paisTab && paisTab !== 'geral' ? paisTab : 'geral'
+      const paisMsg = normalizarPaisAbaCanal(paisTab)
 
       const { data: row, error } = await supabase
         .from('mensagens_canal')

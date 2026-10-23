@@ -37,7 +37,15 @@ async function buscarIdsEmpresasGratuitasProfissional(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient | any,
 ): Promise<{ data: { id?: unknown }[] | null; error: { message?: string } | null }> {
-  const base = () =>
+  const rpc = await supabase.rpc('empresa_ids_presenca_dual')
+  if (!rpc.error && Array.isArray(rpc.data)) {
+    return {
+      data: rpc.data.map((r: { empresa_id?: unknown }) => ({ id: r.empresa_id })),
+      error: null,
+    }
+  }
+
+  const base = (col: string) =>
     supabase
       .from('empresas')
       .select('id')
@@ -45,18 +53,27 @@ async function buscarIdsEmpresasGratuitasProfissional(
       .in('status', ['aprovado', 'ativo'])
       .eq('somente_modo_apresentacao', false)
       .not('foto_url', 'is', null)
+      .eq(col, true)
 
-  let res = await base().or(
-    'somente_anfitriao.eq.true,somente_guia.eq.true,somente_van.eq.true',
-  )
-  const msg = String(res.error?.message ?? '')
-  if (res.error && /somente_van/i.test(msg)) {
-    res = await base().or('somente_anfitriao.eq.true,somente_guia.eq.true')
+  const cols = ['somente_anfitriao', 'somente_guia', 'somente_van']
+  const parts = await Promise.all(cols.map((c) => base(c)))
+  const ids = new Set<string>()
+  let lastErr: { message?: string } | null = null
+  for (const res of parts) {
+    if (res.error) {
+      const msg = String(res.error.message ?? '')
+      if (/somente_guia|somente_van|somente_anfitriao/i.test(msg)) continue
+      lastErr = res.error
+      continue
+    }
+    for (const row of res.data ?? []) {
+      if (row?.id != null) ids.add(String(row.id))
+    }
   }
-  if (res.error && /somente_guia/i.test(String(res.error?.message ?? ''))) {
-    res = await base().eq('somente_anfitriao', true)
+  return {
+    data: [...ids].map((id) => ({ id })),
+    error: ids.size === 0 ? lastErr : null,
   }
-  return res
 }
 
 /**

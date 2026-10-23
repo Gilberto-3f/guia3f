@@ -17,6 +17,13 @@ const ROTULO_CURTO: Record<string, string> = {
   'puerto iguazu': 'Iguazú',
 }
 
+/** Valor gravado em `mensagens_canal.pais` (CHECK 2–80 chars). */
+export function normalizarPaisAbaCanal(raw: string | null | undefined): string {
+  const v = String(raw ?? '').trim()
+  if (v.length < 2 || v.length > 80) return 'geral'
+  return v
+}
+
 export function rotuloCurtoCidade(cidade: EcossistemaCidade): string {
   const k = normalizarCidadeChave(cidade.chave || cidade.label).toLowerCase()
   if (ROTULO_CURTO[k]) return ROTULO_CURTO[k]
