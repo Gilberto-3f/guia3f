@@ -6,7 +6,10 @@ import {
   loadAdminUsuarioRow,
 } from '@/lib/adminApiAuth'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
-import { enviarMensagemAprovacaoCanalFinanceiro } from '@/lib/canalFinanceiroAprovacaoCadastro'
+import {
+  enviarAvisoCadastroLiberadoRelatoriosEmpresa,
+  enviarMensagemAprovacaoCanalFinanceiro,
+} from '@/lib/canalFinanceiroAprovacaoCadastro'
 import { proximaRevisaoDepoisDeAprovacao } from '@/lib/verificacao-documentos'
 
 type PerfilVerificacao = 'turistas' | 'profissionais' | 'empresas'
@@ -242,15 +245,12 @@ export async function POST(req: Request) {
             .eq('id', id)
             .maybeSingle()
           if (emp?.usuario_id && emp.somente_anfitriao !== true) {
-            const nomeUsuario = String(emp.nome_usuario ?? '').trim().replace(/^@+/, '')
-            const msgFin = await enviarMensagemAprovacaoCanalFinanceiro(adminDb, {
-              tipo: 'empresa',
-              usuarioId: String(emp.usuario_id),
-              nomeUsuario,
-              admUsuarioId: actorId,
-            })
-            if (!msgFin.ok) {
-              console.error('[api/admin/verificacao] canal financeiro empresa:', msgFin.error)
+            const aviso = await enviarAvisoCadastroLiberadoRelatoriosEmpresa(
+              adminDb,
+              String(emp.usuario_id),
+            )
+            if (!aviso.ok) {
+              console.error('[api/admin/verificacao] relatórios cadastro liberado:', aviso.error)
             }
           }
         } catch (e) {

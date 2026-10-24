@@ -270,6 +270,7 @@ export default function CanalFinanceiroUsuario({
 
   const carregar = useCallback(async (opts = {}) => {
     const silencioso = opts.silencioso === true
+    const naoMarcarLeitura = opts.naoMarcarLeitura === true
     if (!usuarioId) return
     const seq = ++carregarSeqRef.current
     if (!silencioso) setLoading(true)
@@ -455,7 +456,7 @@ export default function CanalFinanceiroUsuario({
       }
 
       // Ao visualizar Relatórios, persiste leitura antes de calcular o badge (evita race com realtime).
-      if (abaRef.current === 'relatorios') {
+      if (abaRef.current === 'relatorios' && !naoMarcarLeitura) {
         while (marcandoLeituraRef.current) {
           await new Promise((r) => setTimeout(r, 40))
           if (seq !== carregarSeqRef.current) return
@@ -512,9 +513,12 @@ export default function CanalFinanceiroUsuario({
   useEffect(() => {
     if (tipo !== 'empresa' || !usuarioId) return
     void fetch('/api/empresa/canal-financeiro/reparar-degustacao', { method: 'POST' })
-      .then(() => notificarBadgeCanais())
+      .then(() => {
+        notificarBadgeCanais()
+        void carregar({ silencioso: true, naoMarcarLeitura: true })
+      })
       .catch(() => {})
-  }, [tipo, usuarioId])
+  }, [tipo, usuarioId, carregar])
 
   useEffect(() => {
     if (!usuarioId) return

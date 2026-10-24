@@ -1,4 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { buscarIdEcossistemaPadrao } from '@/lib/canaisEcossistema'
+import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresa'
+import { buscarEcoIdsDaEmpresa, buscarEcoIdsDoProfissional } from '@/lib/ecossistemaFiltro'
 import {
   ASSUNTO_CONVERSA_APROVACAO_CADASTRO,
   abrirConversaFinanceiroAdm,
@@ -6,6 +9,13 @@ import {
   encerrarConversaFinanceiro,
   enviarMensagemConversaFinanceiro,
 } from '@/lib/financeiroConversas'
+
+export const TITULO_CADASTRO_LIBERADO_RELATORIOS = 'PARÁBENS'
+
+export const MENSAGEM_CADASTRO_LIBERADO_RELATORIOS =
+  'seu cadastro foi liberado, escolha um plano (na terceira aba) para utilizar todos os benefícios do aplicativo.'
+
+export const VARIANT_CADASTRO_LIBERADO_PLANOS = 'cadastro_liberado_planos'
 
 export function montarMensagemAprovacaoCadastro(nomeUsuario: string): string {
   const handle = nomeUsuario.trim().replace(/^@+/, '')
@@ -19,32 +29,138 @@ Desejamos um bom uso do aplicativo e torcemos para você fazer bons negócios co
 Atenciosamente, Grupo Cacique`
 }
 
+async function resolverEcossistemaIdsDoAlvo(
+  supabase: SupabaseClient,
+  tipo: 'profissional' | 'empresa',
+  usuarioId: string,
+): Promise<string[]> {
+  if (tipo === 'empresa') {
+    const { data: emp } = await supabase
+      .from('empresas')
+      .select('id')
+      .eq('usuario_id', usuarioId)
+      .maybeSingle()
+    const ids = await buscarEcoIdsDaEmpresa(supabase, emp?.id != null ? String(emp.id) : '')
+    if (ids && ids.length > 0) return ids
+  } else {
+    const { data: prof } = await supabase
+      .from('profissionais')
+      .select('id')
+      .eq('usuario_id', usuarioId)
+      .maybeSingle()
+    const ids = await buscarEcoIdsDoProfissional(supabase, prof?.id != null ? String(prof.id) : '')
+    if (ids && ids.length > 0) return ids
+  }
+  const padrao = await buscarIdEcossistemaPadrao(supabase)
+  return padrao ? [padrao] : []
+}
+
+export async function buscarAdmUsuarioParaMensageiroFinanceiro(
+  supabase: SupabaseClient,
+  opts?: { empresaId?: string | null; preferUsuarioId?: string | null },
+): Promise<string | null> {
+  const prefer = opts?.preferUsuarioId != null ? String(opts.preferUsuarioId).trim() : ''
+  if (prefer) return prefer
+
+  const empresaId = opts?.empresaId != null ? String(opts.empresaId).trim() : ''
+  if (empresaId) {
+    const { data: log } = await supabase
+      .from('logs_verificacao')
+      .select('admin_id')
+      .eq('tipo', 'empresas')
+      .eq('perfil_id', empresaId)
+      .eq('acao', 'aprovado')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (log?.admin_id) return String(log.admin_id)
+  }
+
+  const { data: geral } = await supabase
+    .from('usuarios')
+    .select('id')
+    .eq('role', 'admin')
+    .eq('admin_level', 1)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  if (geral?.id) return String(geral.id)
+
+  const { data: qualquer } = await supabase
+    .from('usuarios')
+    .select('id')
+    .eq('role', 'admin')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  return qualquer?.id != null ? String(qualquer.id) : null
+}
+
 /**
- * Envia mensagem de boas-vindas na aba Mensagens ADM (financeiro_conversas + financeiro_mensagens)
- * após liberação do cadastro de profissional ou empresa.
+ * Aviso na aba Relatórios após o ADM liberar o cadastro da empresa para contratar plano.
+ * Idempotente por empresa.
  */
-export async function enviarMensagemAprovacaoCanalFinanceiro(
+export async function enviarAvisoCadastroLiberadoRelatoriosEmpresa(
+  supabase: SupabaseClient,
+  empresaUsuarioId: string,
+): Promise<{ ok: boolean; error?: string; skipped?: boolean }> {
+  const uid = empresaUsuarioId?.trim()
+  if (!uid) return { ok: false, error: 'usuario_vazio' }
+
+  const { data: emp, error: empErr } = await supabase
+    .from('empresas')
+    .select('id')
+    .eq('usuario_id', uid)
+    .maybeSingle()
+
+  if (empErr || !emp?.id) {
+    return { ok: false, error: empErr?.message ?? 'empresa_nao_encontrada' }
+  }
+
+  const { count } = await supabase
+    .from('canal_financeiro')
+    .select('id', { count: 'exact', head: true })
+    .eq('empresa_id', emp.id)
+    .eq('tipo', 'mensagem_adm')
+    .contains('comprovante_detalhes', { variant: VARIANT_CADASTRO_LIBERADO_PLANOS })
+
+  if (count && count > 0) return { ok: true, skipped: true }
+
+  const res = await inserirNotificacaoCanalFinanceiroEmpresa(supabase, {
+    empresaUsuarioId: uid,
+    tipo: 'mensagem_adm',
+    titulo: TITULO_CADASTRO_LIBERADO_RELATORIOS,
+    mensagem: MENSAGEM_CADASTRO_LIBERADO_RELATORIOS,
+    comprovanteDetalhes: { variant: VARIANT_CADASTRO_LIBERADO_PLANOS },
+  })
+
+  if (!res.ok) return { ok: false, error: res.error }
+  return { ok: true }
+}
+
+async function enviarMensagemAprovacaoNumBloco(
   supabase: SupabaseClient,
   params: {
     tipo: 'profissional' | 'empresa'
     usuarioId: string
     nomeUsuario: string
     admUsuarioId: string
+    ecossistemaId: string
   },
 ): Promise<{ ok: boolean; error?: string }> {
-  const uid = params.usuarioId?.trim()
-  const admId = params.admUsuarioId?.trim()
-  if (!uid || !admId) return { ok: false, error: 'ids_vazios' }
-
+  const uid = params.usuarioId
+  const admId = params.admUsuarioId
+  const eco = params.ecossistemaId
   const mensagem = montarMensagemAprovacaoCadastro(params.nomeUsuario)
 
-  let conversa = await buscarConversaAbertaParaAlvo(supabase, uid)
+  let conversa = await buscarConversaAbertaParaAlvo(supabase, uid, eco)
   if (!conversa) {
     const res = await abrirConversaFinanceiroAdm(supabase, {
       admUsuarioId: admId,
       alvoUsuarioId: uid,
       alvoTipo: params.tipo,
       assunto: ASSUNTO_CONVERSA_APROVACAO_CADASTRO,
+      ecossistemaId: eco,
     })
     if (!res.ok || !res.conversa?.id) {
       console.error('[canalFinanceiroAprovacao] abrir conversa', res.error)
@@ -100,4 +216,74 @@ export async function enviarMensagemAprovacaoCanalFinanceiro(
   }
 
   return { ok: true }
+}
+
+/**
+ * Envia mensagem de boas-vindas no Mensageiro ADM (financeiro_conversas),
+ * no(s) bloco(s) do profissional/empresa — nunca cai no padrão se o alvo já tem vínculo.
+ */
+export async function enviarMensagemAprovacaoCanalFinanceiro(
+  supabase: SupabaseClient,
+  params: {
+    tipo: 'profissional' | 'empresa'
+    usuarioId: string
+    nomeUsuario: string
+    admUsuarioId: string
+    ecossistemaIds?: string[] | null
+  },
+): Promise<{ ok: boolean; error?: string }> {
+  const uid = params.usuarioId?.trim()
+  const admId = params.admUsuarioId?.trim()
+  if (!uid || !admId) return { ok: false, error: 'ids_vazios' }
+
+  const ecos = (params.ecossistemaIds ?? [])
+    .map((id) => String(id ?? '').trim())
+    .filter(Boolean)
+  const blocos = ecos.length > 0 ? ecos : await resolverEcossistemaIdsDoAlvo(supabase, params.tipo, uid)
+  if (blocos.length === 0) return { ok: false, error: 'Ecossistema não encontrado.' }
+
+  let lastErr: string | undefined
+  let anyOk = false
+  for (const eco of blocos) {
+    const res = await enviarMensagemAprovacaoNumBloco(supabase, {
+      tipo: params.tipo,
+      usuarioId: uid,
+      nomeUsuario: params.nomeUsuario,
+      admUsuarioId: admId,
+      ecossistemaId: eco,
+    })
+    if (res.ok) anyOk = true
+    else lastErr = res.error
+  }
+  return anyOk ? { ok: true } : { ok: false, error: lastErr ?? 'conversa_falhou' }
+}
+
+/** Bem-Vindo no Mensageiro após o plano da empresa ficar ativo. */
+export async function enviarBoasVindasAposPlanoEmpresa(
+  supabase: SupabaseClient,
+  params: { empresaUsuarioId: string; empresaId?: string | null; admUsuarioId?: string | null },
+): Promise<{ ok: boolean; error?: string }> {
+  const uid = params.empresaUsuarioId?.trim()
+  if (!uid) return { ok: false, error: 'usuario_vazio' }
+
+  const { data: emp } = await supabase
+    .from('empresas')
+    .select('id, nome_usuario')
+    .eq('usuario_id', uid)
+    .maybeSingle()
+
+  const empresaId = params.empresaId?.trim() || (emp?.id != null ? String(emp.id) : '')
+  const admId = await buscarAdmUsuarioParaMensageiroFinanceiro(supabase, {
+    empresaId,
+    preferUsuarioId: params.admUsuarioId,
+  })
+  if (!admId) return { ok: false, error: 'adm_nao_encontrado' }
+
+  const nomeUsuario = String(emp?.nome_usuario ?? '').trim().replace(/^@+/, '')
+  return enviarMensagemAprovacaoCanalFinanceiro(supabase, {
+    tipo: 'empresa',
+    usuarioId: uid,
+    nomeUsuario,
+    admUsuarioId: admId,
+  })
 }

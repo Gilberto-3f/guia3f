@@ -6,7 +6,10 @@ import {
   isCanalFinanceiroProfissional,
   slugCanalComunidadeProfissional,
 } from '@/lib/canaisProfissionalSlugs'
-import { contarMensageiroFinanceiroNaoLidas } from '@/lib/financeiroMensageiroLeitura'
+import {
+  contarMensageiroFinanceiroNaoLidasPorEcossistema,
+  somarMensageiroDosBlocos,
+} from '@/lib/financeiroMensageiroLeitura'
 import { categoriasIncluemAnfitriao } from '@/lib/anfitriaoDualMode'
 import { chaveProfissionalCanal } from '@/lib/canaisProfissionaisListaUi'
 import {
@@ -212,17 +215,24 @@ export async function contarFinanceiroNaoLidasProfissional(
     profQuery = profQuery.not('tipo', 'in', '(manifesto,manifesto_indicacao)')
   }
 
-  const [{ data: rowsProf, error }, mensageiro, { data: pendentesTpl, error: tplErr }, extraEmpresaHospedagem] =
-    await Promise.all([
+  const [
+    { data: rowsProf, error },
+    msgPorEco,
+    { data: pendentesTpl, error: tplErr },
+    extraEmpresaHospedagem,
+    ecoIds,
+  ] = await Promise.all([
     profQuery,
-    contarMensageiroFinanceiroNaoLidas(supabase, usuarioId),
+    contarMensageiroFinanceiroNaoLidasPorEcossistema(supabase, usuarioId),
     supabase
       .from('turista_pre_liberacoes')
       .select('id, canal_financeiro_id')
       .eq('profissional_usuario_id', usuarioId)
       .eq('status', 'pendente'),
     contarFinanceiroEmpresaHospedagemAnfitriao(supabase, usuarioId),
+    resolverIdsBlocosCanaisProfissional(supabase, usuarioId),
   ])
+  const mensageiro = somarMensageiroDosBlocos(msgPorEco, ecoIds)
 
   if (error) {
     console.error('contarFinanceiroNaoLidasProfissional:', error)

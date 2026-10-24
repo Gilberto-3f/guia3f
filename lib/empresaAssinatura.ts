@@ -9,6 +9,7 @@ import type { FormaPagamentoPlano } from '@/lib/pagamentoPlanoEmpresa'
 import { labelFormaPagamentoPlano } from '@/lib/pagamentoPlanoEmpresa'
 import { registrarSolicitacaoAuxiliarAdmSeAplicavel } from '@/lib/empresaAuxiliarAdm'
 import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresa'
+import { enviarBoasVindasAposPlanoEmpresa } from '@/lib/canalFinanceiroAprovacaoCadastro'
 import { encerrarDegustacaoCanalAposAssinatura } from '@/lib/degustacaoEmpresa'
 import { enviarMensagemPagamentoPlanoAdm, montarMensagemPagamentoPlano } from '@/lib/pagamentoPlanoEmpresa'
 import { inserirAvisoAgendamentoAssinaturaDinheiroHub, inserirAvisoNovaAssinaturaHub, type EmpresaPerfilAvisoHub } from '@/lib/financeiroAvisosAdmHub'
@@ -477,6 +478,20 @@ export async function registrarAssinaturaPlanoEmpresa(
       /* notificação empresa opcional */
     }
 
+    if (proporcional.tipo === 'nova') {
+      try {
+        const bemVindo = await enviarBoasVindasAposPlanoEmpresa(supabase, {
+          empresaUsuarioId: uid,
+          empresaId,
+        })
+        if (!bemVindo.ok) {
+          console.error('enviarBoasVindasAposPlanoEmpresa:', bemVindo.error)
+        }
+      } catch (e) {
+        console.error('enviarBoasVindasAposPlanoEmpresa', e)
+      }
+    }
+
     try {
       await registrarSolicitacaoAuxiliarAdmSeAplicavel(supabase, {
         empresaId,
@@ -660,6 +675,14 @@ export async function validarAssinaturaDinheiroEmpresa(
           assinatura_id: assinaturaId,
         },
       })
+      const bemVindo = await enviarBoasVindasAposPlanoEmpresa(supabase, {
+        empresaUsuarioId,
+        empresaId,
+        admUsuarioId: adminId,
+      })
+      if (!bemVindo.ok) {
+        console.error('enviarBoasVindasAposPlanoEmpresa:', bemVindo.error)
+      }
     }
   } catch {
     /* noop */

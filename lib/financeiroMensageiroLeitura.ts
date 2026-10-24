@@ -75,21 +75,31 @@ export function mesclarBadgeFinanceiroLista(
   isFinanceiro: (nome: string | null | undefined) => boolean,
   totalGlobal: number,
   msgPorEco: Map<string, number>,
-  padraoId: string | null,
+  _padraoId?: string | null,
 ): Record<string, number> {
   const financeiros = canais.filter((c) => isFinanceiro(c.nome))
   if (financeiros.length === 0) return contagens
-  let totalMsg = 0
-  for (const n of msgPorEco.values()) totalMsg += n
-  const relatorios = Math.max(0, totalGlobal - totalMsg)
-  const alvoRelatorio =
-    financeiros.find((c) => padraoId && String(c.ecossistema_id ?? '') === padraoId)?.id ?? financeiros[0]?.id
+  let totalMsgVisivel = 0
   for (const c of financeiros) {
     const eco = c.ecossistema_id != null ? String(c.ecossistema_id) : ''
-    const extra = c.id === alvoRelatorio ? relatorios : 0
-    contagens[c.id] = (msgPorEco.get(eco) ?? 0) + extra
+    totalMsgVisivel += msgPorEco.get(eco) ?? 0
+  }
+  const relatorios = Math.max(0, totalGlobal - totalMsgVisivel)
+  for (const c of financeiros) {
+    const eco = c.ecossistema_id != null ? String(c.ecossistema_id) : ''
+    contagens[c.id] = (msgPorEco.get(eco) ?? 0) + relatorios
   }
   return contagens
+}
+
+export function somarMensageiroDosBlocos(msgPorEco: Map<string, number>, ecoIds: string[]): number {
+  let n = 0
+  for (const id of ecoIds) {
+    const eco = String(id ?? '').trim()
+    if (!eco) continue
+    n += msgPorEco.get(eco) ?? 0
+  }
+  return n
 }
 
 /** Não lidas do mensageiro 1:1 agrupadas pelo bloco. */

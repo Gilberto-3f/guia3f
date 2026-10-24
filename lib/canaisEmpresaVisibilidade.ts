@@ -5,7 +5,10 @@ import {
   nomeNormCanalEmpresa,
   slugCanalSegmentoEmpresa,
 } from '@/lib/canaisEmpresaSlugs'
-import { contarMensageiroFinanceiroNaoLidas } from '@/lib/financeiroMensageiroLeitura'
+import {
+  contarMensageiroFinanceiroNaoLidasPorEcossistema,
+  somarMensageiroDosBlocos,
+} from '@/lib/financeiroMensageiroLeitura'
 
 import {
   COMUNIDADES_PROFISSIONAIS_SLUG,
@@ -209,7 +212,7 @@ export async function contarFinanceiroNaoLidasEmpresa(
   const empresaId = emp?.id != null ? String(emp.id) : ''
   if (!empresaId) return 0
 
-  const [{ data: rows, error }, mensageiro, statusDeg] = await Promise.all([
+  const [{ data: rows, error }, msgPorEco, statusDeg, ecoIds] = await Promise.all([
     supabase
       .from('canal_financeiro')
       .select('id, tipo, lida_por_empresa, metadata, comprovante_detalhes')
@@ -217,9 +220,11 @@ export async function contarFinanceiroNaoLidasEmpresa(
       .eq('lida_por_empresa', false)
       .order('created_at', { ascending: false })
       .limit(80),
-    contarMensageiroFinanceiroNaoLidas(supabase, usuarioId),
+    contarMensageiroFinanceiroNaoLidasPorEcossistema(supabase, usuarioId),
     buscarMapaStatusDegustacaoCanalEmpresa(supabase, empresaId),
+    resolverIdsBlocosCanaisEmpresa(supabase, usuarioId),
   ])
+  const mensageiro = somarMensageiroDosBlocos(msgPorEco, ecoIds)
 
   if (error) {
     console.error('contarFinanceiroNaoLidasEmpresa:', error)
