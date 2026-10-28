@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
-import { enviarAvisoCadastroLiberadoRelatoriosEmpresa } from '@/lib/canalFinanceiroAprovacaoCadastro'
+import {
+  enviarAvisoCadastroLiberadoRelatoriosEmpresa,
+  enviarBoasVindasAposPlanoEmpresa,
+} from '@/lib/canalFinanceiroAprovacaoCadastro'
 import { repararLeituraDegustacaoConcluidaEmpresa } from '@/lib/canalFinanceiroEmpresaLeitura.server'
+import { assinaturaContratadaVigente } from '@/lib/empresaAssinatura'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { assertUserSession } from '@/lib/apiUserSession'
 import { empresaRecursosLiberados } from '@/lib/verificacao-documentos'
@@ -31,12 +35,28 @@ export async function POST() {
           .eq('id', session.userId)
           .maybeSingle()
         if (empresaRecursosLiberados(userRow?.status != null ? String(userRow.status) : null, emp)) {
-          const aviso = await enviarAvisoCadastroLiberadoRelatoriosEmpresa(
-            createSupabaseAdmin(),
-            session.userId,
-          )
+          const admin = createSupabaseAdmin()
+          const aviso = await enviarAvisoCadastroLiberadoRelatoriosEmpresa(admin, session.userId)
           if (!aviso.ok) {
             console.error('[reparar-degustacao] cadastro liberado:', aviso.error)
+          }
+
+          const { data: ass } = await admin
+            .from('empresa_assinaturas')
+            .select('status, vencimento_em')
+            .eq('empresa_id', empresaId)
+            .eq('status', 'ativo')
+            .order('assinado_em', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+          if (assinaturaContratadaVigente(ass)) {
+            const bemVindo = await enviarBoasVindasAposPlanoEmpresa(admin, {
+              empresaUsuarioId: session.userId,
+              empresaId,
+            })
+            if (!bemVindo.ok) {
+              console.error('[reparar-degustacao] Bem-Vindo:', bemVindo.error)
+            }
           }
         }
       } catch (e) {

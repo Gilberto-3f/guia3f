@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { buscarIdEcossistemaPadrao } from '@/lib/canaisEcossistema'
 import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresa'
-import { buscarEcoIdsDaEmpresa, buscarEcoIdsDoProfissional } from '@/lib/ecossistemaFiltro'
+import { resolverEcoCanaisDaEmpresa } from '@/lib/ecoCanaisPorCidade'
+import { buscarEcoIdsDoProfissional } from '@/lib/ecossistemaFiltro'
 import {
   ASSUNTO_CONVERSA_APROVACAO_CADASTRO,
   abrirConversaFinanceiroAdm,
@@ -35,22 +36,17 @@ async function resolverEcossistemaIdsDoAlvo(
   usuarioId: string,
 ): Promise<string[]> {
   if (tipo === 'empresa') {
-    const { data: emp } = await supabase
-      .from('empresas')
-      .select('id')
-      .eq('usuario_id', usuarioId)
-      .maybeSingle()
-    const ids = await buscarEcoIdsDaEmpresa(supabase, emp?.id != null ? String(emp.id) : '')
-    if (ids && ids.length > 0) return ids
-  } else {
-    const { data: prof } = await supabase
-      .from('profissionais')
-      .select('id')
-      .eq('usuario_id', usuarioId)
-      .maybeSingle()
-    const ids = await buscarEcoIdsDoProfissional(supabase, prof?.id != null ? String(prof.id) : '')
-    if (ids && ids.length > 0) return ids
+    const bloco = await resolverEcoCanaisDaEmpresa(supabase, { usuarioId })
+    if (bloco?.id) return [bloco.id]
+    return []
   }
+  const { data: prof } = await supabase
+    .from('profissionais')
+    .select('id')
+    .eq('usuario_id', usuarioId)
+    .maybeSingle()
+  const ids = await buscarEcoIdsDoProfissional(supabase, prof?.id != null ? String(prof.id) : '')
+  if (ids && ids.length > 0) return ids
   const padrao = await buscarIdEcossistemaPadrao(supabase)
   return padrao ? [padrao] : []
 }
@@ -268,16 +264,31 @@ export async function enviarBoasVindasAposPlanoEmpresa(
 
   const { data: emp } = await supabase
     .from('empresas')
-    .select('id, nome_usuario')
+    .select('id, nome_usuario, cidade')
     .eq('usuario_id', uid)
     .maybeSingle()
 
   const empresaId = params.empresaId?.trim() || (emp?.id != null ? String(emp.id) : '')
+  const bloco = await resolverEcoCanaisDaEmpresa(supabase, {
+    empresaId: empresaId || null,
+    usuarioId: uid,
+  })
+  if (!bloco?.id) {
+    console.error(
+      '[canalFinanceiroAprovacao] Bem-Vindo: eco não resolvido pela cidade',
+      emp?.cidade ?? null,
+    )
+    return { ok: false, error: 'ecossistema_cidade_nao_encontrado' }
+  }
+
   const admId = await buscarAdmUsuarioParaMensageiroFinanceiro(supabase, {
     empresaId,
     preferUsuarioId: params.admUsuarioId,
   })
-  if (!admId) return { ok: false, error: 'adm_nao_encontrado' }
+  if (!admId) {
+    console.error('[canalFinanceiroAprovacao] Bem-Vindo: ADM não encontrado', { empresaId })
+    return { ok: false, error: 'adm_nao_encontrado' }
+  }
 
   const nomeUsuario = String(emp?.nome_usuario ?? '').trim().replace(/^@+/, '')
   return enviarMensagemAprovacaoCanalFinanceiro(supabase, {
@@ -285,5 +296,6 @@ export async function enviarBoasVindasAposPlanoEmpresa(
     usuarioId: uid,
     nomeUsuario,
     admUsuarioId: admId,
+    ecossistemaIds: [bloco.id],
   })
 }
