@@ -1,3 +1,4 @@
+import { modoAbasDoBloco } from '@/lib/canalAbasCidade'
 import type { EcossistemaBloco } from '@/lib/ecossistemas'
 import { vinculoEcossistemaIgnoravel } from '@/lib/ecossistemas'
 import {
@@ -8,9 +9,11 @@ import {
 import { mapCidadeAtuacaoParaTabelado, type CidadeOrigemTabeladoId } from '@/lib/servicosTabeladosCatalogo'
 
 export type ChipPaisBloco = {
-  pais: PaisGuiaFiltro
+  id: string
+  pais: PaisGuiaFiltro | null
   cidadeChave: string
   label: string
+  modo: 'bandeira' | 'cidade'
 }
 
 function paisDeCodigo(raw: string | null | undefined): PaisGuiaFiltro | null {
@@ -68,22 +71,29 @@ export function cidadePertenceAoBloco(
 }
 
 export function chipsPaisDoBloco(bloco: EcossistemaBloco | null | undefined): ChipPaisBloco[] {
-  if (!bloco) {
-    return [
-      { pais: 'br', cidadeChave: 'Foz do Iguacu', label: 'Foz do Iguaçu' },
-      { pais: 'py', cidadeChave: 'Ciudad del Este', label: 'Ciudad del Este' },
-      { pais: 'ar', cidadeChave: 'Puerto Iguazu', label: 'Puerto Iguazú' },
-    ]
+  if (!bloco || bloco.tipo !== 'regiao') return []
+  const cidades = (bloco.cidades ?? []).filter((c) => String(c.chave ?? '').trim())
+  if (cidades.length <= 1) return []
+
+  if (modoAbasDoBloco(bloco) === 'bandeiras') {
+    const out: ChipPaisBloco[] = []
+    const seen = new Set<PaisGuiaFiltro>()
+    for (const c of cidades) {
+      const pais = paisDeCodigo(c.pais) ?? paisInferidoDaCidade(c.chave) ?? paisInferidoDaCidade(c.label)
+      if (!pais || seen.has(pais)) continue
+      seen.add(pais)
+      out.push({ id: pais, pais, cidadeChave: c.chave, label: c.label, modo: 'bandeira' })
+    }
+    return out
   }
-  const out: ChipPaisBloco[] = []
-  const seen = new Set<PaisGuiaFiltro>()
-  for (const c of bloco.cidades) {
-    const pais = paisDeCodigo(c.pais) ?? paisInferidoDaCidade(c.chave) ?? paisInferidoDaCidade(c.label)
-    if (!pais || seen.has(pais)) continue
-    seen.add(pais)
-    out.push({ pais, cidadeChave: c.chave, label: c.label })
-  }
-  return out
+
+  return cidades.map((c) => ({
+    id: String(c.chave).trim(),
+    pais: paisDeCodigo(c.pais) ?? paisInferidoDaCidade(c.chave) ?? paisInferidoDaCidade(c.label),
+    cidadeChave: String(c.chave).trim(),
+    label: String(c.label ?? c.chave).trim() || String(c.chave).trim(),
+    modo: 'cidade' as const,
+  }))
 }
 
 export function cidadesTabeladoDoBloco(

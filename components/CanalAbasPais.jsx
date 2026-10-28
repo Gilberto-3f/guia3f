@@ -22,6 +22,19 @@ const tabGeral =
 const tabBandeira =
   'flex min-h-[2.75rem] max-w-[4.5rem] flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-1.5 text-center transition-all'
 
+const tabCidade =
+  'flex min-h-[2.75rem] min-w-0 flex-1 flex-col items-center justify-center rounded-lg px-2 py-1.5 text-center transition-all'
+
+function modoVisualAbas(paises, legendas) {
+  const ids = (paises ?? []).filter((p) => p !== 'geral')
+  const paisesSet = new Set(
+    ids
+      .map((p) => String(legendas?.[p]?.pais || '').trim().toUpperCase())
+      .filter(Boolean),
+  )
+  return paisesSet.size > 1 ? 'bandeiras' : 'cidades'
+}
+
 /**
  * @param {{
  *   paises: string[]
@@ -32,10 +45,11 @@ const tabBandeira =
  * }} props
  */
 export default function CanalAbasPais({ paises, abaAtiva, onAbaChange, contadores = {}, legendas = {} }) {
+  const modoVisual = modoVisualAbas(paises, legendas)
   return (
     <div className="bg-white px-4 py-1.5">
       <div
-        className="mx-auto flex w-full max-w-md items-stretch justify-center gap-4"
+        className="mx-auto flex w-full max-w-md items-stretch justify-center gap-2 sm:gap-4"
         role="tablist"
         aria-label="Filtro por região"
       >
@@ -71,13 +85,36 @@ export default function CanalAbasPais({ paises, abaAtiva, onAbaChange, contadore
             )
           }
 
+          const rotuloCidade = meta?.label && meta.label !== pais ? meta.label : a11y
+
+          if (modoVisual === 'cidades') {
+            return (
+              <button
+                key={pais}
+                type="button"
+                role="tab"
+                aria-selected={ativo}
+                title={a11y}
+                aria-label={a11y}
+                onClick={() => onAbaChange(pais)}
+                className={`${tabCidade} ${ring}`}
+              >
+                <span className="max-w-full truncate text-xs font-bold leading-tight">{rotuloCidade}</span>
+                {contadores[pais] !== undefined ? (
+                  <span className="rounded bg-gray-100 px-1 text-[9px] tabular-nums text-gray-600">
+                    {contadores[pais]}
+                  </span>
+                ) : null}
+              </button>
+            )
+          }
+
           const codigoBandeira = String(meta?.pais || pais || '')
             .trim()
             .toUpperCase()
           const emoji =
             EMOJI_PAIS[/** @type {keyof typeof EMOJI_PAIS} */ (codigoBandeira)] ||
             emojiBandeiraPais(/** @type {'BR'|'AR'|'PY'} */ (codigoBandeira))
-          const rotuloCidade = meta?.label && meta.label !== codigoBandeira ? meta.label : null
 
           return (
             <button

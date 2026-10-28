@@ -32,6 +32,26 @@ export function rotuloCurtoCidade(cidade: EcossistemaCidade): string {
   return primeira || label || cidade.chave
 }
 
+function paisDaCidadeBloco(cidade: EcossistemaCidade): string | null {
+  const col = cidade.pais != null ? String(cidade.pais).trim().toUpperCase() : ''
+  if (col === 'BR' || col === 'AR' || col === 'PY') return col
+  return inferCodigoPaisEmpresa(cidade.chave) ?? inferCodigoPaisEmpresa(cidade.label)
+}
+
+export type ModoAbasBloco = 'bandeiras' | 'cidades' | 'nenhuma'
+
+/** Região multi-país → bandeiras. Região do mesmo país → nomes de cidade. Cidade sozinha → sem abas. */
+export function modoAbasDoBloco(bloco: EcossistemaBloco | null | undefined): ModoAbasBloco {
+  const abas = abasCidadeDoBloco(bloco)
+  if (abas.length <= 1) return 'nenhuma'
+  const paises = new Set(
+    (bloco?.cidades ?? [])
+      .map((c) => paisDaCidadeBloco(c))
+      .filter((p): p is string => Boolean(p)),
+  )
+  return paises.size > 1 ? 'bandeiras' : 'cidades'
+}
+
 /** Região com 2+ cidades: Todos + uma aba por cidade. Cidade avulsa: sem abas. */
 export function abasCidadeDoBloco(bloco: EcossistemaBloco | null | undefined): AbaCanalCidade[] {
   if (!bloco || bloco.tipo !== 'regiao') return []
@@ -42,7 +62,7 @@ export function abasCidadeDoBloco(bloco: EcossistemaBloco | null | undefined): A
     ...cidades.map((c) => ({
       id: String(c.chave).trim(),
       label: rotuloCurtoCidade(c),
-      pais: c.pais != null ? String(c.pais).trim().toUpperCase() : null,
+      pais: paisDaCidadeBloco(c),
     })),
   ]
 }

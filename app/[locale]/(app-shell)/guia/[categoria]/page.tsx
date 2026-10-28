@@ -30,7 +30,6 @@ import {
   categoriaDbPorSlugGuia,
   cidadeGuiaPorPais,
   TITULO_SLUG_GUIA,
-  type PaisGuiaFiltro,
 } from '@/lib/segmentosEmpresaGuia'
 import { useEcossistemaAtivo } from '@/context/EcossistemaAtivoContext'
 import {
@@ -116,7 +115,7 @@ export default function ListagemCategoriaPage() {
   const [erroLista, setErroLista] = useState('')
   const { ativo: ecoAtivo, carregou: ecoCarregou } = useEcossistemaAtivo()
   const chipsPais = useMemo(() => chipsPaisDoBloco(ecoAtivo), [ecoAtivo])
-  const [pais, setPais] = useState<PaisGuiaFiltro>('br')
+  const [filtroAba, setFiltroAba] = useState('')
   const [ordenacao, setOrdenacao] = useState<OrdenacaoModo>('avaliacao')
   const [geoCarregando, setGeoCarregando] = useState(false)
   const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null)
@@ -134,11 +133,11 @@ export default function ListagemCategoriaPage() {
 
   const categoriaDb = SLUG_CATEGORIA_EXTRA[slug] ?? categoriaDbPorSlugGuia(slug)
   const cidadeDb = useMemo(() => {
-    const chip = chipsPais.find((c) => c.pais === pais)
+    const chip = chipsPais.find((c) => c.id === filtroAba)
     if (chip) return chip.cidadeChave
     if (ecoAtivo?.cidades[0]?.chave) return ecoAtivo.cidades[0].chave
-    return cidadeGuiaPorPais(pais)
-  }, [chipsPais, pais, ecoAtivo])
+    return cidadeGuiaPorPais('br')
+  }, [chipsPais, filtroAba, ecoAtivo])
 
   const cacheKey = useMemo(
     () =>
@@ -148,10 +147,10 @@ export default function ListagemCategoriaPage() {
 
   useEffect(() => {
     if (chipsPais.length === 0) return
-    if (!chipsPais.some((c) => c.pais === pais)) {
-      setPais(chipsPais.find((c) => c.pais === 'br')?.pais ?? chipsPais[0].pais)
+    if (!chipsPais.some((c) => c.id === filtroAba)) {
+      setFiltroAba(chipsPais.find((c) => c.id === 'br')?.id ?? chipsPais[0].id)
     }
-  }, [chipsPais, pais])
+  }, [chipsPais, filtroAba])
 
   const carregarEmpresas = useCallback(async (opts?: { silent?: boolean }) => {
     if (!ecoCarregou) return
@@ -398,7 +397,7 @@ export default function ListagemCategoriaPage() {
 
   useEffect(() => {
     limparCheck()
-  }, [pais, limparCheck])
+  }, [filtroAba, limparCheck])
 
   const titulo = TITULO_CATEGORIA_EXTRA[slug] ?? TITULO_SLUG_GUIA[slug] ?? slug
   const filtrosApoioCompactos = ehPaginaHospedagem
@@ -463,19 +462,34 @@ export default function ListagemCategoriaPage() {
           ) : null}
 
           <div className="flex w-full min-w-0 flex-nowrap items-center justify-between gap-2">
-            <div className="flex items-center gap-4">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               {(chipsPais.length > 1 ? chipsPais : []).map((f) => {
+                const ativo = filtroAba === f.id
+                if (f.modo === 'cidade') {
+                  return (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setFiltroAba(f.id)}
+                      aria-label={f.label}
+                      aria-pressed={ativo}
+                      className={`rounded-full px-3 py-1 text-xs font-bold transition ${
+                        ativo ? 'bg-white text-[#0097b2]' : 'bg-white/20 text-white'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  )
+                }
                 const emoji = f.pais === 'br' ? '🇧🇷' : f.pais === 'py' ? '🇵🇾' : '🇦🇷'
-                const alt = f.label
-                const ativoFlag = pais === f.pais
                 return (
                   <button
-                    key={f.pais}
+                    key={f.id}
                     type="button"
-                    onClick={() => setPais(f.pais)}
-                    aria-label={alt}
+                    onClick={() => setFiltroAba(f.id)}
+                    aria-label={f.label}
                     className={`p-0.5 leading-none drop-shadow-[0_0_2px_white] transition ${
-                      ativoFlag ? 'scale-110 text-5xl' : 'scale-100 text-4xl'
+                      ativo ? 'scale-110 text-5xl' : 'scale-100 text-4xl'
                     }`}
                   >
                     <span aria-hidden>{emoji}</span>
