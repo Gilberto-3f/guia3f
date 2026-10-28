@@ -78,3 +78,21 @@ export async function garantirCanaisDoEcossistema(
   }
   return { ok: true }
 }
+
+function rpcAusente(error: { message?: string; code?: string } | null | undefined): boolean {
+  const code = String(error?.code ?? '')
+  const msg = String(error?.message ?? '')
+  return code === 'PGRST202' || code === '42883' || /does not exist|schema cache/i.test(msg)
+}
+
+/** Após criar/editar bloco: clona a árvore de canais e regrava vínculos pela cidade. */
+export async function sincronizarCanaisEVinculosDoBloco(
+  db: Pick<SupabaseClient, 'rpc'>,
+  ecoId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const seed = await garantirCanaisDoEcossistema(db, ecoId)
+  if (!seed.ok) return seed
+  const { error } = await db.rpc('regravar_vinculos_eco_canais')
+  if (!error || rpcAusente(error)) return { ok: true }
+  return { ok: false, error: error.message }
+}

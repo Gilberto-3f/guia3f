@@ -318,6 +318,13 @@ export function ConfigEcossistemas() {
             ))}
           </div>
 
+          {form.tipo === 'regiao' ? (
+            <p className="text-xs text-[#666666]">
+              Empresas e profissionais dessas cidades passam a ver os canais desta região. O eco cidade
+              permanece na home como guia.
+            </p>
+          ) : null}
+
           <div>
             <p className="text-sm font-semibold text-gray-700">Cidades</p>
             <div className="mt-2 flex flex-wrap gap-1.5">

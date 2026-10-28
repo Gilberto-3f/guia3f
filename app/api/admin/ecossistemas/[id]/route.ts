@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { assertAdminSession, jsonAdminError, loadAdminUsuarioRow } from '@/lib/adminApiAuth'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { sincronizarCanaisEVinculosDoBloco } from '@/lib/canaisEcossistema'
 import {
   cidadeDoCatalogo,
   mapRowEcossistema,
@@ -147,6 +148,12 @@ export async function PATCH(req: Request, ctx: Ctx) {
       )
     }
 
+    const sync = await sincronizarCanaisEVinculosDoBloco(gate.adminDb, ecoId)
+    if (!sync.ok) {
+      console.error('[admin/ecossistemas] sync canais/vínculos', sync.error)
+      return jsonAdminError(500, 'canais', sync.error ?? 'Não foi possível sincronizar os canais do bloco.')
+    }
+
     const { data: row } = await gate.adminDb.from('ecossistemas').select('*').eq('id', ecoId).maybeSingle()
     const { data: cids } = await gate.adminDb
       .from('ecossistema_cidades')
@@ -196,6 +203,10 @@ export async function DELETE(_req: Request, ctx: Ctx) {
         )
       }
       return jsonAdminError(400, 'delete', error.message)
+    }
+    const { error: regravaErr } = await gate.adminDb.rpc('regravar_vinculos_eco_canais')
+    if (regravaErr) {
+      console.error('[admin/ecossistemas] regravar após excluir', regravaErr.message)
     }
     return NextResponse.json({ ok: true })
   } catch (e) {

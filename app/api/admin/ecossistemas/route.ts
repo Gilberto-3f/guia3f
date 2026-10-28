@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { assertAdminSession, jsonAdminError, loadAdminUsuarioRow } from '@/lib/adminApiAuth'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { sincronizarCanaisEVinculosDoBloco } from '@/lib/canaisEcossistema'
 import {
   cidadeDoCatalogo,
   mapRowEcossistema,
@@ -180,6 +181,12 @@ export async function POST(req: Request) {
     if (cidErr) {
       await gate.adminDb.from('ecossistemas').delete().eq('id', novo.id)
       return jsonAdminError(400, 'cidades', cidErr.message)
+    }
+
+    const sync = await sincronizarCanaisEVinculosDoBloco(gate.adminDb, String(novo.id))
+    if (!sync.ok) {
+      console.error('[admin/ecossistemas] sync canais/vínculos', sync.error)
+      return jsonAdminError(500, 'canais', sync.error ?? 'Não foi possível criar os canais do bloco.')
     }
 
     const lista = await montarLista(gate.adminDb)
