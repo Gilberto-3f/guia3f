@@ -11,6 +11,12 @@ import type { ModalidadeMobilidadeId } from '@/lib/mobilidadePopupPesquisa'
 import type { CidadeTriplice } from '@/lib/mobilidadeRegional'
 import { validarRecusaMobilidade } from '@/lib/mobilidadeRecusaJustificativas'
 import { buscarIdsProfissionalEcossistema } from '@/lib/ecossistemaFiltro'
+import { listarEcossistemasDb } from '@/lib/ecossistemas'
+import { primeiraCidadeAtuacao } from '@/lib/ecoCanaisPorCidade'
+import {
+  parseAtuacaoEscopo,
+  profissionalAtendePedidoMobilidade,
+} from '@/lib/mobilidadeAtuacaoEscopo'
 
 export type AgendamentoMobilidadeInput = {
   turistaUsuarioId: string
@@ -32,6 +38,8 @@ export type AgendamentoMobilidadeInput = {
   recomendacaoId: string | null
   profissionalFixadoId: string | null
   ecossistemaId?: string | null
+  cidadePedido?: string | null
+  regraFronteira?: boolean
 }
 
 /** Corridas com partida a mais de 2h usam fluxo de agendamento. */
@@ -97,6 +105,8 @@ export async function buscarSlotsDisponiveis(
     lugares: number
     profissionalFixadoId?: string | null
     ecossistemaId?: string | null
+    cidadePedido?: string | null
+    regraFronteira?: boolean
   },
 ): Promise<
   Array<
@@ -110,25 +120,45 @@ export async function buscarSlotsDisponiveis(
   const ymd = dataYmd(params.data)
   const hm = horaHm(params.data)
 
-  let q = admin
-    .from('mobilidade_disponibilidade')
-    .select(
-      'id, profissional_id, data, hora_inicio, hora_fim, vagas_total, vagas_ocupadas, ativo, profissionais!inner(id, usuario_id, nome_completo, nome_usuario, categorias, placa_vermelha)',
-    )
-    .eq('data', ymd)
-    .eq('ativo', true)
+  const selectComEscopo =
+    'id, profissional_id, data, hora_inicio, hora_fim, vagas_total, vagas_ocupadas, ativo, profissionais!inner(id, usuario_id, nome_completo, nome_usuario, categorias, placa_vermelha, cidade_atuacao, atuacao_escopo)'
+  const selectSemEscopo =
+    'id, profissional_id, data, hora_inicio, hora_fim, vagas_total, vagas_ocupadas, ativo, profissionais!inner(id, usuario_id, nome_completo, nome_usuario, categorias, placa_vermelha)'
+
+  let q = admin.from('mobilidade_disponibilidade').select(selectComEscopo).eq('data', ymd).eq('ativo', true)
 
   if (params.profissionalFixadoId) {
     q = q.eq('profissional_id', params.profissionalFixadoId)
   }
 
-  const { data, error } = await q
+  let { data, error } = await q
+  let queryTemEscopo = true
+  if (error && /atuacao_escopo|cidade_atuacao/i.test(error.message)) {
+    queryTemEscopo = false
+    let q2 = admin.from('mobilidade_disponibilidade').select(selectSemEscopo).eq('data', ymd).eq('ativo', true)
+    if (params.profissionalFixadoId) {
+      q2 = q2.eq('profissional_id', params.profissionalFixadoId)
+    }
+    const res2 = await q2
+    data = res2.data
+    error = res2.error
+  }
   if (error || !data) return []
 
   const idsEco = params.profissionalFixadoId
     ? null
     : await buscarIdsProfissionalEcossistema(admin, params.ecossistemaId)
   if (idsEco && idsEco.size === 0) return []
+
+  let bloco = null as Awaited<ReturnType<typeof listarEcossistemasDb>>[number] | null
+  if (!params.profissionalFixadoId && params.ecossistemaId) {
+    try {
+      const todos = await listarEcossistemasDb(admin)
+      bloco = todos.find((b) => b.id === String(params.ecossistemaId)) ?? null
+    } catch {
+      bloco = null
+    }
+  }
 
   const out: Array<
     SlotDisponibilidade & { nome: string; username: string | null; usuario_id: string }
@@ -152,6 +182,20 @@ export async function buscarSlotsDisponiveis(
         : [],
     )
     if (!modalidadeMatcha(params.modalidade, cats, true)) continue
+    if (!params.profissionalFixadoId && queryTemEscopo) {
+      const profRec = prof as { cidade_atuacao?: unknown; atuacao_escopo?: unknown }
+      if (
+        !profissionalAtendePedidoMobilidade({
+          regraFronteira: params.regraFronteira !== false,
+          cidadeResidencia: primeiraCidadeAtuacao(profRec.cidade_atuacao),
+          escopo: parseAtuacaoEscopo(profRec.atuacao_escopo),
+          cidadePedido: params.cidadePedido,
+          bloco,
+        })
+      ) {
+        continue
+      }
+    }
 
     out.push({
       id: String(row.id),
@@ -214,6 +258,8 @@ export async function criarSolicitacaoAgendada(
     lugares: input.lugares,
     profissionalFixadoId: input.profissionalFixadoId,
     ecossistemaId: input.ecossistemaId,
+    cidadePedido: input.cidadePedido,
+    regraFronteira: input.regraFronteira,
   })
 
   // Modelo hospedagem: com profissional fixado, agenda livre salvo datas bloqueadas.

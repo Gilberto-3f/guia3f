@@ -24,6 +24,12 @@ import { parseMobilidadeStatus } from '@/lib/mobilidadeStatusProfissional'
 import { mediaNotaAlvo } from '@/lib/notaMediaAvaliacoes'
 import { modalidadeUsaDeslocamentoProprio } from '@/lib/mobilidadeOfertaAtendimento'
 import { buscarIdsProfissionalEcossistema } from '@/lib/ecossistemaFiltro'
+import { listarEcossistemasDb, type EcossistemaBloco } from '@/lib/ecossistemas'
+import { primeiraCidadeAtuacao } from '@/lib/ecoCanaisPorCidade'
+import {
+  parseAtuacaoEscopo,
+  profissionalAtendePedidoMobilidade,
+} from '@/lib/mobilidadeAtuacaoEscopo'
 
 /** Tempo total para aceitar no matching da home (ms). */
 export const MOBILIDADE_OFERTA_TIMEOUT_MS = 45_000
@@ -104,6 +110,9 @@ export async function buscarCandidatosMobilidade(
     ecossistemaId?: string | null
     /** Tríplice: cidade GPS + placa na fronteira. Cidade avulsa: desliga. */
     regraFronteira?: boolean
+    /** Cidade do pedido (matching cidade vs região, fora da Tríplice). */
+    cidadePedido?: string | null
+    bloco?: EcossistemaBloco | null
   },
 ): Promise<CandidatoMatch[]> {
   const lugaresPedidos = Math.max(1, Number(params.lugares) || 1)
@@ -112,14 +121,25 @@ export async function buscarCandidatosMobilidade(
   const idsEco = await buscarIdsProfissionalEcossistema(admin, params.ecossistemaId)
   if (idsEco && idsEco.size === 0) return []
 
+  let bloco = params.bloco ?? null
+  if (!bloco && params.ecossistemaId) {
+    try {
+      const todos = await listarEcossistemasDb(admin)
+      bloco = todos.find((b) => b.id === String(params.ecossistemaId)) ?? null
+    } catch {
+      bloco = null
+    }
+  }
+
   let data: Record<string, unknown>[] | null = null
   let error: { message: string } | null = null
+  let queryTemEscopo = true
 
   {
     const res = await admin
       .from('profissionais')
       .select(
-        'id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias, placa_vermelha, mobilidade_status, mobilidade_lat, mobilidade_lng, veiculo_lugares, idiomas, moeda_modo, moedas_preferencia',
+        'id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias, placa_vermelha, mobilidade_status, mobilidade_lat, mobilidade_lng, veiculo_lugares, idiomas, moeda_modo, moedas_preferencia, cidade_atuacao, atuacao_escopo',
       )
       .eq('mobilidade_status', 'online')
       .not('mobilidade_lat', 'is', null)
@@ -129,12 +149,16 @@ export async function buscarCandidatosMobilidade(
     // Colunas novas podem não existir ainda — fallback sem elas
     if (
       error &&
-      /veiculo_lugares|idiomas|moeda_modo|moedas_preferencia/i.test(error.message)
+      /veiculo_lugares|idiomas|moeda_modo|moedas_preferencia|atuacao_escopo|cidade_atuacao/i.test(error.message)
     ) {
+      const semEscopo = /atuacao_escopo|cidade_atuacao/i.test(error.message)
+      queryTemEscopo = !semEscopo
       const res2 = await admin
         .from('profissionais')
         .select(
-          'id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias, placa_vermelha, mobilidade_status, mobilidade_lat, mobilidade_lng',
+          semEscopo
+            ? 'id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias, placa_vermelha, mobilidade_status, mobilidade_lat, mobilidade_lng'
+            : 'id, usuario_id, nome_completo, nome_usuario, foto_perfil_url, foto_url, categorias, placa_vermelha, mobilidade_status, mobilidade_lat, mobilidade_lng, cidade_atuacao, atuacao_escopo',
         )
         .eq('mobilidade_status', 'online')
         .not('mobilidade_lat', 'is', null)
@@ -168,9 +192,22 @@ export async function buscarCandidatosMobilidade(
 
     const cidadeProf = inferirCidadeTriplicePorCoords(lat, lng)
 
-    // Tríplice urbana: mesma cidade de origem. Bloco 1 país: só N:N + distância.
+    // Tríplice urbana: mesma cidade de origem. Não reabre esta regra.
     if (regraFronteira && !cruzamento && params.cidadeOrigem && cidadeProf) {
       if (cidadeProf !== params.cidadeOrigem) continue
+    }
+
+    if (
+      queryTemEscopo &&
+      !profissionalAtendePedidoMobilidade({
+        regraFronteira,
+        cidadeResidencia: primeiraCidadeAtuacao(row.cidade_atuacao),
+        escopo: parseAtuacaoEscopo(row.atuacao_escopo),
+        cidadePedido: params.cidadePedido,
+        bloco,
+      })
+    ) {
+      continue
     }
 
     const capacidade = normalizarVeiculoLugares(row.veiculo_lugares)
@@ -268,6 +305,7 @@ export type SolicitarMobilidadeInput = {
   moedasDinheiro?: string[]
   ecossistemaId?: string | null
   regraFronteira?: boolean
+  cidadePedido?: string | null
 }
 
 /** Resolve profissionais.id a partir de recomendação e/ou usuario_id. */
@@ -446,6 +484,7 @@ export async function criarSolicitacaoEOfertar(
     lugares: input.lugares,
     ecossistemaId: input.ecossistemaId,
     regraFronteira: input.regraFronteira,
+    cidadePedido: input.cidadePedido,
   })
 
   candidatos = ordenarCandidatosSoftRank(candidatos, {

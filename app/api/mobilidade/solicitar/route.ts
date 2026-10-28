@@ -9,6 +9,7 @@ import {
 import type { ModalidadeMobilidadeId } from '@/lib/mobilidadePopupPesquisa'
 import { ehCruzamentoFronteira, inferirCidadeDePonto } from '@/lib/mobilidadePopupPesquisa'
 import { blocoPermiteCruzamentoFronteira } from '@/lib/ecossistemaFiltro'
+import { resolverCidadePedidoMatching } from '@/lib/mobilidadeAtuacaoEscopo'
 import { resolverBlocoPorId } from '@/lib/ecossistemas'
 import { normalizarMoedasPreferencia } from '@/lib/mobilidadePerfilProfissional'
 import {
@@ -158,6 +159,9 @@ export async function POST(req: Request) {
     moedasDinheiro: normalizarMoedasPreferencia(body.moedas_dinheiro),
     ecossistemaId: bloco?.id ?? ecoIdBody,
     regraFronteira,
+    cidadePedido: regraFronteira
+      ? String(cidadeOrigem ?? '')
+      : resolverCidadePedidoMatching(bloco, [destCidade, origem.nome, destino.nome]),
   }
 
   const res = await criarSolicitacaoEOfertar(
