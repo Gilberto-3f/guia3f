@@ -131,17 +131,23 @@ export async function buscarSlotsDisponiveis(
     q = q.eq('profissional_id', params.profissionalFixadoId)
   }
 
-  let { data, error } = await q
+  let data: Record<string, unknown>[] | null = null
+  let error: { message: string } | null = null
   let queryTemEscopo = true
-  if (error && /atuacao_escopo|cidade_atuacao/i.test(error.message)) {
-    queryTemEscopo = false
-    let q2 = admin.from('mobilidade_disponibilidade').select(selectSemEscopo).eq('data', ymd).eq('ativo', true)
-    if (params.profissionalFixadoId) {
-      q2 = q2.eq('profissional_id', params.profissionalFixadoId)
+  {
+    const res = await q
+    data = (res.data as Record<string, unknown>[] | null) ?? null
+    error = res.error
+    if (error && /atuacao_escopo|cidade_atuacao/i.test(error.message)) {
+      queryTemEscopo = false
+      let q2 = admin.from('mobilidade_disponibilidade').select(selectSemEscopo).eq('data', ymd).eq('ativo', true)
+      if (params.profissionalFixadoId) {
+        q2 = q2.eq('profissional_id', params.profissionalFixadoId)
+      }
+      const res2 = await q2
+      data = (res2.data as Record<string, unknown>[] | null) ?? null
+      error = res2.error
     }
-    const res2 = await q2
-    data = res2.data
-    error = res2.error
   }
   if (error || !data) return []
 
