@@ -5,12 +5,7 @@ import {
 } from '@/lib/cadastroCreateAuthUser'
 import { normalizarIdiomasGuia } from '@/lib/idiomasGuia'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
-import {
-  cidadesChaveDosBlocos,
-  gravarVinculosEcossistema,
-  parseEcossistemaIds,
-  resolverIdsEcossistema,
-} from '@/lib/ecossistemas'
+import { categoriaEhMobilidade, gravarVinculoEcoPorCidade } from '@/lib/ecoCanaisPorCidade'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const senhaRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
@@ -26,7 +21,7 @@ type CadastroProfissionalBody = {
   whatsapp?: unknown
   categoria?: unknown
   cidadeAtuacao?: unknown
-  ecossistemaIds?: unknown
+  atuacaoEscopo?: unknown
   aceitePoliticas?: unknown
   idiomas?: unknown
 }
@@ -43,7 +38,8 @@ export async function POST(req: NextRequest) {
     const whatsapp = String(body.whatsapp ?? '').trim()
     const categoria = String(body.categoria ?? '').trim()
     const cidadeRaw = String(body.cidadeAtuacao ?? '').trim()
-    const ecoIdsInformados = parseEcossistemaIds(body.ecossistemaIds)
+    const escopoRaw = String(body.atuacaoEscopo ?? '').trim().toLowerCase()
+    const atuacaoEscopo = escopoRaw === 'regiao' ? 'regiao' : escopoRaw === 'cidade' ? 'cidade' : null
 
     if (!emailRegex.test(email)) {
       return NextResponse.json({ error: 'invalid_email' }, { status: 400 })
@@ -63,7 +59,7 @@ export async function POST(req: NextRequest) {
     if (!categoria) {
       return NextResponse.json({ error: 'invalid_category' }, { status: 400 })
     }
-    if (!cidadeRaw && ecoIdsInformados.length < 1) {
+    if (!cidadeRaw) {
       return NextResponse.json({ error: 'invalid_city' }, { status: 400 })
     }
     if (body.aceitePoliticas !== true) {
@@ -118,19 +114,7 @@ export async function POST(req: NextRequest) {
     }
 
     const placaVermelha = PLACA_CATEGORIAS.has(categoria)
-    let cidadeAtuacao = cidadeRaw ? [cidadeRaw] : []
-    let ecoIdsFinais = ecoIdsInformados
-    try {
-      const resolved = await resolverIdsEcossistema(admin, ecoIdsInformados)
-      ecoIdsFinais = resolved.ids
-      const derivadas = cidadesChaveDosBlocos(resolved.blocos)
-      if (derivadas.length > 0) cidadeAtuacao = derivadas
-    } catch {
-      /* tabelas de ecossistema ainda não existem */
-    }
-    if (cidadeAtuacao.length < 1) {
-      return NextResponse.json({ error: 'invalid_city' }, { status: 400 })
-    }
+    const cidadeAtuacao = [cidadeRaw]
     const idiomas =
       categoria === 'Guia' ? normalizarIdiomasGuia(body.idiomas) : []
 
@@ -146,6 +130,9 @@ export async function POST(req: NextRequest) {
     }
     if (idiomas.length > 0) {
       payload.idiomas = idiomas
+    }
+    if (categoriaEhMobilidade(categoria) && atuacaoEscopo) {
+      payload.atuacao_escopo = atuacaoEscopo
     }
 
     let ins = await admin.from('profissionais').insert(payload)
@@ -165,6 +152,10 @@ export async function POST(req: NextRequest) {
       const { idiomas: _i, ...rest } = payload
       ins = await admin.from('profissionais').insert(rest)
     }
+    if (ins.error && ins.error.message.toLowerCase().includes('atuacao_escopo')) {
+      const { atuacao_escopo: _a, ...rest } = payload
+      ins = await admin.from('profissionais').insert(rest)
+    }
 
     if (ins.error) {
       try {
@@ -180,8 +171,8 @@ export async function POST(req: NextRequest) {
       .select('id')
       .eq('usuario_id', userId)
       .maybeSingle()
-    if (prof?.id && ecoIdsFinais.length > 0) {
-      const vinculo = await gravarVinculosEcossistema(admin, 'profissional', String(prof.id), ecoIdsFinais)
+    if (prof?.id) {
+      const vinculo = await gravarVinculoEcoPorCidade(admin, 'profissional', String(prof.id), cidadeRaw)
       if (!vinculo.ok) {
         console.error('[cadastro/profissional] vinculos', vinculo.error)
       }

@@ -12,8 +12,8 @@ import { useUsernameDisponivel } from '@/hooks/useUsernameDisponivel'
 import CampoIdiomasGuia from '@/components/perfil/CampoIdiomasGuia'
 import { normalizarIdiomasGuia } from '@/lib/idiomasGuia'
 import { digitsWhatsapp } from '@/lib/whatsapp-empresa'
-import { cidadesChaveDosBlocos, gravarVinculosEcossistema } from '@/lib/ecossistemas'
-import { CampoEcossistemasCadastro, useEcossistemasCadastro } from '@/components/cadastro/CampoEcossistemasCadastro'
+import { CIDADES_CATALOGO, cidadeDoCatalogo } from '@/lib/ecossistemas'
+import { categoriaEhMobilidade, gravarVinculoEcoPorCidade } from '@/lib/ecoCanaisPorCidade'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -34,13 +34,7 @@ const categoriasDisponiveis: CategoriaProfissional[] = [
 
 const senhaRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
 
-type CidadeProfissional = 'Foz do Iguacu' | 'Ciudad del Este' | 'Puerto Iguazu'
-
-const cidadesProfissional: CidadeProfissional[] = [
-  'Foz do Iguacu',
-  'Ciudad del Este',
-  'Puerto Iguazu',
-]
+const cidadesProfissional = CIDADES_CATALOGO.map((c) => c.chave)
 
 function mapApiProfissionalError(code: string | undefined, t: (key: string) => string): string {
   switch (code) {
@@ -90,7 +84,7 @@ type CadastroProfissionalPayload = {
   whatsapp: string
   categoria: string
   cidadeAtuacao: string
-  ecossistemaIds: string[]
+  atuacaoEscopo?: 'cidade' | 'regiao' | null
   aceitePoliticas: boolean
   idiomas?: string[]
 }
@@ -107,8 +101,8 @@ export default function CadastroProfissionalPage() {
   const [senhaConfirma, setSenhaConfirma] = useState('')
   const [modoLogado, setModoLogado] = useState(false)
   const [whatsApp, setWhatsApp] = useState('')
-  const [cidadeAtuacao, setCidadeAtuacao] = useState<CidadeProfissional>('Foz do Iguacu')
-  const { lista: ecosLista, ids: ecoIds, setIds: setEcoIds, carregou: ecosCarregou } = useEcossistemasCadastro()
+  const [cidadeAtuacao, setCidadeAtuacao] = useState(CIDADES_CATALOGO[0]?.chave ?? 'Foz do Iguacu')
+  const [atuacaoEscopo, setAtuacaoEscopo] = useState<'cidade' | 'regiao'>('cidade')
   const [categoria, setCategoria] = useState<CategoriaProfissional | ''>('')
   const [idiomas, setIdiomas] = useState<string[]>(['pt'])
   const [aceitePoliticas, setAceitePoliticas] = useState(false)
@@ -165,7 +159,10 @@ export default function CadastroProfissionalPage() {
       return 'Selecione ao menos um idioma que você atende.'
     }
     if (!aceitePoliticas) return t('profissional.valPolicies')
-    if (ecosCarregou && ecosLista.length > 0 && ecoIds.length < 1) return t('valEcossistemas')
+    if (!cidadeAtuacao.trim()) return t('profissional.valCidadeResidencia')
+    if (categoriaEhMobilidade(categoria) && atuacaoEscopo !== 'cidade' && atuacaoEscopo !== 'regiao') {
+      return t('profissional.valAtuacaoEscopo')
+    }
     if (!modoLogado) {
       if (!senhaRegex.test(senha)) return t('apiErrorInvalidPassword')
       if (senha !== senhaConfirma) return t('signUpPasswordMatch')
@@ -194,7 +191,7 @@ export default function CadastroProfissionalPage() {
           whatsapp: whatsApp.trim(),
           categoria,
           cidadeAtuacao,
-          ecossistemaIds: ecoIds,
+          atuacaoEscopo: categoriaEhMobilidade(categoria) ? atuacaoEscopo : null,
           aceitePoliticas,
           ...(categoria === 'Guia' ? { idiomas: normalizarIdiomasGuia(idiomas) } : {}),
         }
@@ -253,7 +250,6 @@ export default function CadastroProfissionalPage() {
       )
       if (upsertUsuario.error) throw new Error(upsertUsuario.error.message)
 
-      const cidadesDerivadas = cidadesChaveDosBlocos(ecosLista.filter((e) => ecoIds.includes(e.id)))
       const payloadProfissional: Record<string, unknown> = {
         usuario_id: userId,
         nome_completo: nomeCompleto.trim(),
@@ -261,8 +257,11 @@ export default function CadastroProfissionalPage() {
         telefone: whatsApp.trim(),
         categorias: [categoria],
         placa_vermelha: placaVermelha,
-        cidade_atuacao: cidadesDerivadas.length > 0 ? cidadesDerivadas : [cidadeAtuacao],
+        cidade_atuacao: [cidadeAtuacao],
         status: 'pendente',
+      }
+      if (categoriaEhMobilidade(categoria)) {
+        payloadProfissional.atuacao_escopo = atuacaoEscopo
       }
       if (categoria === 'Guia') {
         payloadProfissional.idiomas = normalizarIdiomasGuia(idiomas)
@@ -290,6 +289,11 @@ export default function CadastroProfissionalPage() {
         insertProfissional = await supabase.from('profissionais').insert(payloadProfissional)
       }
 
+      if (insertProfissional.error && insertProfissional.error.message.toLowerCase().includes('atuacao_escopo')) {
+        delete payloadProfissional.atuacao_escopo
+        insertProfissional = await supabase.from('profissionais').insert(payloadProfissional)
+      }
+
       if (insertProfissional.error) throw new Error(insertProfissional.error.message)
 
       const { data: prof } = await supabase
@@ -297,8 +301,8 @@ export default function CadastroProfissionalPage() {
         .select('id')
         .eq('usuario_id', userId)
         .maybeSingle()
-      if (prof?.id && ecoIds.length > 0) {
-        const vinculo = await gravarVinculosEcossistema(supabase, 'profissional', String(prof.id), ecoIds)
+      if (prof?.id) {
+        const vinculo = await gravarVinculoEcoPorCidade(supabase, 'profissional', String(prof.id), cidadeAtuacao)
         if (!vinculo.ok) throw new Error(vinculo.error)
       }
 
@@ -425,32 +429,53 @@ export default function CadastroProfissionalPage() {
             </>
           ) : null}
 
-          <CampoEcossistemasCadastro
-            lista={ecosLista}
-            value={ecoIds}
-            onChange={setEcoIds}
-            label={`${t('ecossistemas')} ${t('common.required')}`}
-            hint={t('ecossistemasHint')}
-          />
-
-          {ecosLista.length === 0 ? (
           <div>
             <label htmlFor="cidadeProf" className="mb-1 block text-sm font-medium text-[#001f3f]">
-              {t('profissional.cityOrigin')} {t('common.required')}
+              {t('profissional.cidadeResidencia')} {t('common.required')}
             </label>
             <select
               id="cidadeProf"
               value={cidadeAtuacao}
-              onChange={(e) => setCidadeAtuacao(e.target.value as CidadeProfissional)}
+              onChange={(e) => setCidadeAtuacao(e.target.value)}
               className="w-full rounded-lg bg-[#0097b2] text-white px-4 py-3 text-sm outline-none"
             >
               {cidadesProfissional.map((c) => (
                 <option key={c} value={c}>
-                  {c}
+                  {cidadeDoCatalogo(c)?.label ?? c}
                 </option>
               ))}
             </select>
           </div>
+
+          {categoriaEhMobilidade(categoria) ? (
+            <div>
+              <p className="mb-1 block text-sm font-medium text-[#001f3f]">
+                {t('profissional.atuacaoEscopo')} {t('common.required')}
+              </p>
+              <p className="mb-2 text-xs text-[#001f3f]/80">{t('profissional.atuacaoEscopoHint')}</p>
+              <div className="flex flex-col gap-2">
+                <label className="flex items-start gap-2 text-sm text-[#001f3f]">
+                  <input
+                    type="radio"
+                    name="atuacaoEscopo"
+                    checked={atuacaoEscopo === 'cidade'}
+                    onChange={() => setAtuacaoEscopo('cidade')}
+                    className="mt-0.5 h-4 w-4 shrink-0"
+                  />
+                  <span>{t('profissional.atuacaoEscopoCidade')}</span>
+                </label>
+                <label className="flex items-start gap-2 text-sm text-[#001f3f]">
+                  <input
+                    type="radio"
+                    name="atuacaoEscopo"
+                    checked={atuacaoEscopo === 'regiao'}
+                    onChange={() => setAtuacaoEscopo('regiao')}
+                    className="mt-0.5 h-4 w-4 shrink-0"
+                  />
+                  <span>{t('profissional.atuacaoEscopoRegiao')}</span>
+                </label>
+              </div>
+            </div>
           ) : null}
 
           <div>

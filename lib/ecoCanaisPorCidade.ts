@@ -1,5 +1,23 @@
-import { listarEcossistemasDb, type EcossistemaBloco } from '@/lib/ecossistemas'
+import { gravarVinculosEcossistema, listarEcossistemasDb, type EcossistemaBloco } from '@/lib/ecossistemas'
 import { cidadePertenceAoBloco } from '@/lib/ecossistemaFiltro'
+
+export const CATEGORIAS_MOBILIDADE = ['Guia', 'Taxista', 'Van', 'Motorista de App'] as const
+
+export function categoriaEhMobilidade(categoria: string | null | undefined): boolean {
+  const c = String(categoria ?? '').trim()
+  return (CATEGORIAS_MOBILIDADE as readonly string[]).includes(c)
+}
+
+export function primeiraCidadeAtuacao(raw: unknown): string {
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      const s = String(item ?? '').trim()
+      if (s) return s
+    }
+    return ''
+  }
+  return String(raw ?? '').trim()
+}
 
 /**
  * Eco de canais/comunidade a partir da cidade do endereço.
@@ -47,4 +65,34 @@ export async function resolverEcoCanaisDaEmpresa(
   q = empresaId ? q.eq('id', empresaId) : q.eq('usuario_id', usuarioId)
   const { data: emp } = await q.maybeSingle()
   return resolverEcoCanaisPorCidadeDb(db, emp?.cidade != null ? String(emp.cidade) : '')
+}
+
+export async function resolverEcoCanaisDoProfissional(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: { from: (table: string) => any },
+  opts: { profissionalId?: string | null; usuarioId?: string | null },
+): Promise<EcossistemaBloco | null> {
+  const profissionalId = opts.profissionalId != null ? String(opts.profissionalId).trim() : ''
+  const usuarioId = opts.usuarioId != null ? String(opts.usuarioId).trim() : ''
+  if (!profissionalId && !usuarioId) return null
+
+  let q = db.from('profissionais').select('cidade_atuacao')
+  q = profissionalId ? q.eq('id', profissionalId) : q.eq('usuario_id', usuarioId)
+  const { data: prof } = await q.maybeSingle()
+  return resolverEcoCanaisPorCidadeDb(db, primeiraCidadeAtuacao(prof?.cidade_atuacao))
+}
+
+export async function gravarVinculoEcoPorCidade(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: { from: (table: string) => any },
+  tipo: 'empresa' | 'profissional',
+  perfilId: string,
+  cidade: string | null | undefined,
+): Promise<{ ok: boolean; error?: string; skipped?: boolean; ecoId?: string }> {
+  const id = String(perfilId ?? '').trim()
+  if (!id) return { ok: false, error: 'perfil_vazio' }
+  const bloco = await resolverEcoCanaisPorCidadeDb(db, cidade)
+  if (!bloco?.id) return { ok: false, error: 'ecossistema_cidade_nao_encontrado' }
+  const vinculo = await gravarVinculosEcossistema(db, tipo, id, [bloco.id])
+  return { ...vinculo, ecoId: bloco.id }
 }

@@ -1,8 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { buscarIdEcossistemaPadrao } from '@/lib/canaisEcossistema'
 import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresa'
-import { resolverEcoCanaisDaEmpresa } from '@/lib/ecoCanaisPorCidade'
-import { buscarEcoIdsDoProfissional } from '@/lib/ecossistemaFiltro'
+import { resolverEcoCanaisDaEmpresa, resolverEcoCanaisDoProfissional } from '@/lib/ecoCanaisPorCidade'
 import {
   ASSUNTO_CONVERSA_APROVACAO_CADASTRO,
   abrirConversaFinanceiroAdm,
@@ -35,20 +33,11 @@ async function resolverEcossistemaIdsDoAlvo(
   tipo: 'profissional' | 'empresa',
   usuarioId: string,
 ): Promise<string[]> {
-  if (tipo === 'empresa') {
-    const bloco = await resolverEcoCanaisDaEmpresa(supabase, { usuarioId })
-    if (bloco?.id) return [bloco.id]
-    return []
-  }
-  const { data: prof } = await supabase
-    .from('profissionais')
-    .select('id')
-    .eq('usuario_id', usuarioId)
-    .maybeSingle()
-  const ids = await buscarEcoIdsDoProfissional(supabase, prof?.id != null ? String(prof.id) : '')
-  if (ids && ids.length > 0) return ids
-  const padrao = await buscarIdEcossistemaPadrao(supabase)
-  return padrao ? [padrao] : []
+  const bloco =
+    tipo === 'empresa'
+      ? await resolverEcoCanaisDaEmpresa(supabase, { usuarioId })
+      : await resolverEcoCanaisDoProfissional(supabase, { usuarioId })
+  return bloco?.id ? [bloco.id] : []
 }
 
 export async function buscarAdmUsuarioParaMensageiroFinanceiro(

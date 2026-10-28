@@ -1,38 +1,24 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { buscarIdEcossistemaPadrao, type CanalComEcossistema } from '@/lib/canaisEcossistema'
-import {
-  buscarEcoIdsDaEmpresa,
-  buscarEcoIdsDoProfissional,
-  buscarIdsEmpresasDosEcossistemas,
-} from '@/lib/ecossistemaFiltro'
-
-async function idsOuPadrao(
-  db: Pick<SupabaseClient, 'from'>,
-  ids: string[] | null,
-): Promise<string[]> {
-  if (ids && ids.length > 0) return ids
-  const padrao = await buscarIdEcossistemaPadrao(db)
-  return padrao ? [padrao] : []
-}
+import type { CanalComEcossistema } from '@/lib/canaisEcossistema'
+import { resolverEcoCanaisDaEmpresa, resolverEcoCanaisDoProfissional } from '@/lib/ecoCanaisPorCidade'
+import { buscarIdsEmpresasDosEcossistemas } from '@/lib/ecossistemaFiltro'
 
 export async function resolverIdsBlocosCanaisProfissional(
   db: Pick<SupabaseClient, 'from'>,
   usuarioId: string,
 ): Promise<string[]> {
-  if (!usuarioId) return idsOuPadrao(db, [])
-  const { data: prof } = await db.from('profissionais').select('id').eq('usuario_id', usuarioId).maybeSingle()
-  const ids = await buscarEcoIdsDoProfissional(db, prof?.id != null ? String(prof.id) : '')
-  return idsOuPadrao(db, ids)
+  if (!usuarioId) return []
+  const bloco = await resolverEcoCanaisDoProfissional(db, { usuarioId })
+  return bloco?.id ? [bloco.id] : []
 }
 
 export async function resolverIdsBlocosCanaisEmpresa(
   db: Pick<SupabaseClient, 'from'>,
   usuarioId: string,
 ): Promise<string[]> {
-  if (!usuarioId) return idsOuPadrao(db, [])
-  const { data: emp } = await db.from('empresas').select('id').eq('usuario_id', usuarioId).maybeSingle()
-  const ids = await buscarEcoIdsDaEmpresa(db, emp?.id != null ? String(emp.id) : '')
-  return idsOuPadrao(db, ids)
+  if (!usuarioId) return []
+  const bloco = await resolverEcoCanaisDaEmpresa(db, { usuarioId })
+  return bloco?.id ? [bloco.id] : []
 }
 
 /** Canal global só entra se o `ecossistema_id` estiver nos blocos; canal da própria empresa passa. */
@@ -41,12 +27,12 @@ export function filtrarCanaisGlobaisDosBlocos<T extends CanalComEcossistema>(
   blocoIds: string[],
 ): T[] {
   const set = new Set(blocoIds.map((id) => String(id).trim()).filter(Boolean))
-  if (set.size === 0) return canais ?? []
+  if (set.size === 0) return []
   return (canais ?? []).filter((c) => {
     const empresaId = c.empresa_id != null ? String(c.empresa_id).trim() : ''
     if (empresaId) return true
     const eco = c.ecossistema_id != null ? String(c.ecossistema_id).trim() : ''
-    if (!eco) return true
+    if (!eco) return false
     return set.has(eco)
   })
 }

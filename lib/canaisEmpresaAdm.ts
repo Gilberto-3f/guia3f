@@ -7,7 +7,7 @@ import {
   isCanalFinanceiroEmpresa,
   slugCanalSegmentoEmpresa,
 } from '@/lib/canaisEmpresaSlugs'
-import { filtrarCanaisDoBloco } from '@/lib/canaisEcossistema'
+import { buscarIdEcossistemaPadrao, filtrarCanaisDoBloco } from '@/lib/canaisEcossistema'
 import {
   filtrarCanaisGlobaisDosBlocos,
   resolverIdsBlocosCanaisEmpresa,
@@ -54,8 +54,8 @@ async function globaisEmpresaVisiveis(
     const blocoIds = await resolverIdsBlocosCanaisEmpresa(supabase, opts.usuarioId)
     return filtrarCanaisGlobaisDosBlocos(data ?? [], blocoIds)
   }
-  const blocoIds = await resolverIdsBlocosCanaisEmpresa(supabase, '')
-  return filtrarCanaisGlobaisDosBlocos(data ?? [], blocoIds)
+  const padrao = await buscarIdEcossistemaPadrao(supabase)
+  return filtrarCanaisDoBloco(data ?? [], padrao)
 }
 
 /** ID do canal global Financeiro pessoal (tipo empresa, pasta Administração). */
