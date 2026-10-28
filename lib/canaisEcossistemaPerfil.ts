@@ -1,6 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { CanalComEcossistema } from '@/lib/canaisEcossistema'
-import { resolverEcoCanaisDaEmpresa, resolverEcoCanaisDoProfissional } from '@/lib/ecoCanaisPorCidade'
+import {
+  resolverEcoCanaisDaEmpresa,
+  resolverEcoCanaisDoProfissional,
+  resolverEcoCanaisPorCidade,
+} from '@/lib/ecoCanaisPorCidade'
+import { listarEcossistemasDb } from '@/lib/ecossistemas'
 import { buscarIdsEmpresasDosEcossistemas } from '@/lib/ecossistemaFiltro'
 
 export async function resolverIdsBlocosCanaisProfissional(
@@ -54,7 +59,21 @@ export async function buscarEmpresasDosBlocosCanais(
   db: Pick<SupabaseClient, 'from'>,
   blocoIds: string[],
 ): Promise<Set<string> | null> {
-  return buscarIdsEmpresasDosEcossistemas(db, blocoIds)
+  const set = new Set(blocoIds.map((id) => String(id).trim()).filter(Boolean))
+  if (set.size === 0) return new Set()
+  try {
+    const blocos = await listarEcossistemasDb(db)
+    const { data: emps, error } = await db.from('empresas').select('id, cidade').eq('status', 'aprovado')
+    if (error) return buscarIdsEmpresasDosEcossistemas(db, [...set])
+    const out = new Set<string>()
+    for (const e of emps ?? []) {
+      const bloco = resolverEcoCanaisPorCidade(e.cidade != null ? String(e.cidade) : '', blocos)
+      if (bloco?.id && set.has(bloco.id)) out.add(String(e.id))
+    }
+    return out
+  } catch {
+    return buscarIdsEmpresasDosEcossistemas(db, [...set])
+  }
 }
 
 export async function mapaNomesEcossistema(

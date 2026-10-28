@@ -6,7 +6,7 @@ import { carregarContagensMembrosPorCanais } from '@/lib/canalMembrosContagem'
 
 /**
  * Contagem de membros impactados por canal (recarrega ao montar ou quando a lista muda).
- * @param {Array<{ id: string, nome?: string | null, tipo_publico?: string | null, categoria?: string | null, comunidade_prof?: string | null, empresa_id?: string | null, empresa_categoria?: string | null }>} canais
+ * @param {Array<{ id: string, nome?: string | null, tipo_publico?: string | null, categoria?: string | null, comunidade_prof?: string | null, empresa_id?: string | null, empresa_categoria?: string | null, ecossistema_id?: string | null }>} canais
  */
 export function useContagemMembrosCanais(canais) {
   const [membrosPorCanal, setMembrosPorCanal] = useState(/** @type {Record<string, number>} */ ({}))

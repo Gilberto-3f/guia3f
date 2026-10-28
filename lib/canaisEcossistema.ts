@@ -9,7 +9,7 @@ export type CanalComEcossistema = {
   ecossistema_id?: string | null
 }
 
-/** Canal de empresa (próprio) passa; canal global só no bloco informado. */
+/** Canal de empresa (próprio) passa; global só no bloco informado. Sem eco, não vaza. */
 export function canalVisivelNoBlocoCanais(
   canal: CanalComEcossistema,
   blocoId: string | null | undefined,
@@ -17,9 +17,8 @@ export function canalVisivelNoBlocoCanais(
   const empresaId = canal.empresa_id != null ? String(canal.empresa_id).trim() : ''
   if (empresaId) return true
   const alvo = blocoId != null ? String(blocoId).trim() : ''
-  if (!alvo) return true
   const eco = canal.ecossistema_id != null ? String(canal.ecossistema_id).trim() : ''
-  if (!eco) return true
+  if (!alvo || !eco) return false
   return eco === alvo
 }
 

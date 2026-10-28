@@ -8,6 +8,8 @@ import {
   isCanalFinanceiroProfissional,
   slugCanalComunidadeProfissional,
 } from '@/lib/canaisProfissionalSlugs'
+import { primeiraCidadeAtuacao, resolverEcoCanaisPorCidade } from '@/lib/ecoCanaisPorCidade'
+import { listarEcossistemasDb } from '@/lib/ecossistemas'
 
 export type CanalMembrosRow = {
   id: string
@@ -17,6 +19,7 @@ export type CanalMembrosRow = {
   comunidade_prof?: string | null
   empresa_id?: string | null
   empresa_categoria?: string | null
+  ecossistema_id?: string | null
 }
 
 type AudienciaCanal =
@@ -110,65 +113,108 @@ function contarParaAudiencia(aud: AudienciaCanal, base: BaseMembros): number | n
   }
 }
 
-export async function carregarBaseContagemMembrosCanais(supabase: SupabaseClient): Promise<BaseMembros> {
-  const profissionaisPorSlug = new Map<string, number>()
-  let totalProfissionais = 0
+function baseVazia(): BaseMembros {
+  return {
+    totalProfissionais: 0,
+    profissionaisPorSlug: new Map(),
+    totalEmpresas: 0,
+    empresasPorSegmento: new Map(),
+  }
+}
+
+function baseDoEco(porEco: Map<string, BaseMembros>, ecoId: string): BaseMembros {
+  let base = porEco.get(ecoId)
+  if (!base) {
+    base = baseVazia()
+    porEco.set(ecoId, base)
+  }
+  return base
+}
+
+async function carregarBasesPorEco(supabase: SupabaseClient): Promise<{
+  porEco: Map<string, BaseMembros>
+  ecoPorEmpresaId: Map<string, string>
+}> {
+  const porEco = new Map<string, BaseMembros>()
+  const ecoPorEmpresaId = new Map<string, string>()
+  let blocos
+  try {
+    blocos = await listarEcossistemasDb(supabase)
+  } catch (e) {
+    console.error('carregarBasesPorEco blocos:', e)
+    return { porEco, ecoPorEmpresaId }
+  }
 
   const { data: profs, error: profErr } = await supabase
     .from('profissionais')
-    .select('categorias, usuarios!profissionais_usuario_id_fkey(status, role)')
+    .select('categorias, cidade_atuacao, usuarios!profissionais_usuario_id_fkey(status, role)')
     .eq('usuarios.status', 'ativo')
     .eq('usuarios.role', 'profissional')
 
   if (profErr) {
-    console.error('carregarBaseContagemMembrosCanais profissionais:', profErr)
+    console.error('carregarBasesPorEco profissionais:', profErr)
   } else {
     for (const row of profs ?? []) {
-      totalProfissionais += 1
-      const slugs = extrairSlugsCategoriasProf(row.categorias)
-      for (const slug of slugs) {
-        profissionaisPorSlug.set(slug, (profissionaisPorSlug.get(slug) ?? 0) + 1)
+      const bloco = resolverEcoCanaisPorCidade(primeiraCidadeAtuacao(row.cidade_atuacao), blocos)
+      if (!bloco?.id) continue
+      const base = baseDoEco(porEco, bloco.id)
+      base.totalProfissionais += 1
+      for (const slug of extrairSlugsCategoriasProf(row.categorias)) {
+        base.profissionaisPorSlug.set(slug, (base.profissionaisPorSlug.get(slug) ?? 0) + 1)
       }
     }
   }
 
-  const empresasPorSegmento = new Map<string, number>()
-  let totalEmpresas = 0
-
-  const { data: emps, error: empErr } = await supabase.from('empresas').select('categoria').eq('status', 'aprovado')
+  const { data: emps, error: empErr } = await supabase
+    .from('empresas')
+    .select('id, categoria, cidade')
+    .eq('status', 'aprovado')
 
   if (empErr) {
-    console.error('carregarBaseContagemMembrosCanais empresas:', empErr)
+    console.error('carregarBasesPorEco empresas:', empErr)
   } else {
-    totalEmpresas = emps?.length ?? 0
     for (const row of emps ?? []) {
+      const bloco = resolverEcoCanaisPorCidade(row.cidade != null ? String(row.cidade) : '', blocos)
+      if (!bloco?.id) continue
+      ecoPorEmpresaId.set(String(row.id), bloco.id)
+      const base = baseDoEco(porEco, bloco.id)
+      base.totalEmpresas += 1
       const cat = row.categoria != null ? String(row.categoria) : ''
       for (const chave of ORDEM_CATEGORIA_COMERCIO) {
         if (categoriaCombinaChaveComercio(cat, chave)) {
-          empresasPorSegmento.set(chave, (empresasPorSegmento.get(chave) ?? 0) + 1)
+          base.empresasPorSegmento.set(chave, (base.empresasPorSegmento.get(chave) ?? 0) + 1)
         }
       }
     }
   }
 
-  return {
-    totalProfissionais,
-    profissionaisPorSlug,
-    totalEmpresas,
-    empresasPorSegmento,
-  }
+  return { porEco, ecoPorEmpresaId }
 }
 
-/** Mapa canalId → quantidade de membros que recebem o conteúdo do canal. */
+function ecoDoCanal(canal: CanalMembrosRow, ecoPorEmpresaId: Map<string, string>): string {
+  const eco = canal.ecossistema_id != null ? String(canal.ecossistema_id).trim() : ''
+  if (eco) return eco
+  const empresaId = canal.empresa_id != null ? String(canal.empresa_id).trim() : ''
+  if (empresaId) return ecoPorEmpresaId.get(empresaId) ?? ''
+  return ''
+}
+
+/** Mapa canalId → quantidade de membros que recebem o conteúdo do canal (só o mesmo eco). */
 export async function carregarContagensMembrosPorCanais(
   supabase: SupabaseClient,
   canais: CanalMembrosRow[],
 ): Promise<Record<string, number>> {
-  const base = await carregarBaseContagemMembrosCanais(supabase)
+  const { porEco, ecoPorEmpresaId } = await carregarBasesPorEco(supabase)
   const out: Record<string, number> = {}
   for (const canal of canais) {
     const aud = classificarAudienciaCanal(canal)
-    const n = contarParaAudiencia(aud, base)
+    if (aud.tipo === 'nenhum') continue
+    const ecoId = ecoDoCanal(canal, ecoPorEmpresaId)
+    if (!ecoId) {
+      out[canal.id] = 0
+      continue
+    }
+    const n = contarParaAudiencia(aud, porEco.get(ecoId) ?? baseVazia())
     if (n != null) out[canal.id] = n
   }
   return out

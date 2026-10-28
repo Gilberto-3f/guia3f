@@ -358,8 +358,9 @@ export default function CanalDetalhePage() {
             : []
       if (cancelado) return
 
-      if ((tipoLocal === 'profissional' || tipoLocal === 'empresa') && !row.empresa_id && row.ecossistema_id) {
-        if (blocoIdsPerfil.length > 0 && !blocoIdsPerfil.includes(row.ecossistema_id)) {
+      if ((tipoLocal === 'profissional' || tipoLocal === 'empresa') && !row.empresa_id) {
+        const ecoCanal = row.ecossistema_id != null ? String(row.ecossistema_id).trim() : ''
+        if (!ecoCanal || blocoIdsPerfil.length === 0 || !blocoIdsPerfil.includes(ecoCanal)) {
           setCanal(null)
           setCanalMissing(true)
           setCarregandoCanal(false)
