@@ -78,10 +78,16 @@ export async function garantirCanaisDoEcossistema(
   return { ok: true }
 }
 
-function rpcAusente(error: { message?: string; code?: string } | null | undefined): boolean {
+function rpcAusente(
+  error: { message?: string; code?: string } | null | undefined,
+  nomeFn: string,
+): boolean {
   const code = String(error?.code ?? '')
   const msg = String(error?.message ?? '')
-  return code === 'PGRST202' || code === '42883' || /does not exist|schema cache/i.test(msg)
+  if (code === 'PGRST202' || /schema cache/i.test(msg)) return true
+  const missing = code === '42883' || /does not exist/i.test(msg)
+  if (!missing) return false
+  return new RegExp(`function public\\.${nomeFn}\\s*\\(`, 'i').test(msg)
 }
 
 /** Após criar/editar bloco: clona a árvore de canais e regrava vínculos pela cidade. */
@@ -92,6 +98,6 @@ export async function sincronizarCanaisEVinculosDoBloco(
   const seed = await garantirCanaisDoEcossistema(db, ecoId)
   if (!seed.ok) return seed
   const { error } = await db.rpc('regravar_vinculos_eco_canais')
-  if (!error || rpcAusente(error)) return { ok: true }
+  if (!error || rpcAusente(error, 'regravar_vinculos_eco_canais')) return { ok: true }
   return { ok: false, error: error.message }
 }
