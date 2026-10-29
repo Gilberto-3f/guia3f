@@ -1,8 +1,8 @@
 /**
  * Presença pública no guia/feed/atividades: assinatura vigente, degustação ativa,
  * empresa gratuita de profissional dual (anfitrião / guia / van),
- * ou legado com `empresas.plano` comercial (contas antigas sem linha em assinaturas).
- * Ciclo vencido sem renovação → fora da listagem para turista/profissional.
+ * ou legado com `empresas.plano` comercial (contas antigas SEM linha em assinaturas).
+ * Quem já teve assinatura/degustação e o ciclo acabou → fora da listagem.
  *
  * Cache + inflight dedupe: feed/stories/atividades chamam várias vezes por navegação;
  * sem isso o pool do Postgres satura para TODOS os perfis.
@@ -77,47 +77,30 @@ async function buscarIdsEmpresasGratuitasProfissional(
 }
 
 /**
- * Contas antigas (ex.: CDE): `empresas.plano` comercial preenchido sem linha vigente
- * em `empresa_assinaturas`. Sem isso, aparecem no perfil (dono) mas somem do mapa.
+ * Contas antigas (ex.: CDE): `empresas.plano` comercial e NENHUMA linha em
+ * `empresa_assinaturas`. Quem já contratou e venceu não entra — o slug em
+ * `empresas.plano` permanece até o ciclo zerar o campo.
  */
-function planoCampoComercialLegado(plano: unknown): boolean {
-  const p = String(plano ?? '')
-    .trim()
-    .toLowerCase()
-  if (!p) return false
-  if (p === 'gratuito' || p === 'free' || p === 'none' || p === 'nenhum') return false
-  return true
-}
-
 async function buscarIdsEmpresasPlanoCampoLegado(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient | any,
 ): Promise<{ data: { id?: unknown }[] | null; error: { message?: string } | null }> {
-  const run = async (comPreview: boolean) => {
-    let q = supabase
-      .from('empresas')
-      .select('id, plano')
-      .eq('docs_verificado', true)
-      .in('status', ['aprovado', 'ativo'])
-      .not('foto_url', 'is', null)
-      .not('plano', 'is', null)
-    if (comPreview) q = q.eq('somente_modo_apresentacao', false)
-    return q
+  const rpc = await supabase.rpc('empresa_ids_plano_legado_sem_assinatura')
+  if (!rpc.error && Array.isArray(rpc.data)) {
+    return {
+      data: rpc.data.map((r: { empresa_id?: unknown }) => ({ id: r.empresa_id })),
+      error: null,
+    }
   }
-
-  let res = await run(true)
-  const msg = String(res.error?.message ?? '').toLowerCase()
-  if (msg.includes('somente_modo_apresentacao')) {
-    res = await run(false)
+  if (rpc.error) {
+    console.warn(
+      '[empresaPresencaPublica] legado RPC indisponível (não usa fallback de plano):',
+      rpc.error.message,
+    )
   }
-  if (res.error) {
-    return { data: null, error: res.error }
-  }
-
-  const data = ((res.data ?? []) as { id?: unknown; plano?: unknown }[]).filter((r) =>
-    planoCampoComercialLegado(r.plano),
-  )
-  return { data, error: null }
+  // Sem a RPC, não dá para saber quem já teve assinatura vencida (RLS).
+  // Melhor omitir legado do que reexibir empresa irregular no guia.
+  return { data: [], error: null }
 }
 
 async function carregarPresencaPublicaRaw(

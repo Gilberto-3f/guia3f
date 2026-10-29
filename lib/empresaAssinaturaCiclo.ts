@@ -2,17 +2,19 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 export type ResultadoCicloAssinaturasEmpresa = {
   expiradas: number
+  degustacoes_expiradas: number
   lembrete_5d: number
   lembrete_1d: number
 }
 
 function parseResultadoRpc(data: unknown): ResultadoCicloAssinaturasEmpresa {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    return { expiradas: 0, lembrete_5d: 0, lembrete_1d: 0 }
+    return { expiradas: 0, degustacoes_expiradas: 0, lembrete_5d: 0, lembrete_1d: 0 }
   }
   const row = data as Record<string, unknown>
   return {
     expiradas: Number(row.expiradas) || 0,
+    degustacoes_expiradas: Number(row.degustacoes_expiradas) || 0,
     lembrete_5d: Number(row.lembrete_5d) || 0,
     lembrete_1d: Number(row.lembrete_1d) || 0,
   }
@@ -38,6 +40,7 @@ async function processarCicloAssinaturasEmpresaFallback(
   const agora = new Date()
   const agoraIso = agora.toISOString()
   let expiradas = 0
+  let degustacoes_expiradas = 0
   let lembrete_5d = 0
   let lembrete_1d = 0
 
@@ -50,6 +53,21 @@ async function processarCicloAssinaturasEmpresaFallback(
     .select('id')
 
   expiradas = expRows?.length ?? 0
+
+  const { data: degRows } = await supabase
+    .from('empresa_degustacoes')
+    .update({ status: 'expirada', updated_at: agoraIso })
+    .eq('status', 'ativa')
+    .not('expira_em', 'is', null)
+    .lt('expira_em', agoraIso)
+    .select('id')
+
+  degustacoes_expiradas = degRows?.length ?? 0
+
+  const limpar = await supabase.rpc('limpar_plano_empresas_sem_ciclo_vigente')
+  if (limpar.error) {
+    console.warn('[empresaAssinaturaCiclo] limpar plano:', limpar.error.message)
+  }
 
   const { data: ativas } = await supabase
     .from('empresa_assinaturas')
@@ -104,5 +122,5 @@ async function processarCicloAssinaturasEmpresaFallback(
     }
   }
 
-  return { expiradas, lembrete_5d, lembrete_1d }
+  return { expiradas, degustacoes_expiradas, lembrete_5d, lembrete_1d }
 }

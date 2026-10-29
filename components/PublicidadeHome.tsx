@@ -6,6 +6,7 @@ import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { rpcAnon } from '@/lib/rpcAnon'
 import { supabase } from '@/lib/supabase'
+import { buscarIdsEmpresaPresencaPublicaVigente } from '@/lib/empresaPresencaPublica'
 
 function isoDate(d: Date) {
   return d.toISOString().slice(0, 10)
@@ -279,12 +280,16 @@ export default function PublicidadeHome() {
         console.error(error)
         setAnuncios((prev) => (prev.length > 0 ? prev : []))
       } else {
-        const slides: AnuncioSlide[] = (data ?? []).map((row) => ({
-          id: String(row.id),
-          imagem_url: String(row.imagem_url ?? ''),
-          link_url: row.link_url != null ? String(row.link_url) : null,
-          empresa_id: row.empresa_id != null ? String(row.empresa_id) : null,
-        }))
+        const vigentes = await buscarIdsEmpresaPresencaPublicaVigente(supabase)
+        if (!ativo) return
+        const slides: AnuncioSlide[] = (data ?? [])
+          .map((row) => ({
+            id: String(row.id),
+            imagem_url: String(row.imagem_url ?? ''),
+            link_url: row.link_url != null ? String(row.link_url) : null,
+            empresa_id: row.empresa_id != null ? String(row.empresa_id) : null,
+          }))
+          .filter((s) => !s.empresa_id || vigentes.has(s.empresa_id))
         gravarCacheHome(slides)
         aplicarSlides(slides)
       }
