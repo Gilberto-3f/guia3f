@@ -7,7 +7,7 @@ import {
 } from '@/lib/adminApiAuth'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import {
-  enviarAvisoCadastroLiberadoRelatoriosEmpresa,
+  garantirAvisoCadastroLiberadoRelatoriosEmpresa,
   enviarMensagemAprovacaoCanalFinanceiro,
 } from '@/lib/canalFinanceiroAprovacaoCadastro'
 import { proximaRevisaoDepoisDeAprovacao } from '@/lib/verificacao-documentos'
@@ -237,6 +237,7 @@ export async function POST(req: Request) {
         }
       }
 
+      let avisoRelatorios: { ok: boolean; error?: string; skipped?: boolean } | null = null
       if (tipo === 'empresas') {
         try {
           const { data: emp } = await adminDb
@@ -245,16 +246,18 @@ export async function POST(req: Request) {
             .eq('id', id)
             .maybeSingle()
           if (emp?.usuario_id && emp.somente_anfitriao !== true) {
-            const aviso = await enviarAvisoCadastroLiberadoRelatoriosEmpresa(
+            avisoRelatorios = await garantirAvisoCadastroLiberadoRelatoriosEmpresa(
               adminDb,
               String(emp.usuario_id),
             )
-            if (!aviso.ok) {
-              console.error('[api/admin/verificacao] relatórios cadastro liberado:', aviso.error)
+            if (!avisoRelatorios.ok) {
+              console.error('[api/admin/verificacao] relatórios cadastro liberado:', avisoRelatorios.error)
             }
           }
         } catch (e) {
-          console.warn('[api/admin/verificacao] empresa pós-aprovação', e)
+          const msg = e instanceof Error ? e.message : String(e)
+          console.error('[api/admin/verificacao] empresa pós-aprovação', msg)
+          avisoRelatorios = { ok: false, error: msg }
         }
       }
 
@@ -266,13 +269,23 @@ export async function POST(req: Request) {
         admin_email: adminEmail,
         admin_nivel: nivel,
         alvo_id: null,
-        detalhes: { status_final: 'aprovado', modulo: 'verificacao_perfil', auth_user_id: authUserId },
+        detalhes: {
+          status_final: 'aprovado',
+          modulo: 'verificacao_perfil',
+          auth_user_id: authUserId,
+          aviso_relatorios: avisoRelatorios?.ok ?? null,
+          aviso_relatorios_error: avisoRelatorios?.ok === false ? avisoRelatorios.error ?? null : null,
+        },
       })
       if (logErr) {
         console.warn('[api/admin/verificacao] log insert', logErr.message)
       }
 
-      return NextResponse.json({ ok: true })
+      return NextResponse.json({
+        ok: true,
+        aviso_relatorios: avisoRelatorios == null ? null : avisoRelatorios.ok,
+        aviso_relatorios_error: avisoRelatorios?.ok === false ? avisoRelatorios.error ?? null : null,
+      })
     }
 
     const { error: reprovErr } = await adminDb

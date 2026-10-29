@@ -81,6 +81,38 @@ export async function buscarAdmUsuarioParaMensageiroFinanceiro(
   return qualquer?.id != null ? String(qualquer.id) : null
 }
 
+function variantDeJson(raw: unknown): string {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return ''
+  return String((raw as { variant?: unknown }).variant ?? '').trim()
+}
+
+function rowEhAvisoCadastroLiberado(row: {
+  titulo?: unknown
+  comprovante_detalhes?: unknown
+  metadata?: unknown
+}): boolean {
+  if (variantDeJson(row.comprovante_detalhes) === VARIANT_CADASTRO_LIBERADO_PLANOS) return true
+  if (variantDeJson(row.metadata) === VARIANT_CADASTRO_LIBERADO_PLANOS) return true
+  return String(row.titulo ?? '').trim().toUpperCase() === TITULO_CADASTRO_LIBERADO_RELATORIOS
+}
+
+async function jaTemAvisoCadastroLiberado(
+  supabase: SupabaseClient,
+  empresaId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('canal_financeiro')
+    .select('id, titulo, comprovante_detalhes, metadata')
+    .eq('empresa_id', empresaId)
+    .eq('tipo', 'mensagem_adm')
+    .limit(50)
+  if (error) {
+    console.warn('[canalFinanceiroAprovacao] checar PARÁBÉNS:', error.message)
+    return false
+  }
+  return (data ?? []).some((row) => rowEhAvisoCadastroLiberado(row))
+}
+
 /**
  * Aviso na aba Relatórios após o ADM liberar o cadastro da empresa para contratar plano.
  * Idempotente por empresa.
@@ -102,14 +134,9 @@ export async function enviarAvisoCadastroLiberadoRelatoriosEmpresa(
     return { ok: false, error: empErr?.message ?? 'empresa_nao_encontrada' }
   }
 
-  const { count } = await supabase
-    .from('canal_financeiro')
-    .select('id', { count: 'exact', head: true })
-    .eq('empresa_id', emp.id)
-    .eq('tipo', 'mensagem_adm')
-    .contains('comprovante_detalhes', { variant: VARIANT_CADASTRO_LIBERADO_PLANOS })
-
-  if (count && count > 0) return { ok: true, skipped: true }
+  if (await jaTemAvisoCadastroLiberado(supabase, String(emp.id))) {
+    return { ok: true, skipped: true }
+  }
 
   const res = await inserirNotificacaoCanalFinanceiroEmpresa(supabase, {
     empresaUsuarioId: uid,
@@ -121,6 +148,20 @@ export async function enviarAvisoCadastroLiberadoRelatoriosEmpresa(
 
   if (!res.ok) return { ok: false, error: res.error }
   return { ok: true }
+}
+
+/** Até 3 tentativas — a aprovação não pode “passar quieta” sem o card em Relatórios. */
+export async function garantirAvisoCadastroLiberadoRelatoriosEmpresa(
+  supabase: SupabaseClient,
+  empresaUsuarioId: string,
+): Promise<{ ok: boolean; error?: string; skipped?: boolean }> {
+  let lastErr: string | undefined
+  for (let i = 0; i < 3; i++) {
+    const res = await enviarAvisoCadastroLiberadoRelatoriosEmpresa(supabase, empresaUsuarioId)
+    if (res.ok) return res
+    lastErr = res.error
+  }
+  return { ok: false, error: lastErr ?? 'aviso_relatorios_falhou' }
 }
 
 async function enviarMensagemAprovacaoNumBloco(

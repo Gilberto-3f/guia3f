@@ -302,23 +302,7 @@ export default function CanalFinanceiroUsuario({
       let query = supabase
         .from('canal_financeiro')
         .select(
-          `
-          id,
-          tipo,
-          titulo,
-          mensagem,
-          valor,
-          anexo_url,
-          lida_por_profissional,
-          lida_por_empresa,
-          metadata,
-          comprovante_detalhes,
-          created_at,
-          profissional_id,
-          empresa_id,
-          profissionais (nome_completo),
-          empresas (nome_fantasia)
-        `,
+          'id, tipo, titulo, mensagem, valor, anexo_url, lida_por_profissional, lida_por_empresa, metadata, comprovante_detalhes, created_at, profissional_id, empresa_id',
         )
         .order('created_at', { ascending: false })
 
@@ -338,16 +322,8 @@ export default function CanalFinanceiroUsuario({
       let formatados =
         data?.map((row) => {
           const r = /** @type {Record<string, unknown>} */ (row)
-          const prof = r.profissionais
-          const emp = r.empresas
-          const pn =
-            prof && typeof prof === 'object' && prof !== null && 'nome_completo' in prof
-              ? String(/** @type {{ nome_completo?: string }} */ (prof).nome_completo ?? 'Profissional')
-              : 'Profissional'
-          const en =
-            emp && typeof emp === 'object' && emp !== null && 'nome_fantasia' in emp
-              ? String(/** @type {{ nome_fantasia?: string }} */ (emp).nome_fantasia ?? 'Empresa')
-              : 'Empresa'
+          const pn = 'Profissional'
+          const en = 'Empresa'
 
           const destino = rotuloDestinoNotificacaoFinanceira({
             empresa_id: r.empresa_id,
@@ -507,17 +483,24 @@ export default function CanalFinanceiroUsuario({
   }, [usuarioId, tipo, empresaHospedagemId, modoAnfitriaoFinanceiro, ehAnfitriaoProp, aplicarLeituraLocalNosItens, ecossistemaId])
 
   useEffect(() => {
-    void carregar()
-  }, [carregar])
-
-  useEffect(() => {
-    if (tipo !== 'empresa' || !usuarioId) return
-    void fetch('/api/empresa/canal-financeiro/reparar-degustacao', { method: 'POST' })
-      .then(() => {
+    let cancelado = false
+    const boot = async () => {
+      if (tipo === 'empresa' && usuarioId) {
+        try {
+          await fetch('/api/empresa/canal-financeiro/reparar-degustacao', { method: 'POST' })
+        } catch (e) {
+          console.warn('[CanalFinanceiro] reparar cadastro liberado:', e)
+        }
+        if (cancelado) return
         notificarBadgeCanais()
-        void carregar({ silencioso: true, naoMarcarLeitura: true })
-      })
-      .catch(() => {})
+      }
+      if (cancelado) return
+      await carregar()
+    }
+    void boot()
+    return () => {
+      cancelado = true
+    }
   }, [tipo, usuarioId, carregar])
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import {
-  enviarAvisoCadastroLiberadoRelatoriosEmpresa,
+  garantirAvisoCadastroLiberadoRelatoriosEmpresa,
   enviarBoasVindasAposPlanoEmpresa,
 } from '@/lib/canalFinanceiroAprovacaoCadastro'
 import { repararLeituraDegustacaoConcluidaEmpresa } from '@/lib/canalFinanceiroEmpresaLeitura.server'
@@ -27,6 +27,7 @@ export async function POST() {
 
     await repararLeituraDegustacaoConcluidaEmpresa(session.supabase, empresaId)
 
+    let avisoRelatorios: { ok: boolean; error?: string; skipped?: boolean } | null = null
     if (emp.somente_anfitriao !== true) {
       try {
         const { data: userRow } = await session.supabase
@@ -36,9 +37,9 @@ export async function POST() {
           .maybeSingle()
         if (empresaRecursosLiberados(userRow?.status != null ? String(userRow.status) : null, emp)) {
           const admin = createSupabaseAdmin()
-          const aviso = await enviarAvisoCadastroLiberadoRelatoriosEmpresa(admin, session.userId)
-          if (!aviso.ok) {
-            console.error('[reparar-degustacao] cadastro liberado:', aviso.error)
+          avisoRelatorios = await garantirAvisoCadastroLiberadoRelatoriosEmpresa(admin, session.userId)
+          if (!avisoRelatorios.ok) {
+            console.error('[reparar-degustacao] cadastro liberado:', avisoRelatorios.error)
           }
 
           const { data: ass } = await admin
@@ -60,11 +61,18 @@ export async function POST() {
           }
         }
       } catch (e) {
-        console.warn('[reparar-degustacao] cadastro liberado', e)
+        const msg = e instanceof Error ? e.message : String(e)
+        console.warn('[reparar-degustacao] cadastro liberado', msg)
+        if (!avisoRelatorios) avisoRelatorios = { ok: false, error: msg }
       }
     }
 
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({
+      ok: true,
+      aviso_relatorios: avisoRelatorios == null ? null : avisoRelatorios.ok,
+      aviso_relatorios_skipped: avisoRelatorios?.skipped === true,
+      aviso_relatorios_error: avisoRelatorios?.ok === false ? avisoRelatorios.error ?? null : null,
+    })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro interno'
     return NextResponse.json({ error: msg }, { status: 500 })
