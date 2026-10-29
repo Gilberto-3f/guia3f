@@ -9,7 +9,7 @@ import type { FormaPagamentoPlano } from '@/lib/pagamentoPlanoEmpresa'
 import { labelFormaPagamentoPlano } from '@/lib/pagamentoPlanoEmpresa'
 import { registrarSolicitacaoAuxiliarAdmSeAplicavel } from '@/lib/empresaAuxiliarAdm'
 import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresa'
-import { enviarBoasVindasAposPlanoEmpresa } from '@/lib/canalFinanceiroAprovacaoCadastro'
+import { garantirBoasVindasAposPlanoEmpresa } from '@/lib/canalFinanceiroAprovacaoCadastro'
 import { encerrarDegustacaoCanalAposAssinatura } from '@/lib/degustacaoEmpresa'
 import { enviarMensagemPagamentoPlanoAdm, montarMensagemPagamentoPlano } from '@/lib/pagamentoPlanoEmpresa'
 import { inserirAvisoAgendamentoAssinaturaDinheiroHub, inserirAvisoNovaAssinaturaHub, type EmpresaPerfilAvisoHub } from '@/lib/financeiroAvisosAdmHub'
@@ -480,15 +480,15 @@ export async function registrarAssinaturaPlanoEmpresa(
 
     if (proporcional.tipo === 'nova') {
       try {
-        const bemVindo = await enviarBoasVindasAposPlanoEmpresa(supabase, {
+        const bemVindo = await garantirBoasVindasAposPlanoEmpresa(supabase, {
           empresaUsuarioId: uid,
           empresaId,
         })
         if (!bemVindo.ok) {
-          console.error('enviarBoasVindasAposPlanoEmpresa:', bemVindo.error)
+          console.error('[empresaAssinatura] Bem-Vindo:', bemVindo.error)
         }
       } catch (e) {
-        console.error('enviarBoasVindasAposPlanoEmpresa', e)
+        console.error('[empresaAssinatura] Bem-Vindo', e)
       }
     }
 
@@ -656,13 +656,14 @@ export async function validarAssinaturaDinheiroEmpresa(
     }
   }
 
+  let empresaUsuarioId: string | null = null
   try {
     const { data: emp } = await supabase
       .from('empresas')
       .select('usuario_id')
       .eq('id', empresaId)
       .maybeSingle()
-    const empresaUsuarioId = emp?.usuario_id != null ? String(emp.usuario_id) : null
+    empresaUsuarioId = emp?.usuario_id != null ? String(emp.usuario_id) : null
     if (empresaUsuarioId) {
       await inserirNotificacaoCanalFinanceiroEmpresa(supabase, {
         empresaUsuarioId,
@@ -675,17 +676,24 @@ export async function validarAssinaturaDinheiroEmpresa(
           assinatura_id: assinaturaId,
         },
       })
-      const bemVindo = await enviarBoasVindasAposPlanoEmpresa(supabase, {
+    }
+  } catch {
+    /* notificação empresa opcional */
+  }
+
+  if (empresaUsuarioId) {
+    try {
+      const bemVindo = await garantirBoasVindasAposPlanoEmpresa(supabase, {
         empresaUsuarioId,
         empresaId,
         admUsuarioId: adminId,
       })
       if (!bemVindo.ok) {
-        console.error('enviarBoasVindasAposPlanoEmpresa:', bemVindo.error)
+        console.error('[empresaAssinatura] Bem-Vindo dinheiro:', bemVindo.error)
       }
+    } catch (e) {
+      console.error('[empresaAssinatura] Bem-Vindo dinheiro', e)
     }
-  } catch {
-    /* noop */
   }
 
   return { ok: true }

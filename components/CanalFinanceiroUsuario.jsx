@@ -112,6 +112,7 @@ export default function CanalFinanceiroUsuario({
   const [statusDegustacaoPorCanal, setStatusDegustacaoPorCanal] = useState(
     /** @type {Map<string, string>} */ (() => new Map()),
   )
+  const [bootKey, setBootKey] = useState(0)
   const ocultarManifesto = tipo === 'profissional' && ehAnfitriao
   const abaRef = useRef(aba)
   const marcandoLeituraRef = useRef(false)
@@ -492,6 +493,7 @@ export default function CanalFinanceiroUsuario({
           console.warn('[CanalFinanceiro] reparar cadastro liberado:', e)
         }
         if (cancelado) return
+        setBootKey((n) => n + 1)
         notificarBadgeCanais()
       }
       if (cancelado) return
@@ -713,7 +715,7 @@ export default function CanalFinanceiroUsuario({
       ) : aba === 'planos' && tipo === 'empresa' ? (
         <CanalFinanceiroAbaPlanos usuarioId={usuarioId} />
       ) : (
-        <CanalFinanceiroMensageiro usuarioId={usuarioId} ecossistemaId={ecossistemaId} />
+        <CanalFinanceiroMensageiro usuarioId={usuarioId} ecossistemaId={ecossistemaId} bootKey={bootKey} />
       )}
     </div>
   )

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import {
   garantirAvisoCadastroLiberadoRelatoriosEmpresa,
-  enviarBoasVindasAposPlanoEmpresa,
+  garantirBoasVindasAposPlanoEmpresa,
 } from '@/lib/canalFinanceiroAprovacaoCadastro'
 import { repararLeituraDegustacaoConcluidaEmpresa } from '@/lib/canalFinanceiroEmpresaLeitura.server'
 import { assinaturaContratadaVigente } from '@/lib/empresaAssinatura'
@@ -28,6 +28,7 @@ export async function POST() {
     await repararLeituraDegustacaoConcluidaEmpresa(session.supabase, empresaId)
 
     let avisoRelatorios: { ok: boolean; error?: string; skipped?: boolean } | null = null
+    let bemVindo: { ok: boolean; error?: string; skipped?: boolean } | null = null
     if (emp.somente_anfitriao !== true) {
       try {
         const { data: userRow } = await session.supabase
@@ -51,7 +52,7 @@ export async function POST() {
             .limit(1)
             .maybeSingle()
           if (assinaturaContratadaVigente(ass)) {
-            const bemVindo = await enviarBoasVindasAposPlanoEmpresa(admin, {
+            bemVindo = await garantirBoasVindasAposPlanoEmpresa(admin, {
               empresaUsuarioId: session.userId,
               empresaId,
             })
@@ -64,6 +65,7 @@ export async function POST() {
         const msg = e instanceof Error ? e.message : String(e)
         console.warn('[reparar-degustacao] cadastro liberado', msg)
         if (!avisoRelatorios) avisoRelatorios = { ok: false, error: msg }
+        if (!bemVindo) bemVindo = { ok: false, error: msg }
       }
     }
 
@@ -72,6 +74,9 @@ export async function POST() {
       aviso_relatorios: avisoRelatorios == null ? null : avisoRelatorios.ok,
       aviso_relatorios_skipped: avisoRelatorios?.skipped === true,
       aviso_relatorios_error: avisoRelatorios?.ok === false ? avisoRelatorios.error ?? null : null,
+      bem_vindo: bemVindo == null ? null : bemVindo.ok,
+      bem_vindo_skipped: bemVindo?.skipped === true,
+      bem_vindo_error: bemVindo?.ok === false ? bemVindo.error ?? null : null,
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro interno'

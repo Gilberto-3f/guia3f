@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { inserirNotificacaoCanalFinanceiroEmpresa } from '@/lib/canalFinanceiroEmpresa'
 import { resolverEcoCanaisDaEmpresa, resolverEcoCanaisDoProfissional } from '@/lib/ecoCanaisPorCidade'
+import { buscarEcoIdsDaEmpresa } from '@/lib/ecossistemaFiltro'
+import { listarEcossistemasDb } from '@/lib/ecossistemas'
 import {
   ASSUNTO_CONVERSA_APROVACAO_CADASTRO,
   abrirConversaFinanceiroAdm,
@@ -164,6 +166,61 @@ export async function garantirAvisoCadastroLiberadoRelatoriosEmpresa(
   return { ok: false, error: lastErr ?? 'aviso_relatorios_falhou' }
 }
 
+async function jaTemBemVindoNoBloco(
+  supabase: SupabaseClient,
+  usuarioId: string,
+  eco: string,
+): Promise<boolean> {
+  const { data: convs, error } = await supabase
+    .from('financeiro_conversas')
+    .select('id')
+    .eq('alvo_usuario_id', usuarioId)
+    .eq('ecossistema_id', eco)
+  if (error) {
+    console.warn('[canalFinanceiroAprovacao] checar Bem-Vindo:', error.message)
+    return false
+  }
+  const ids = (convs ?? []).map((c) => String((c as { id?: unknown }).id ?? '')).filter(Boolean)
+  if (ids.length === 0) return false
+
+  const { data: msgs, error: msgErr } = await supabase
+    .from('financeiro_mensagens')
+    .select('id')
+    .in('conversa_id', ids)
+    .ilike('texto', 'Bem-Vindo%')
+    .limit(1)
+  if (msgErr) {
+    console.warn('[canalFinanceiroAprovacao] checar Bem-Vindo msgs:', msgErr.message)
+    return false
+  }
+  return (msgs ?? []).length > 0
+}
+
+/** Cidade do cadastro; se falhar, vínculo N:N — nunca o bloco padrão (Tríplice). */
+async function resolverEcoIdEmpresaParaBemVindo(
+  supabase: SupabaseClient,
+  opts: { empresaId?: string | null; usuarioId?: string | null },
+): Promise<string | null> {
+  const bloco = await resolverEcoCanaisDaEmpresa(supabase, opts)
+  if (bloco?.id) return bloco.id
+
+  const empresaId = opts.empresaId != null ? String(opts.empresaId).trim() : ''
+  if (!empresaId) return null
+
+  const vinculoIds = await buscarEcoIdsDaEmpresa(supabase, empresaId)
+  if (!vinculoIds || vinculoIds.length === 0) return null
+
+  const todos = await listarEcossistemasDb(supabase)
+  const candidatos = todos.filter((b) => vinculoIds.includes(b.id) && !b.padrao)
+  if (candidatos.length === 0) return null
+
+  const hit =
+    candidatos.find((b) => b.tipo === 'regiao') ??
+    candidatos.find((b) => b.tipo === 'cidade') ??
+    candidatos[0]
+  return hit?.id ?? null
+}
+
 async function enviarMensagemAprovacaoNumBloco(
   supabase: SupabaseClient,
   params: {
@@ -173,11 +230,33 @@ async function enviarMensagemAprovacaoNumBloco(
     admUsuarioId: string
     ecossistemaId: string
   },
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; skipped?: boolean }> {
   const uid = params.usuarioId
   const admId = params.admUsuarioId
   const eco = params.ecossistemaId
   const mensagem = montarMensagemAprovacaoCadastro(params.nomeUsuario)
+
+  if (await jaTemBemVindoNoBloco(supabase, uid, eco)) {
+    const aberta = await buscarConversaAbertaParaAlvo(supabase, uid, eco)
+    if (aberta?.status === 'aberta') {
+      const { count } = await supabase
+        .from('financeiro_mensagens')
+        .select('id', { count: 'exact', head: true })
+        .eq('conversa_id', aberta.id)
+        .ilike('texto', 'Bem-Vindo%')
+      const ehBoasVindas =
+        (count ?? 0) > 0 || aberta.assunto?.trim() === ASSUNTO_CONVERSA_APROVACAO_CADASTRO
+      if (ehBoasVindas) {
+        const enc = await encerrarConversaFinanceiro(supabase, aberta.id, {
+          admUsuarioId: aberta.adm_usuario_id || admId,
+        })
+        if (!enc.ok) {
+          console.error('[canalFinanceiroAprovacao] encerrar conversa existente', enc.error)
+        }
+      }
+    }
+    return { ok: true, skipped: true }
+  }
 
   let conversa = await buscarConversaAbertaParaAlvo(supabase, uid, eco)
   if (!conversa) {
@@ -257,7 +336,7 @@ export async function enviarMensagemAprovacaoCanalFinanceiro(
     admUsuarioId: string
     ecossistemaIds?: string[] | null
   },
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; skipped?: boolean }> {
   const uid = params.usuarioId?.trim()
   const admId = params.admUsuarioId?.trim()
   if (!uid || !admId) return { ok: false, error: 'ids_vazios' }
@@ -270,6 +349,7 @@ export async function enviarMensagemAprovacaoCanalFinanceiro(
 
   let lastErr: string | undefined
   let anyOk = false
+  let allSkipped = true
   for (const eco of blocos) {
     const res = await enviarMensagemAprovacaoNumBloco(supabase, {
       tipo: params.tipo,
@@ -278,17 +358,23 @@ export async function enviarMensagemAprovacaoCanalFinanceiro(
       admUsuarioId: admId,
       ecossistemaId: eco,
     })
-    if (res.ok) anyOk = true
-    else lastErr = res.error
+    if (res.ok) {
+      anyOk = true
+      if (!res.skipped) allSkipped = false
+    } else {
+      lastErr = res.error
+      allSkipped = false
+    }
   }
-  return anyOk ? { ok: true } : { ok: false, error: lastErr ?? 'conversa_falhou' }
+  if (!anyOk) return { ok: false, error: lastErr ?? 'conversa_falhou' }
+  return allSkipped ? { ok: true, skipped: true } : { ok: true }
 }
 
 /** Bem-Vindo no Mensageiro após o plano da empresa ficar ativo. */
 export async function enviarBoasVindasAposPlanoEmpresa(
   supabase: SupabaseClient,
   params: { empresaUsuarioId: string; empresaId?: string | null; admUsuarioId?: string | null },
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; skipped?: boolean }> {
   const uid = params.empresaUsuarioId?.trim()
   if (!uid) return { ok: false, error: 'usuario_vazio' }
 
@@ -299,14 +385,15 @@ export async function enviarBoasVindasAposPlanoEmpresa(
     .maybeSingle()
 
   const empresaId = params.empresaId?.trim() || (emp?.id != null ? String(emp.id) : '')
-  const bloco = await resolverEcoCanaisDaEmpresa(supabase, {
+  const ecoId = await resolverEcoIdEmpresaParaBemVindo(supabase, {
     empresaId: empresaId || null,
     usuarioId: uid,
   })
-  if (!bloco?.id) {
+  if (!ecoId) {
     console.error(
-      '[canalFinanceiroAprovacao] Bem-Vindo: eco não resolvido pela cidade',
+      '[canalFinanceiroAprovacao] Bem-Vindo: eco não resolvido (cidade nem vínculo)',
       emp?.cidade ?? null,
+      { empresaId },
     )
     return { ok: false, error: 'ecossistema_cidade_nao_encontrado' }
   }
@@ -326,6 +413,20 @@ export async function enviarBoasVindasAposPlanoEmpresa(
     usuarioId: uid,
     nomeUsuario,
     admUsuarioId: admId,
-    ecossistemaIds: [bloco.id],
+    ecossistemaIds: [ecoId],
   })
+}
+
+/** Até 3 tentativas — o plano ativo não pode passar sem Bem-Vindo no Mensageiro. */
+export async function garantirBoasVindasAposPlanoEmpresa(
+  supabase: SupabaseClient,
+  params: { empresaUsuarioId: string; empresaId?: string | null; admUsuarioId?: string | null },
+): Promise<{ ok: boolean; error?: string; skipped?: boolean }> {
+  let lastErr: string | undefined
+  for (let i = 0; i < 3; i++) {
+    const res = await enviarBoasVindasAposPlanoEmpresa(supabase, params)
+    if (res.ok) return res
+    lastErr = res.error
+  }
+  return { ok: false, error: lastErr ?? 'bem_vindo_falhou' }
 }

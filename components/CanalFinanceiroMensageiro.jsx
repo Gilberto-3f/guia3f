@@ -43,9 +43,9 @@ function rotuloDataConversa(c) {
 
 /**
  * Mensageiro ADM no canal financeiro (profissional/empresa).
- * @param {{ usuarioId: string, ecossistemaId?: string | null }} props
+ * @param {{ usuarioId: string, ecossistemaId?: string | null, bootKey?: number }} props
  */
-export default function CanalFinanceiroMensageiro({ usuarioId, ecossistemaId = null }) {
+export default function CanalFinanceiroMensageiro({ usuarioId, ecossistemaId = null, bootKey = 0 }) {
   const [loading, setLoading] = useState(true)
   const [conversaAberta, setConversaAberta] = useState(
     /** @type {import('@/lib/financeiroConversas').FinanceiroConversaRow | null} */ (null),
@@ -150,7 +150,7 @@ export default function CanalFinanceiroMensageiro({ usuarioId, ecossistemaId = n
     } finally {
       setLoading(false)
     }
-  }, [usuarioId, ecossistemaId])
+  }, [usuarioId, ecossistemaId, bootKey])
 
   const carregarMensagens = useCallback(
     async (conversaId) => {
