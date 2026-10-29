@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { destinoTileSextoHome } from '@/lib/ecossistemas'
 import PublicidadeHome from '@/components/PublicidadeHome'
@@ -8,10 +8,41 @@ import GradeFiltros from '@/components/GradeFiltros'
 import ConclusaoAtendimentoMobilidadeListener from '@/components/mobilidade/ConclusaoAtendimentoMobilidadeListener'
 import CabecalhoAbasGuiaMobilidade from '@/components/mobilidade/CabecalhoAbasGuiaMobilidade'
 import VisaoTuristaMobilidade from '@/components/mobilidade/VisaoTuristaMobilidade'
+import { useEcossistemaAtivo } from '@/context/EcossistemaAtivoContext'
+import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { chromeHomePintado, marcarHomeChromePronto } from '@/lib/appSplashReady'
+import { refreshAppViewportHeight } from '@/lib/useAppViewportHeight'
 
 export default function GuiaPage() {
   const router = useRouter()
   const [abaAtiva, setAbaAtiva] = useState<'guia' | 'mobilidade'>('guia')
+  const { carregou: ecoCarregou } = useEcossistemaAtivo()
+  const { bootConcluido } = useProfissionalGate()
+
+  useEffect(() => {
+    if (!ecoCarregou || !bootConcluido) return
+    let cancel = false
+    let raf = 0
+    const tick = () => {
+      if (cancel) return
+      if (chromeHomePintado()) {
+        raf = window.requestAnimationFrame(() => {
+          raf = window.requestAnimationFrame(() => {
+            if (cancel) return
+            refreshAppViewportHeight()
+            marcarHomeChromePronto()
+          })
+        })
+        return
+      }
+      raf = window.requestAnimationFrame(tick)
+    }
+    tick()
+    return () => {
+      cancel = true
+      window.cancelAnimationFrame(raf)
+    }
+  }, [ecoCarregou, bootConcluido])
 
   const handleFiltroClick = (filtroId: string) => {
     if (filtroId === 'aguarde') return

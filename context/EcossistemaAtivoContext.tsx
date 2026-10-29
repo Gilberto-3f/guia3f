@@ -17,6 +17,7 @@ import {
   type EcossistemaBloco,
 } from '@/lib/ecossistemas'
 import { gravarEcossistemaAtivoId, lerEcossistemaAtivoId } from '@/lib/ecossistemaAtivoStorage'
+import { marcarEcoSplash } from '@/lib/appSplashReady'
 
 type EcossistemaAtivoValue = {
   listaHome: EcossistemaBloco[]
@@ -65,7 +66,10 @@ export function EcossistemaAtivoProvider({ children }: { children: ReactNode }) 
           setAtivo(null)
         }
       } finally {
-        if (!cancel) setCarregou(true)
+        if (!cancel) {
+          setCarregou(true)
+          marcarEcoSplash()
+        }
       }
     })()
     return () => {

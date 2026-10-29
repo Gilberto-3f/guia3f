@@ -2,6 +2,7 @@ import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
+import AppSplash from "@/components/AppSplash";
 import SupabaseCookieSync from "@/components/SupabaseCookieSync";
 import { ModoNoturnoProvider } from "@/context/ModoNoturnoContext";
 
@@ -28,6 +29,7 @@ export default async function LocaleLayout({
     <NextIntlClientProvider messages={messages}>
       <ModoNoturnoProvider>
         <SupabaseCookieSync />
+        <AppSplash />
         {children}
       </ModoNoturnoProvider>
     </NextIntlClientProvider>

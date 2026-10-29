@@ -44,7 +44,10 @@ export default function CabecalhoAbasGuiaMobilidade({
   )
 
   return (
-    <header className="relative z-50 isolate shrink-0 bg-[#0097b2] pt-safe pointer-events-auto">
+    <header
+      data-splash-cabecalho=""
+      className="relative z-50 isolate shrink-0 bg-[#0097b2] pt-safe pointer-events-auto"
+    >
       {mostrarLogo ? (
         <div className="flex justify-center overflow-hidden py-4">
           <Image

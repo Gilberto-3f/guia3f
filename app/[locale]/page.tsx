@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
+import { AppSplashCapa } from '@/components/AppSplash'
 import { supabase } from '@/lib/supabase'
 
 export default function HomePage() {
@@ -23,9 +24,5 @@ export default function HomePage() {
     checkUser()
   }, [router])
 
-  return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="animate-pulse text-gray-400">Carregando...</div>
-    </div>
-  )
+  return <AppSplashCapa />
 }

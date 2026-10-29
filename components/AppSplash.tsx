@@ -1,62 +1,28 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import Image from 'next/image'
-import { useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { usePathname } from '@/i18n/navigation'
+import { lerAppSplashUi, subscribeAppSplashUi } from '@/lib/appSplashReady'
 
-const SPLASH_MIN_MS = 3000
-/** Se Auth/Postgres timeoutar, não trava a home/bottom bar para sempre. */
-const SPLASH_MAX_MS = 6000
-const SESSION_SPLASH_DONE = 'guia_app_splash_done'
+/** Rede travada: não prende o usuário na capa para sempre. */
+const SPLASH_MAX_MS = 12_000
+
+function rotaLiberaCapa(pathname: string) {
+  if (!pathname) return false
+  if (pathname === '/login') return true
+  if (pathname === '/escolha-perfil') return true
+  if (pathname.startsWith('/cadastro')) return true
+  if (pathname.startsWith('/dashboard/admin')) return true
+  if (pathname.startsWith('/teste')) return true
+  return false
+}
 
 /**
- * Capa de abertura (estilo Uber): logo até o gate de perfil estar pronto + mínimo ~3s.
- * Uma vez por sessão do navegador.
+ * Capa azul (#0097b2) até a home/shell estar navegável
+ * (gate, bloco, barra, abas e botões). Publicidade pode carregar depois.
  */
-export default function AppSplash() {
-  const { bootConcluido } = useProfissionalGate()
-  const [visivel, setVisivel] = useState(true)
-  const [minOk, setMinOk] = useState(false)
-
-  useEffect(() => {
-    try {
-      if (sessionStorage.getItem(SESSION_SPLASH_DONE) === '1') {
-        setVisivel(false)
-        setMinOk(true)
-        return
-      }
-    } catch {
-      /* ignore */
-    }
-    const minId = window.setTimeout(() => setMinOk(true), SPLASH_MIN_MS)
-    const maxId = window.setTimeout(() => {
-      try {
-        sessionStorage.setItem(SESSION_SPLASH_DONE, '1')
-      } catch {
-        /* ignore */
-      }
-      setMinOk(true)
-      setVisivel(false)
-    }, SPLASH_MAX_MS)
-    return () => {
-      window.clearTimeout(minId)
-      window.clearTimeout(maxId)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!visivel) return
-    if (!minOk || !bootConcluido) return
-    try {
-      sessionStorage.setItem(SESSION_SPLASH_DONE, '1')
-    } catch {
-      /* ignore */
-    }
-    setVisivel(false)
-  }, [visivel, minOk, bootConcluido])
-
-  if (!visivel) return null
-
+export function AppSplashCapa() {
   return (
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0097b2]"
@@ -75,5 +41,63 @@ export default function AppSplash() {
         className="h-auto w-auto max-w-[70vw] object-contain"
       />
     </div>
+  )
+}
+
+function AppSplashInner() {
+  const pathname = usePathname()
+  const [ui, setUi] = useState(lerAppSplashUi)
+  const [visivel, setVisivel] = useState(true)
+  const [estourou, setEstourou] = useState(false)
+
+  const authLivre = rotaLiberaCapa(pathname)
+  const naRaiz = pathname === '/' || pathname === ''
+  const chromePronto =
+    ui.shellInnerMontado &&
+    ui.barraPronta &&
+    ui.bootConcluido &&
+    ui.ecoCarregou &&
+    ui.modosBarraProntos &&
+    (ui.homeChromePronto || ui.paginaShellPronta)
+  const pronto = authLivre || chromePronto
+
+  useEffect(() => subscribeAppSplashUi(() => setUi(lerAppSplashUi())), [])
+
+  useEffect(() => {
+    setEstourou(false)
+    if (authLivre || naRaiz) return
+    const id = window.setTimeout(() => setEstourou(true), SPLASH_MAX_MS)
+    return () => window.clearTimeout(id)
+  }, [pathname, authLivre, naRaiz])
+
+  useEffect(() => {
+    if (authLivre) {
+      setVisivel(false)
+      return
+    }
+    if (!pronto && !estourou) {
+      setVisivel(true)
+      return
+    }
+    let inner = 0
+    const outer = window.requestAnimationFrame(() => {
+      inner = window.requestAnimationFrame(() => setVisivel(false))
+    })
+    return () => {
+      window.cancelAnimationFrame(outer)
+      window.cancelAnimationFrame(inner)
+    }
+  }, [authLivre, pronto, estourou])
+
+  if (!visivel) return null
+
+  return <AppSplashCapa />
+}
+
+export default function AppSplash() {
+  return (
+    <Suspense fallback={<AppSplashCapa />}>
+      <AppSplashInner />
+    </Suspense>
   )
 }

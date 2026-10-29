@@ -5,15 +5,15 @@ import { createPortal } from 'react-dom'
 import { usePathname } from 'next/navigation'
 import { AdminPermissaoProvider } from '@/app/[locale]/(admin)/dashboard/admin/context/AdminPermissaoContext'
 import { ModoApresentacaoProvider, useModoApresentacao } from '@/context/ModoApresentacaoContext'
-import { ProfissionalGateProvider } from '@/context/ProfissionalGateContext'
-import { AnfitriaoModoProvider } from '@/context/AnfitriaoModoContext'
-import { GuiaModoProvider } from '@/context/GuiaModoContext'
-import { VanModoProvider } from '@/context/VanModoContext'
+import { ProfissionalGateProvider, useProfissionalGate } from '@/context/ProfissionalGateContext'
+import { AnfitriaoModoProvider, useAnfitriaoModo } from '@/context/AnfitriaoModoContext'
+import { GuiaModoProvider, useGuiaModo } from '@/context/GuiaModoContext'
+import { VanModoProvider, useVanModo } from '@/context/VanModoContext'
 import { EcossistemaAtivoProvider } from '@/context/EcossistemaAtivoContext'
 import ModoApresentacaoChrome from '@/components/ModoApresentacaoChrome'
 import ProfissionalGateBanner from '@/components/ProfissionalGateBanner'
 import BottomBar from '@/components/BottomBar'
-import AppSplash from '@/components/AppSplash'
+import { marcarModosBarraProntos, marcarPaginaShellPronta, marcarShellInnerMontado } from '@/lib/appSplashReady'
 import AdminEcossistemaAlertaGate from '@/components/canal/AdminEcossistemaAlertaGate'
 import TuristaComprasNotificacaoGate from '@/components/TuristaComprasNotificacaoGate'
 import ConviteAdminGate from '@/components/ConviteAdminGate'
@@ -28,6 +28,17 @@ import { GUIA_IDLE_RECOVER_EVENT } from '@/lib/appIdleRecovery'
 
 /** `feed/criar` emite quando o teclado está visível para esconder a barra (aba TEXTO ou legenda na FOTO). */
 const CRIAR_KEYBOARD_EVENT = 'guia-criar-keyboard'
+
+function SplashBarraModosGate() {
+  const { bootConcluido } = useProfissionalGate()
+  const { dadosProntos: anfitriao } = useAnfitriaoModo()
+  const { dadosProntos: guia } = useGuiaModo()
+  const { dadosProntos: van } = useVanModo()
+  useEffect(() => {
+    if (bootConcluido && anfitriao && guia && van) marcarModosBarraProntos()
+  }, [bootConcluido, anfitriao, guia, van])
+  return null
+}
 
 /**
  * Classes e estrutura compartilhadas entre Suspense fallback e conteúdo real.
@@ -80,7 +91,11 @@ function AppShellLayoutFrame({
 }) {
   const { hideBottomBar, paddingInferior, fundoShell, isGuiaOuMobilidade, telaMensageiro } =
     shellClasses(pathname, tecladoOcultaBarra)
-  const [portalReady] = useState(() => typeof document !== 'undefined')
+  const [portalReady, setPortalReady] = useState(() => typeof document !== 'undefined')
+
+  useEffect(() => {
+    setPortalReady(true)
+  }, [])
 
   useAppViewportHeight()
 
@@ -119,7 +134,6 @@ function AppShellLayoutFrame({
 
   return (
     <>
-      <AppSplash />
       <div className="app-shell-backdrop">
         <div
           className={`app-shell-column ${fundoShell} ${paddingInferior} ${
@@ -167,6 +181,16 @@ function AppShellInner({ children }: { children: ReactNode }) {
   const [tecladoOcultaBarra, setTecladoOcultaBarra] = useState(false)
   const [modalOcultaBarra, setModalOcultaBarra] = useState(() => isModalScrollLocked())
   const { modoAtivo } = useModoApresentacao()
+  const naHomeGuia = /\/guia\/?$/.test(pathname)
+
+  useEffect(() => {
+    marcarShellInnerMontado()
+  }, [])
+
+  useEffect(() => {
+    if (naHomeGuia) return
+    marcarPaginaShellPronta()
+  }, [naHomeGuia])
 
   useEffect(() => {
     const onKb = (e: Event) => {
@@ -231,6 +255,7 @@ export default function AppShellClient({ children }: { children: ReactNode }) {
               <GuiaModoProvider>
                 <VanModoProvider>
                   <EcossistemaAtivoProvider>
+                    <SplashBarraModosGate />
                     <Suspense fallback={<AppShellSuspenseFallback>{children}</AppShellSuspenseFallback>}>
                       <AppShellInner>{children}</AppShellInner>
                     </Suspense>

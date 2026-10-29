@@ -7,6 +7,7 @@ import { turistaRecursosLiberados } from '@/lib/turistaAcesso'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import { gravarPerfilBarraCache, lerPerfilBarraCache } from '@/lib/perfilBarraCache'
 import { buscarUsuarioCached } from '@/lib/usuarioSessionCache'
+import { marcarBootSplash } from '@/lib/appSplashReady'
 
 const ProfissionalGateContext = createContext(null)
 const GATE_BOOT_MS = 7000
@@ -318,6 +319,7 @@ export function ProfissionalGateProvider({ children }) {
       gateCarregadoUmaVez.current = true
       setBootConcluido(true)
       setLoading(false)
+      marcarBootSplash()
     }
     }
 

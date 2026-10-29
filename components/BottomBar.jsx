@@ -33,6 +33,7 @@ import { profissionalOperaComoEmpresaHospedagem } from '@/lib/anfitriaoDualMode'
 import { profissionalOperaComoEmpresaAgencia } from '@/lib/guiaDualMode'
 import { profissionalOperaComoEmpresaAgenciaVan } from '@/lib/vanDualMode'
 import { lerPerfilBarraCache } from '@/lib/perfilBarraCache'
+import { registrarBarraSplash } from '@/lib/appSplashReady'
 import { resumirSessaoAposIdle } from '@/lib/authResume'
 import { precisaNavegacaoDura, navegarHard } from '@/lib/appIdleRecovery'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
@@ -209,6 +210,8 @@ export default function BottomBar() {
   const [naoLidasAtividades, setNaoLidasAtividades] = useState(0)
   const [naoLidasCanais, setNaoLidasCanais] = useState(0)
   const [naoLidasFunil, setNaoLidasFunil] = useState(0)
+
+  useLayoutEffect(() => registrarBarraSplash(), [])
 
   /** Sessão Auth (leve) — role/condicionais vêm do ProfissionalGateContext. */
   useEffect(() => {
@@ -675,6 +678,7 @@ export default function BottomBar() {
   return (
     <div
       ref={rootRef}
+      data-splash-barra=""
       className="fixed bottom-0 left-0 right-0 z-50 mx-auto w-full max-w-[var(--app-column)] border-t border-gray-200 bg-white shadow-lg dark:border-[#333] dark:bg-[#111]"
     >
       <div className="flex items-center justify-around pt-2 pb-1">
