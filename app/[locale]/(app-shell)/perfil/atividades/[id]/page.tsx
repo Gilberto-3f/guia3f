@@ -6,6 +6,7 @@ import { useParams, useSearchParams } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay } from '@/lib/feed-autor'
+import { empresaMarcadaIdDePost } from '@/lib/marcacaoEmpresaPost'
 import PostCard from '@/components/PostCard'
 
 const POSTS_FEED_VIEW = 'posts_com_autores'
@@ -23,6 +24,7 @@ type PostFeedRow = {
   avaliacao_meta: Record<string, unknown> | null
   created_at: string
   post_original_id: string | null
+  empresa_marcada_id: string | null
   autor: {
     nome: string
     username: string
@@ -72,6 +74,7 @@ function PerfilAtividadePostInner() {
           : null,
       created_at: String(p.created_at ?? ''),
       post_original_id: p.post_original_id != null ? String(p.post_original_id) : null,
+      empresa_marcada_id: empresaMarcadaIdDePost(p),
       autor,
     }
   }, [])

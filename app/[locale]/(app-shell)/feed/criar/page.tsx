@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -14,7 +15,7 @@ import { flushSync } from 'react-dom'
 import { usePathname, useSearchParams, useRouter as useNextRouter } from 'next/navigation'
 import Image from 'next/image'
 import { useRouter } from '@/i18n/navigation'
-import { Camera, FileText, Images, Ratio } from 'lucide-react'
+import { Camera, FileText, Images, MapPin, Ratio, Search, X } from 'lucide-react'
 import CriarFotoDreamBackdrop from '@/components/feed/CriarFotoDreamBackdrop'
 import CriarPostRecorteMovel from '@/components/feed/CriarPostRecorteMovel'
 import LoadingOverlay from '@/components/LoadingOverlay'
@@ -32,6 +33,11 @@ import { useProfissionalGate } from '@/context/ProfissionalGateContext'
 import { profissionalOperaComoEmpresaHospedagem } from '@/lib/anfitriaoDualMode'
 import { profissionalOperaComoEmpresaAgencia } from '@/lib/guiaDualMode'
 import { profissionalOperaComoEmpresaAgenciaVan } from '@/lib/vanDualMode'
+import AvatarImage from '@/components/AvatarImage'
+import {
+  buscarEmpresasParaMarcacaoFoto,
+  type EmpresaMarcadaBusca,
+} from '@/lib/marcacaoEmpresaPost'
 
 type Aba = 'foto' | 'texto'
 
@@ -103,6 +109,48 @@ function CriarPublicacaoPageInner() {
     empresaAgenciaVanLiberada,
   } = useVanModo()
   const { userRole } = useProfissionalGate()
+  const roleUsuario = userRole != null ? String(userRole) : 'turista'
+  const publicarComoEmpresa = useMemo(
+    () =>
+      profissionalOperaComoEmpresaHospedagem(
+        roleUsuario,
+        ehAnfitriao,
+        modoAnfitriao,
+        empresaHospedagemId,
+        empresaHospedagemLiberada,
+      ) ||
+      profissionalOperaComoEmpresaAgencia(
+        roleUsuario,
+        ehGuia,
+        modoGuiaEfetivo,
+        empresaAgenciaId,
+        empresaAgenciaLiberada,
+      ) ||
+      profissionalOperaComoEmpresaAgenciaVan(
+        roleUsuario,
+        ehVan,
+        modoVanEfetivo,
+        empresaAgenciaVanId,
+        empresaAgenciaVanLiberada,
+      ) ||
+      roleUsuario === 'empresa',
+    [
+      roleUsuario,
+      ehAnfitriao,
+      modoAnfitriao,
+      empresaHospedagemId,
+      empresaHospedagemLiberada,
+      ehGuia,
+      modoGuiaEfetivo,
+      empresaAgenciaId,
+      empresaAgenciaLiberada,
+      ehVan,
+      modoVanEfetivo,
+      empresaAgenciaVanId,
+      empresaAgenciaVanLiberada,
+    ],
+  )
+  const podeMarcarEmpresa = !publicarComoEmpresa
 
   useEffect(() => {
     if (gateFeedLoading) return
@@ -183,12 +231,41 @@ function CriarPublicacaoPageInner() {
   const [formatoFoto, setFormatoFoto] = useState<FormatoFoto | null>(null)
   const [painelFormato, setPainelFormato] = useState(false)
   const [painelDescricao, setPainelDescricao] = useState(false)
+  const [painelMarcacao, setPainelMarcacao] = useState(false)
+  const [empresaMarcada, setEmpresaMarcada] = useState<EmpresaMarcadaBusca | null>(null)
+  const [termoMarcacao, setTermoMarcacao] = useState('')
+  const [buscandoMarcacao, setBuscandoMarcacao] = useState(false)
+  const [resultadosMarcacao, setResultadosMarcacao] = useState<EmpresaMarcadaBusca[]>([])
   /** Tremer uma vez no botão Formato ao carregar nova foto (só com `animate-criar-formato-shake-once` no CSS). */
   const [tremerBotaoFormato, setTremerBotaoFormato] = useState(false)
   const [pixelCrop, setPixelCrop] = useState<PixelCrop | null>(null)
   const [textoLayout, setTextoLayout] = useState<{ top: number; height: number } | null>(null)
   /** Sincronizado com `guia-criar-keyboard`: quando a barra some, o painel TEXTO pode usar toda a altura útil. */
   const [barraInferiorOculta, setBarraInferiorOculta] = useState(false)
+
+  useEffect(() => {
+    if (!painelMarcacao || !podeMarcarEmpresa) return
+    const termo = termoMarcacao.trim()
+    if (termo.length < 2) {
+      setResultadosMarcacao([])
+      setBuscandoMarcacao(false)
+      return
+    }
+    let cancel = false
+    const t = window.setTimeout(() => {
+      void (async () => {
+        setBuscandoMarcacao(true)
+        const rows = await buscarEmpresasParaMarcacaoFoto(supabase, termo)
+        if (cancel) return
+        setResultadosMarcacao(rows)
+        setBuscandoMarcacao(false)
+      })()
+    }, 250)
+    return () => {
+      cancel = true
+      window.clearTimeout(t)
+    }
+  }, [painelMarcacao, termoMarcacao, podeMarcarEmpresa])
 
   const abaRef = useRef<Aba>(aba)
   const headerRef = useRef<HTMLDivElement | null>(null)
@@ -214,6 +291,7 @@ function CriarPublicacaoPageInner() {
     setFormatoFoto(null)
     setPainelFormato(true)
     setPainelDescricao(false)
+    setPainelMarcacao(false)
     setPixelCrop(null)
   }
 
@@ -623,6 +701,10 @@ function CriarPublicacaoPageInner() {
         foto_url: fotoUrl,
         conteudo_url: fotoUrl,
         tipo,
+        empresa_marcada_id:
+          origem === 'foto' && podeMarcarEmpresa && empresaMarcada?.empresaId
+            ? empresaMarcada.empresaId
+            : null,
       })
 
       if (error) throw error
@@ -822,14 +904,15 @@ function CriarPublicacaoPageInner() {
                 />
               </div>
 
-              <div className="mt-2 flex w-full gap-1.5 sm:gap-2">
+              <div className="mt-2 flex w-full gap-1 sm:gap-2">
                 <button
                   type="button"
                   onClick={() => {
                     setPainelFormato((p) => !p)
                     setPainelDescricao(false)
+                    setPainelMarcacao(false)
                   }}
-                  className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl bg-[#0097b2] py-2 text-center text-[11px] font-bold leading-tight text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:py-2.5 sm:text-sm ${tremerBotaoFormato ? 'animate-criar-formato-shake-once' : ''}`}
+                  className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl bg-[#0097b2] py-2 text-center text-[10px] font-bold leading-tight text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:py-2.5 sm:text-sm ${tremerBotaoFormato ? 'animate-criar-formato-shake-once' : ''}`}
                   aria-expanded={painelFormato}
                 >
                   <Ratio size={16} className="shrink-0 opacity-95 sm:h-[18px] sm:w-[18px]" aria-hidden />
@@ -840,21 +923,40 @@ function CriarPublicacaoPageInner() {
                   onClick={() => {
                     setPainelDescricao((p) => !p)
                     setPainelFormato(false)
+                    setPainelMarcacao(false)
                   }}
-                  className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl bg-[#0097b2] py-2 text-center text-[11px] font-bold leading-tight text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:py-2.5 sm:text-sm"
+                  className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl bg-[#0097b2] py-2 text-center text-[10px] font-bold leading-tight text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:py-2.5 sm:text-sm"
                   aria-expanded={painelDescricao}
                 >
                   <FileText size={16} className="shrink-0 opacity-95 sm:h-[18px] sm:w-[18px]" aria-hidden />
                   Descrição
                 </button>
+                {podeMarcarEmpresa ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPainelMarcacao((p) => !p)
+                      setPainelFormato(false)
+                      setPainelDescricao(false)
+                    }}
+                    className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-2 text-center text-[10px] font-bold leading-tight text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:py-2.5 sm:text-sm ${
+                      empresaMarcada ? 'bg-[#00D443]' : 'bg-[#0097b2]'
+                    }`}
+                    aria-expanded={painelMarcacao}
+                  >
+                    <MapPin size={16} className="shrink-0 opacity-95 sm:h-[18px] sm:w-[18px]" aria-hidden />
+                    Marcar empresa
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => {
                     setPainelFormato(false)
                     setPainelDescricao(false)
+                    setPainelMarcacao(false)
                     dispararSeletorFicheiro(inputFototecaRef.current)
                   }}
-                  className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl bg-[#0097b2] py-2 text-center text-[11px] font-bold leading-tight text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:py-2.5 sm:text-sm"
+                  className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl bg-[#0097b2] py-2 text-center text-[10px] font-bold leading-tight text-white shadow-sm transition hover:opacity-95 active:opacity-90 sm:py-2.5 sm:text-sm"
                 >
                   <Images size={16} className="shrink-0 opacity-95 sm:h-[18px] sm:w-[18px]" aria-hidden />
                   Mudar foto
@@ -872,6 +974,75 @@ function CriarPublicacaoPageInner() {
                   className="mt-2 w-full resize-none rounded-lg border border-gray-200 bg-white p-3 text-base font-bold whitespace-pre-wrap text-black placeholder:font-bold placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
                   rows={4}
                 />
+              ) : null}
+
+              {painelMarcacao && podeMarcarEmpresa ? (
+                <div className="mt-2 rounded-lg border border-gray-200 bg-white p-3">
+                  {empresaMarcada ? (
+                    <div className="mb-2 flex items-center gap-2 rounded-lg bg-gray-50 px-2 py-1.5">
+                      <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                        <AvatarImage src={empresaMarcada.fotoUrl} alt="" fill className="object-cover" sizes="32px" />
+                      </div>
+                      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-800">
+                        {empresaMarcada.nome}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setEmpresaMarcada(null)}
+                        className="rounded p-1 text-gray-500 hover:bg-gray-200"
+                        aria-label="Remover empresa marcada"
+                      >
+                        <X size={16} aria-hidden />
+                      </button>
+                    </div>
+                  ) : null}
+                  <label className="relative block">
+                    <Search
+                      size={16}
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                      aria-hidden
+                    />
+                    <input
+                      type="search"
+                      value={termoMarcacao}
+                      onChange={(e) => setTermoMarcacao(e.target.value)}
+                      placeholder="Buscar empresa..."
+                      className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0097b2]"
+                    />
+                  </label>
+                  {buscandoMarcacao ? (
+                    <p className="mt-2 text-center text-xs text-gray-400">Buscando…</p>
+                  ) : null}
+                  {!buscandoMarcacao && termoMarcacao.trim().length >= 2 && resultadosMarcacao.length === 0 ? (
+                    <p className="mt-2 text-center text-xs text-gray-400">Nenhuma empresa encontrada</p>
+                  ) : null}
+                  {resultadosMarcacao.length > 0 ? (
+                    <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto">
+                      {resultadosMarcacao.map((emp) => (
+                        <li key={emp.empresaId}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEmpresaMarcada(emp)
+                              setTermoMarcacao('')
+                              setResultadosMarcacao([])
+                              setPainelMarcacao(false)
+                            }}
+                            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-gray-50"
+                          >
+                            <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md bg-gray-100">
+                              <AvatarImage src={emp.fotoUrl} alt="" fill className="object-cover" sizes="32px" />
+                            </div>
+                            <span className="min-w-0">
+                              <span className="block truncate text-sm font-semibold text-gray-800">{emp.nome}</span>
+                              <span className="block truncate text-xs text-gray-500">@{emp.username}</span>
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
               ) : null}
 
               <button

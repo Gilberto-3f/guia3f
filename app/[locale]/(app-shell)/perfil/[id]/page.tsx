@@ -60,6 +60,7 @@ type FotoPostItem = {
   total_compartilhamentos: number
   total_reposts: number
   post_original_id: string | null
+  empresa_marcada_id: string | null
 }
 
 function labelCidadeAtuacao(cidades: string[] | null | undefined): string | null {
@@ -494,7 +495,7 @@ export default function PerfilSocialPage() {
       const { data: postsFoto } = await supabase
         .from('posts')
         .select(
-          'id, conteudo_url, foto_url, tipo, texto, total_curtidas, total_comentarios, total_compartilhamentos, total_reposts, post_original_id, created_at'
+          'id, conteudo_url, foto_url, tipo, texto, total_curtidas, total_comentarios, total_compartilhamentos, total_reposts, post_original_id, empresa_marcada_id, created_at'
         )
         .eq('autor_id', profileId)
         .is('deleted_at', null)
@@ -519,6 +520,7 @@ export default function PerfilSocialPage() {
               total_compartilhamentos: Number(p.total_compartilhamentos) || 0,
               total_reposts: Number(p.total_reposts) || 0,
               post_original_id: p.post_original_id != null ? String(p.post_original_id) : null,
+              empresa_marcada_id: p.empresa_marcada_id != null ? String(p.empresa_marcada_id) : null,
             }
           })
           .filter((x): x is FotoPostItem => x != null) ?? []

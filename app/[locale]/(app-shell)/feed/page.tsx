@@ -38,6 +38,7 @@ import {
   storySlotKeyFromAutorPersona,
   storySlotKeyFromRow,
 } from '@/lib/storyAnfitriaoSlots'
+import { empresaMarcadaIdDePost } from '@/lib/marcacaoEmpresaPost'
 
 const PAGE_SIZE = 12
 
@@ -57,6 +58,7 @@ type PostFeedRow = {
   avaliacao_meta: Record<string, unknown> | null
   created_at: string
   post_original_id: string | null
+  empresa_marcada_id: string | null
   autor: {
     nome: string
     username: string
@@ -413,6 +415,7 @@ function FeedPageInner() {
           : null,
       created_at: String(p.created_at ?? ''),
       post_original_id: p.post_original_id != null ? String(p.post_original_id) : null,
+      empresa_marcada_id: empresaMarcadaIdDePost(p),
       autor,
     }
   }, [])

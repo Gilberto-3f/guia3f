@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Flag, MoreHorizontal, Pencil, Repeat2, Trash2, UserMinus, UserPlus, Bookmark } from 'lucide-react'
+import { Flag, MapPinOff, MoreHorizontal, Pencil, Repeat2, Trash2, UserMinus, UserPlus, Bookmark } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { inserirRedeContato, removerRedeContato } from '@/lib/redeContatos'
 import ModalDenunciarConteudo from '@/components/ModalDenunciarConteudo'
@@ -28,6 +28,7 @@ export const POST_DELETED_EVENT = 'post-deleted'
  *   onSalvar?: () => void
  *   onRepublicar?: () => void
  *   bloqueado?: boolean
+ *   onOcultarMarcacao?: (() => void) | null
  * }} props
  */
 export default function MenuPost({
@@ -46,6 +47,7 @@ export default function MenuPost({
   onSalvar,
   onRepublicar,
   bloqueado = false,
+  onOcultarMarcacao = null,
 }) {
   const [aberto, setAberto] = useState(false)
   const [modalDenunciar, setModalDenunciar] = useState(false)
@@ -152,7 +154,19 @@ export default function MenuPost({
       </button>
       {aberto ? (
         <div className="absolute right-0 top-full z-50 mt-2 w-56 min-w-[200px] overflow-hidden rounded-lg bg-[#0097b2] py-1 text-white shadow-lg">
-          {meuPost ? (
+          {typeof onOcultarMarcacao === 'function' ? (
+            <button
+              type="button"
+              onClick={() => {
+                setAberto(false)
+                onOcultarMarcacao()
+              }}
+              className={itemClass}
+            >
+              <MapPinOff size={16} className="text-white" aria-hidden />
+              <span>Remover marcação</span>
+            </button>
+          ) : meuPost ? (
             <>
               {podeEditar ? (
                 <button

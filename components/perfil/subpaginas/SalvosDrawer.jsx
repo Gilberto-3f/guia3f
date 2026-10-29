@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay } from '@/lib/feed-autor'
+import { empresaMarcadaIdDePost } from '@/lib/marcacaoEmpresaPost'
 import { formatarDataRelativaPublicacao } from '@/lib/formatarDataPublicacao'
 import { useRouter } from '@/i18n/navigation'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
@@ -454,6 +455,7 @@ function mapViewRow(raw) {
         : null,
     created_at: String(p.created_at ?? ''),
     post_original_id: p.post_original_id != null ? String(p.post_original_id) : null,
+    empresa_marcada_id: empresaMarcadaIdDePost(p),
     autor,
   }
 }

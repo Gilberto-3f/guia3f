@@ -74,6 +74,7 @@ import { profissionalOperaComoEmpresaAgencia } from '@/lib/guiaDualMode'
 import { profissionalOperaComoEmpresaAgenciaVan } from '@/lib/vanDualMode'
 import { propsInteractor, propsDonor, propsAtor, propsDono, propsSeguidor, propsSeguido, propsReposter, propsOriginal } from '@/components/atividades/atividadeHandleProps'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
+import AtividadeMarcouEmpresaFoto from '@/components/atividades/AtividadeMarcouEmpresaFoto'
 
 const LS_AMIGOS_VISTO = 'guia3f_atividades_amigos_visto_em'
 
@@ -1792,7 +1793,7 @@ export default function AtividadesPage() {
             .in('autor_id', seguindo)
             /* Destinatário = eu → fica só na aba "Minha conta"; aqui só o que seguidos fazem no conteúdo de terceiros. */
             .neq('usuario_id', uid)
-            .not('tipo', 'in', '(avaliou,marcou_em_story,repostou_post)')
+            .not('tipo', 'in', '(avaliou,marcou_em_story,marcou_empresa_foto,repostou_post)')
             .order('created_at', { ascending: false })
             .range(0, lim - 1)
         : Promise.resolve({ data: [] as AtividadeRow[], error: null }),
@@ -1810,7 +1811,7 @@ export default function AtividadesPage() {
         .select('*')
         .eq('autor_id', uid)
         .neq('usuario_id', uid)
-        .not('tipo', 'in', '(avaliou,seguiu_empresa,marcou_em_story,repostou_post)')
+        .not('tipo', 'in', '(avaliou,seguiu_empresa,marcou_em_story,marcou_empresa_foto,repostou_post)')
         .order('created_at', { ascending: false })
         .range(0, lim - 1),
     ])
@@ -1926,7 +1927,7 @@ export default function AtividadesPage() {
         .select('*')
         .in('autor_id', seg)
         .neq('usuario_id', uid)
-        .not('tipo', 'in', '(avaliou,marcou_em_story,repostou_post)')
+        .not('tipo', 'in', '(avaliou,marcou_em_story,marcou_empresa_foto,repostou_post)')
         .order('created_at', { ascending: false })
         .range(start, start + lim - 1)
       if (error) {
@@ -2381,7 +2382,7 @@ export default function AtividadesPage() {
     const faltando: string[] = []
     const vistos = new Set<string>()
     for (const r of listaAtividadesFiltrada) {
-      if (r.tipo !== 'curtiu_post' && r.tipo !== 'repostou_post') continue
+      if (r.tipo !== 'curtiu_post' && r.tipo !== 'repostou_post' && r.tipo !== 'marcou_empresa_foto') continue
       const id = String(r.alvo_id ?? '').trim()
       if (!id || vistos.has(id) || postMetaMap[id]) continue
       vistos.add(id)
@@ -3114,6 +3115,37 @@ export default function AtividadesPage() {
           comentarioId={comentarioId}
           tempoInteracao={formatarDataAtividades(r.created_at)}
           modoMinhaConta={modoMinhaConta}
+        />
+      )
+    }
+
+    if (r.tipo === 'marcou_empresa_foto') {
+      const ex = r.dados_extras ?? {}
+      const postId =
+        typeof ex.post_id === 'string' && ex.post_id.trim() !== ''
+          ? ex.post_id.trim()
+          : String(r.alvo_id ?? '').trim()
+      if (!postId) return null
+      const autorId =
+        typeof ex.autor_id === 'string' && ex.autor_id.trim() !== '' ? ex.autor_id.trim() : r.autor_id
+      const autorPerfil = perfilMap[autorId] ?? ator
+      const autorUsername =
+        typeof ex.autor_username === 'string' && ex.autor_username.trim() !== ''
+          ? ex.autor_username.trim().replace(/^@+/, '')
+          : (autorPerfil?.username ?? 'usuario')
+      const fromExtras =
+        typeof ex.conteudo_url === 'string' && ex.conteudo_url.trim() !== '' ? ex.conteudo_url.trim() : null
+      const fotoUrl = fromExtras || urlFotoPost(postMetaMap[postId])
+      return (
+        <AtividadeMarcouEmpresaFoto
+          key={r.id}
+          autorUsername={autorUsername}
+          autorFoto={autorPerfil?.foto_perfil_url ?? null}
+          hrefAutor={hrefUsuario(autorId)}
+          postId={postId}
+          fotoUrl={fotoUrl}
+          tempoInteracao={formatarDataAtividades(r.created_at)}
+          {...propsAtor(autorPerfil)}
         />
       )
     }

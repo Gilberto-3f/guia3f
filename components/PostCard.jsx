@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Bookmark, ChevronDown, Heart, MessageCircle, Repeat2, Share2, ShieldCheck, ShoppingBag, Star, BedDouble, Ticket, Utensils, Wrench } from 'lucide-react'
+import { Bookmark, ChevronDown, Heart, MapPin, MessageCircle, Repeat2, Share2, ShieldCheck, ShoppingBag, Star, BedDouble, Ticket, Utensils, Wrench } from 'lucide-react'
 import ModalComentarios from '@/components/ModalComentarios'
 import ModalCurtidas from '@/components/ModalCurtidas'
 import ModalCompartilhar from '@/components/ModalCompartilhar'
@@ -33,6 +33,7 @@ import { useEmpresaInteratorSocial } from '@/lib/useEmpresaInteratorSocial'
 import { usuarioCurtiuNoModoAtual } from '@/lib/curtidaModoSocial'
 import { isDuplicateCurtidaError, toggleCurtidaSocial } from '@/lib/toggleCurtidaSocial'
 import { resolverPostRaizId } from '@/lib/feedRepostRaiz'
+import { buscarEmpresaMarcadaPorId, empresaMarcadaIdDePost } from '@/lib/marcacaoEmpresaPost'
 
 /** UUID da empresa avaliada no `avaliacao_meta`, ou `null`. */
 function postAvaliacaoEmpresaAlvoId(p) {
@@ -116,6 +117,7 @@ function PostTextoColapsivel({ texto, postId, maxLines, className = '' }) {
  *     avaliacao_meta: Record<string, unknown> | null
  *     created_at: string
  *     post_original_id?: string | null
+ *     empresa_marcada_id?: string | null
  *     autor: { nome: string, username: string, foto_perfil_url: string | null, usuario_id: string, empresa_id: string, role: string }
  *   }
  *   meuUsuarioId: string | null
@@ -135,6 +137,8 @@ function PostTextoColapsivel({ texto, postId, maxLines, className = '' }) {
  *   onEngagementChange?: (postId: string, patch: { total_curtidas?: number; total_comentarios?: number }) => void
  *   ocultarCabecalhoCard?: boolean
  *   suprimirNotificacaoAtividades?: boolean
+ *   esconderMenu?: boolean
+ *   onOcultarMarcacao?: (() => void) | null
  * }} props
  */
 export default function PostCard({
@@ -156,6 +160,8 @@ export default function PostCard({
   onEngagementChange,
   ocultarCabecalhoCard = false,
   suprimirNotificacaoAtividades = false,
+  esconderMenu = false,
+  onOcultarMarcacao = null,
 }) {
   if (!post || !post.id || !post.autor) {
     console.warn('[PostCard] post inválido:', post)
@@ -207,6 +213,9 @@ export default function PostCard({
   const [drawerAcomodacoesAberto, setDrawerAcomodacoesAberto] = useState(false)
   /** Feedback da avaliação no feed: fechado por padrão; abre só pelo chevron. */
   const [avaliacaoFeedbackAberto, setAvaliacaoFeedbackAberto] = useState(false)
+  const [empresaMarcada, setEmpresaMarcada] = useState(
+    /** @type {import('@/lib/marcacaoEmpresaPost').EmpresaMarcadaBusca | null} */ (null),
+  )
 
   const empresaId = post.autor?.empresa_id || ''
   const autorId = post.autor?.usuario_id || ''
@@ -488,10 +497,25 @@ export default function PostCard({
   const tipoNorm = String(post.tipo || '').toLowerCase()
   const ehAvaliacao = tipoNorm === 'avaliacao'
   const isVideoPost = isTipoVideoPost(post.tipo)
+  const empresaMarcadaId = !ehRepost ? empresaMarcadaIdDePost(post) : null
 
   useEffect(() => {
     setMediaAspectRatio(null)
   }, [mediaUrl])
+
+  useEffect(() => {
+    if (!empresaMarcadaId) {
+      setEmpresaMarcada(null)
+      return
+    }
+    let cancel = false
+    void buscarEmpresaMarcadaPorId(supabase, empresaMarcadaId).then((row) => {
+      if (!cancel) setEmpresaMarcada(row)
+    })
+    return () => {
+      cancel = true
+    }
+  }, [empresaMarcadaId])
 
   const temStoryNoAutor = Boolean(storyAtivo?.id)
   const storyDoAutorVisto = temStoryNoAutor ? emailVisualizouStory(storyAtivo?.visualizado_por, userEmail) : true
@@ -864,7 +888,8 @@ export default function PostCard({
     onEditar: handleEditarPost,
     onSalvar: ocultarSalvarPost ? undefined : () => void handleSalvar(),
     onRepublicar: ehAvaliacao || ocultarBotaoRepost ? undefined : () => void handleRepostar(),
-    bloqueado: bloqueioApresentacao || bloqueioFeedSocial,
+    bloqueado: bloqueioApresentacao || bloqueioFeedSocial || esconderMenu,
+    onOcultarMarcacao: typeof onOcultarMarcacao === 'function' ? onOcultarMarcacao : null,
   }
 
   const repostEhFoto = tipoNorm === 'foto' || tipoNorm === 'misto'
@@ -1097,6 +1122,25 @@ export default function PostCard({
       </div>
     )
   ) : null
+
+  const hrefEmpresaMarcada = empresaMarcada
+    ? getPerfilHref({
+        usuario_id: empresaMarcada.usuarioId,
+        role: 'empresa',
+        empresa_id: empresaMarcada.empresaId,
+      })
+    : ''
+  const linhaEmpresaMarcada =
+    empresaMarcada && hrefEmpresaMarcada ? (
+      <Link
+        href={hrefEmpresaMarcada}
+        className="flex items-center gap-1.5 px-4 pb-2 text-sm text-[#666666] hover:text-[#555555]"
+        aria-label={`Empresa marcada: ${empresaMarcada.nome}`}
+      >
+        <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+        <span className="min-w-0 truncate font-medium">{empresaMarcada.nome}</span>
+      </Link>
+    ) : null
 
   if (tipoNorm === 'catalogo_cardapio') {
     const meta =
@@ -2055,6 +2099,7 @@ export default function PostCard({
       className={comentariosInline ? 'rounded-xl bg-white shadow-sm' : 'rounded-xl bg-white shadow-sm'}
     >
       {cabecalhoAutorFeed}
+      {linhaEmpresaMarcada}
 
       {hasMedia ? (
         <>

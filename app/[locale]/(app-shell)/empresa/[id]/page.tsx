@@ -22,6 +22,7 @@ import AbaBotaoDinamico from '@/components/AbaBotaoDinamico'
 import AbaFotosEmpresa from '@/components/empresa/AbaFotosEmpresa'
 import AbaPostsEmpresa from '@/components/empresa/AbaPostsEmpresa'
 import AbaTour360Empresa from '@/components/empresa/AbaTour360Empresa'
+import AbaMarcacoesEmpresa from '@/components/empresa/AbaMarcacoesEmpresa'
 import { parseTourConfig, sincronizarTourComFotos } from '@/lib/pannellumTour'
 import { normalizarUrlMidiaSupabase } from '@/lib/imagemPublica'
 import { getIconeAbaServico, getRotuloAbaServico } from '@/lib/empresaCategoria'
@@ -80,7 +81,7 @@ export default function EmpresaPage() {
   const [empresa, setEmpresa] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(true)
   const [abaExpandida, setAbaExpandida] = useState<null | 'avaliacoes' | 'endereco' | 'dinamico'>(null)
-  const [subAbaAtiva, setSubAbaAtiva] = useState<'fotos' | 'posts' | 'tour360'>('fotos')
+  const [subAbaAtiva, setSubAbaAtiva] = useState<'fotos' | 'posts' | 'marcacoes' | 'tour360'>('fotos')
   const [usuarioId, setUsuarioId] = useState<string | null>(null)
   const [authCarregado, setAuthCarregado] = useState(false)
   const [meuRole, setMeuRole] = useState<string | null>(null)
@@ -757,6 +758,18 @@ export default function EmpresaPage() {
             </button>
             <button
               type="button"
+              onClick={() => setSubAbaAtiva('marcacoes')}
+              className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2.5 text-xs font-bold transition-colors ${
+                subAbaAtiva === 'marcacoes'
+                  ? 'border-[#0097b2] text-[#0097b2]'
+                  : 'border-transparent text-gray-500 hover:text-[#0097b2]'
+              }`}
+            >
+              <MapPin size={18} aria-hidden className="text-current" />
+              <span>Marcações</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setSubAbaAtiva('tour360')}
               className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2.5 text-xs font-bold transition-colors ${
                 subAbaAtiva === 'tour360'
@@ -780,6 +793,13 @@ export default function EmpresaPage() {
               />
             ) : null}
             {subAbaAtiva === 'posts' ? <AbaPostsEmpresa empresaUsuarioId={empresaUsuarioIdPosts} /> : null}
+            {subAbaAtiva === 'marcacoes' ? (
+              <AbaMarcacoesEmpresa
+                empresaId={empresaId}
+                empresaUsuarioId={empresaUsuarioIdPosts}
+                meuUsuarioId={usuarioId}
+              />
+            ) : null}
             {subAbaAtiva === 'tour360' ? (
               <AbaTour360Empresa
                 fotos360Url={fotos360Lista}

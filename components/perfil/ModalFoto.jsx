@@ -16,6 +16,15 @@ import PostCard from '@/components/PostCard'
  *   total_compartilhamentos?: number
  *   total_reposts?: number
  *   post_original_id?: string | null
+ *   empresa_marcada_id?: string | null
+ *   autor?: {
+ *     nome: string
+ *     username: string
+ *     foto_perfil_url: string | null
+ *     usuario_id: string
+ *     empresa_id?: string
+ *     role?: string | null
+ *   }
  * }} FotoPostItem
  */
 
@@ -35,9 +44,22 @@ import PostCard from '@/components/PostCard'
  *   }
  *   onPatchPost?: (postId: string, patch: Partial<Pick<FotoPostItem, 'total_curtidas' | 'total_comentarios'>>) => void
  *   onRemovePost?: (postId: string) => void
+ *   esconderMenu?: boolean
+ *   onOcultarMarcacao?: ((postId: string) => void) | null
  * }} props
  */
-export default function ModalFoto({ posts, indiceInicial, aberto, onFechar, meuUsuarioId, autor, onPatchPost, onRemovePost }) {
+export default function ModalFoto({
+  posts,
+  indiceInicial,
+  aberto,
+  onFechar,
+  meuUsuarioId,
+  autor,
+  onPatchPost,
+  onRemovePost,
+  esconderMenu = false,
+  onOcultarMarcacao = null,
+}) {
   const scrollRef = useRef(/** @type {HTMLDivElement | null} */ (null))
   const jaScrollou = useRef(false)
 
@@ -56,14 +78,24 @@ export default function ModalFoto({ posts, indiceInicial, aberto, onFechar, meuU
         avaliacao_meta: null,
         created_at: p.created_at,
         post_original_id: p.post_original_id != null && p.post_original_id !== '' ? String(p.post_original_id) : null,
-        autor: {
-          nome: autor.nome,
-          username: autor.username,
-          foto_perfil_url: autor.foto_perfil_url,
-          usuario_id: autor.usuario_id,
-          empresa_id: '',
-          role: autor.role && String(autor.role) ? String(autor.role) : 'turista',
-        },
+        empresa_marcada_id: p.empresa_marcada_id != null ? String(p.empresa_marcada_id) : null,
+        autor: p.autor
+          ? {
+              nome: p.autor.nome,
+              username: p.autor.username,
+              foto_perfil_url: p.autor.foto_perfil_url,
+              usuario_id: p.autor.usuario_id,
+              empresa_id: p.autor.empresa_id != null ? String(p.autor.empresa_id) : '',
+              role: p.autor.role && String(p.autor.role) ? String(p.autor.role) : 'turista',
+            }
+          : {
+              nome: autor.nome,
+              username: autor.username,
+              foto_perfil_url: autor.foto_perfil_url,
+              usuario_id: autor.usuario_id,
+              empresa_id: autor.empresa_id != null ? String(autor.empresa_id) : '',
+              role: autor.role && String(autor.role) ? String(autor.role) : 'turista',
+            },
       },
     }))
   }, [posts, autor])
@@ -113,6 +145,10 @@ export default function ModalFoto({ posts, indiceInicial, aberto, onFechar, meuU
                 if (posts.filter((x) => x.id !== postId).length === 0) onFechar()
               }}
               onEngagementChange={(postId, patch) => onPatchPost?.(postId, patch)}
+              esconderMenu={esconderMenu}
+              onOcultarMarcacao={
+                typeof onOcultarMarcacao === 'function' ? () => onOcultarMarcacao(post.id) : null
+              }
             />
           ))}
         </div>

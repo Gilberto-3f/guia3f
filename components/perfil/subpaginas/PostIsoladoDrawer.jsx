@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { pickAutorDisplay } from '@/lib/feed-autor'
+import { empresaMarcadaIdDePost } from '@/lib/marcacaoEmpresaPost'
 import PostCard from '@/components/PostCard'
 
 const POSTS_FEED_VIEW = 'posts_com_autores'
@@ -65,10 +66,11 @@ export default function PostIsoladoDrawer({ postId, comentarioId = null }) {
         p.avaliacao_meta && typeof p.avaliacao_meta === 'object' && !Array.isArray(p.avaliacao_meta)
           ? /** @type {Record<string, unknown>} */ (p.avaliacao_meta)
           : null,
-      created_at: String(p.created_at ?? ''),
-      post_original_id: p.post_original_id != null ? String(p.post_original_id) : null,
-      autor,
-    }
+    created_at: String(p.created_at ?? ''),
+    post_original_id: p.post_original_id != null ? String(p.post_original_id) : null,
+    empresa_marcada_id: empresaMarcadaIdDePost(p),
+    autor,
+  }
   }, [])
 
   useEffect(() => {

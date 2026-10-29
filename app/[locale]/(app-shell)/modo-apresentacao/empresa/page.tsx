@@ -25,6 +25,7 @@ import AbaBotaoDinamico from '@/components/AbaBotaoDinamico'
 import AbaFotosEmpresa from '@/components/empresa/AbaFotosEmpresa'
 import AbaPostsEmpresa from '@/components/empresa/AbaPostsEmpresa'
 import AbaTour360Empresa from '@/components/empresa/AbaTour360Empresa'
+import AbaMarcacoesEmpresa from '@/components/empresa/AbaMarcacoesEmpresa'
 import { parseTourConfig, sincronizarTourComFotos } from '@/lib/pannellumTour'
 
 type GateState =
@@ -67,7 +68,7 @@ export default function EmpresaPreviewModoApresentacaoPage() {
   const [empresaBase, setEmpresaBase] = useState<Record<string, unknown> | null>(null)
   const [loadingEmpresa, setLoadingEmpresa] = useState(true)
   const [abaExpandida, setAbaExpandida] = useState<null | 'avaliacoes' | 'endereco' | 'dinamico'>(null)
-  const [subAbaAtiva, setSubAbaAtiva] = useState<'fotos' | 'posts' | 'tour360'>('fotos')
+  const [subAbaAtiva, setSubAbaAtiva] = useState<'fotos' | 'posts' | 'marcacoes' | 'tour360'>('fotos')
   const [menuAberto, setMenuAberto] = useState(false)
 
   const { draft, salvar, limpar } = useEmpresaPreviewDraft({
@@ -412,6 +413,18 @@ export default function EmpresaPreviewModoApresentacaoPage() {
             </button>
             <button
               type="button"
+              onClick={() => setSubAbaAtiva('marcacoes')}
+              className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2.5 text-xs font-bold transition-colors ${
+                subAbaAtiva === 'marcacoes'
+                  ? 'border-[#0097b2] text-[#0097b2]'
+                  : 'border-transparent text-gray-500 hover:text-[#0097b2]'
+              }`}
+            >
+              <MapPin size={18} aria-hidden />
+              <span>Marcações</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setSubAbaAtiva('tour360')}
               className={`flex flex-1 flex-col items-center gap-0.5 border-b-2 py-2.5 text-xs font-bold transition-colors ${
                 subAbaAtiva === 'tour360'
@@ -434,6 +447,13 @@ export default function EmpresaPreviewModoApresentacaoPage() {
               />
             ) : null}
             {subAbaAtiva === 'posts' ? <AbaPostsEmpresa empresaUsuarioId={empresaUsuarioIdPostsPreview} /> : null}
+            {subAbaAtiva === 'marcacoes' ? (
+              <AbaMarcacoesEmpresa
+                empresaId={gate.status === 'allowed' ? gate.empresaId : null}
+                empresaUsuarioId={empresaUsuarioIdPostsPreview}
+                meuUsuarioId={gate.status === 'allowed' ? gate.userId : null}
+              />
+            ) : null}
             {subAbaAtiva === 'tour360' ? (
               <AbaTour360Empresa
                 fotos360Url={fotos360ListaPreview}
