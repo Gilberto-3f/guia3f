@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { usePathname } from '@/i18n/navigation'
 import { lerAppSplashUi, subscribeAppSplashUi } from '@/lib/appSplashReady'
@@ -19,14 +19,13 @@ function rotaLiberaCapa(pathname: string) {
 }
 
 /**
- * Capa azul (#0097b2) até a home/shell estar navegável
- * (gate, bloco, barra, abas e botões). Publicidade pode carregar depois.
+ * Capa azul (#0097b2) até a home/shell estar navegável.
+ * Sem transform/filter: no iOS um overlay fullscreen deixa véu no cabeçalho.
  */
 export function AppSplashCapa() {
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0097b2]"
-      style={{ height: 'var(--app-height, 100dvh)' }}
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0097b2] pt-safe [backdrop-filter:none] [-webkit-backdrop-filter:none]"
       role="status"
       aria-live="polite"
       aria-busy="true"
@@ -49,6 +48,7 @@ function AppSplashInner() {
   const [ui, setUi] = useState(lerAppSplashUi)
   const [visivel, setVisivel] = useState(true)
   const [estourou, setEstourou] = useState(false)
+  const dispensouRef = useRef(false)
 
   const authLivre = rotaLiberaCapa(pathname)
   const naRaiz = pathname === '/' || pathname === ''
@@ -72,6 +72,16 @@ function AppSplashInner() {
 
   useEffect(() => {
     if (authLivre) {
+      dispensouRef.current = false
+      setVisivel(false)
+      return
+    }
+    if (naRaiz) {
+      dispensouRef.current = false
+      setVisivel(true)
+      return
+    }
+    if (dispensouRef.current) {
       setVisivel(false)
       return
     }
@@ -81,13 +91,16 @@ function AppSplashInner() {
     }
     let inner = 0
     const outer = window.requestAnimationFrame(() => {
-      inner = window.requestAnimationFrame(() => setVisivel(false))
+      inner = window.requestAnimationFrame(() => {
+        dispensouRef.current = true
+        setVisivel(false)
+      })
     })
     return () => {
       window.cancelAnimationFrame(outer)
       window.cancelAnimationFrame(inner)
     }
-  }, [authLivre, pronto, estourou])
+  }, [authLivre, naRaiz, pronto, estourou])
 
   if (!visivel) return null
 
@@ -96,7 +109,7 @@ function AppSplashInner() {
 
 export default function AppSplash() {
   return (
-    <Suspense fallback={<AppSplashCapa />}>
+    <Suspense fallback={null}>
       <AppSplashInner />
     </Suspense>
   )

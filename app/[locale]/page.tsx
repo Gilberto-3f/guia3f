@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react'
 import { useRouter } from '@/i18n/navigation'
-import { AppSplashCapa } from '@/components/AppSplash'
 import { supabase } from '@/lib/supabase'
 
 export default function HomePage() {
@@ -24,5 +23,5 @@ export default function HomePage() {
     checkUser()
   }, [router])
 
-  return <AppSplashCapa />
+  return <div className="min-h-dvh bg-[#0097b2]" aria-busy="true" aria-label="Carregando Guia 3F" />
 }

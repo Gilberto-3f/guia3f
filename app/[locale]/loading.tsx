@@ -1,7 +1,3 @@
-'use client'
-
-import { AppSplashCapa } from '@/components/AppSplash'
-
 export default function Loading() {
-  return <AppSplashCapa />
+  return <div className="min-h-dvh bg-[#0097b2]" aria-busy="true" aria-label="Carregando" />
 }

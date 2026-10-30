@@ -46,7 +46,7 @@ export default function CabecalhoAbasGuiaMobilidade({
   return (
     <header
       data-splash-cabecalho=""
-      className="relative z-50 isolate shrink-0 bg-[#0097b2] pt-safe pointer-events-auto"
+      className="relative z-50 shrink-0 bg-[#0097b2] pt-safe pointer-events-auto [backdrop-filter:none] [-webkit-backdrop-filter:none]"
     >
       {mostrarLogo ? (
         <div className="flex justify-center overflow-hidden py-4">

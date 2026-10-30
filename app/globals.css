@@ -72,6 +72,18 @@ body {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
+/*
+ * iOS PWA (black-translucent): overlay fullscreen deixa véu/degradê no topo.
+ * Cabeçalhos opacos, sem backdrop-filter, texto abaixo do inset.
+ */
+@supports (-webkit-touch-callout: none) {
+  header,
+  [class*='pt-safe'] {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
 @utility pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
