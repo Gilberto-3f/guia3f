@@ -8,6 +8,14 @@ import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { marcarFinanceiroItemLidoEmpresa } from '@/lib/canaisEmpresaVisibilidade'
 import { marcarFinanceiroItemLidoProfissional } from '@/lib/canaisProfissionalVisibilidade'
 import { openWhatsAppChat } from '@/lib/whatsapp-empresa'
+import { mensagemCadastroLiberadoRelatoriosExibicao } from '@/lib/canalFinanceiroAprovacaoCadastro'
+
+function saudacaoRelatorio(raw) {
+  const s = String(raw ?? '').trim()
+  if (!s) return null
+  if (s.startsWith('@')) return s.endsWith(',') ? s : `${s},`
+  return s
+}
 
 /**
  * @param {{
@@ -201,12 +209,16 @@ export default function CanalFinanceiroItem({ item, userTipo, destinoRotulo = nu
           <p className="mb-2 text-sm text-gray-600">
             {destinoRotulo
               ? null
-              : userTipo === 'profissional'
-                ? item.empresa_nome
-                : item.profissional_nome}
+              : saudacaoRelatorio(
+                  userTipo === 'profissional' ? item.empresa_nome : item.profissional_nome,
+                )}
           </p>
 
-          {item.mensagem ? <p className="mb-2 text-sm text-gray-500">{item.mensagem}</p> : null}
+          {item.mensagem ? (
+            <p className="mb-2 text-sm text-gray-500">
+              {mensagemCadastroLiberadoRelatoriosExibicao(item.titulo, item.mensagem)}
+            </p>
+          ) : null}
 
           {mostrarParceiro ? (
             <div className="mb-2 flex items-center gap-3 rounded-lg bg-gray-50 px-3 py-2">

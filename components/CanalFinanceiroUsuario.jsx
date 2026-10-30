@@ -34,6 +34,10 @@ import {
 import { dedupeItensCanalReservaHospedagem } from '@/lib/reservaHospedagem'
 import { TITULO_PLANOS_CANAL } from '@/lib/canalFinanceiroPlanosEmpresa'
 import { itemCanalFinanceiroEhAvisoManifesto } from '@/lib/recomendacaoContratacaoDestino'
+import {
+  handleArrobaCanal,
+  mensagemCadastroLiberadoRelatoriosExibicao,
+} from '@/lib/canalFinanceiroAprovacaoCadastro'
 
 /** Catálogo de planos fica na aba Planos; avisos de assinatura ativa aparecem em Relatórios. */
 function ocultarPlanoAssinaturaCatalogoRelatorios(item, userTipo) {
@@ -279,14 +283,17 @@ export default function CanalFinanceiroUsuario({
       let profissionalId = /** @type {string | null} */ (null)
       let empresaId = /** @type {string | null} */ (null)
       let anfitriaoDetectado = false
+      let handleEmpresa = ''
+      let handleProfissional = ''
 
       if (tipo === 'profissional') {
         const { data: p } = await supabase
           .from('profissionais')
-          .select('id, categorias')
+          .select('id, categorias, nome_usuario')
           .eq('usuario_id', usuarioId)
           .maybeSingle()
         profissionalId = p?.id != null ? String(p.id) : null
+        handleProfissional = handleArrobaCanal(p?.nome_usuario)
         const cats = Array.isArray(p?.categorias)
           ? p.categorias.filter((c) => typeof c === 'string')
           : []
@@ -294,10 +301,21 @@ export default function CanalFinanceiroUsuario({
         if (anfitriaoDetectado) setEhAnfitriao(true)
         if (modoAnfitriaoFinanceiro && empresaHospedagemId) {
           empresaId = String(empresaHospedagemId)
+          const { data: empH } = await supabase
+            .from('empresas')
+            .select('nome_usuario')
+            .eq('id', empresaId)
+            .maybeSingle()
+          handleEmpresa = handleArrobaCanal(empH?.nome_usuario)
         }
       } else {
-        const { data: e } = await supabase.from('empresas').select('id').eq('usuario_id', usuarioId).maybeSingle()
+        const { data: e } = await supabase
+          .from('empresas')
+          .select('id, nome_usuario')
+          .eq('usuario_id', usuarioId)
+          .maybeSingle()
         empresaId = e?.id != null ? String(e.id) : null
+        handleEmpresa = handleArrobaCanal(e?.nome_usuario)
       }
 
       let query = supabase
@@ -323,8 +341,14 @@ export default function CanalFinanceiroUsuario({
       let formatados =
         data?.map((row) => {
           const r = /** @type {Record<string, unknown>} */ (row)
-          const pn = 'Profissional'
-          const en = 'Empresa'
+          const titulo = String(r.titulo ?? '')
+          const itemEmpresa = r.empresa_id != null
+          const saudacao =
+            tipo === 'empresa'
+              ? handleEmpresa || handleArrobaCanal(null)
+              : itemEmpresa && handleEmpresa
+                ? handleEmpresa
+                : handleProfissional || handleArrobaCanal(null)
 
           const destino = rotuloDestinoNotificacaoFinanceira({
             empresa_id: r.empresa_id,
@@ -334,8 +358,11 @@ export default function CanalFinanceiroUsuario({
           return {
             id: String(r.id),
             tipo: String(r.tipo ?? ''),
-            titulo: String(r.titulo ?? ''),
-            mensagem: r.mensagem != null ? String(r.mensagem) : null,
+            titulo,
+            mensagem: mensagemCadastroLiberadoRelatoriosExibicao(
+              titulo,
+              r.mensagem != null ? String(r.mensagem) : null,
+            ),
             valor: r.valor != null ? Number(r.valor) : null,
             anexo_url: r.anexo_url != null ? String(r.anexo_url) : null,
             lida_por_profissional: Boolean(r.lida_por_profissional),
@@ -353,8 +380,8 @@ export default function CanalFinanceiroUsuario({
             created_at: String(r.created_at ?? ''),
             profissional_id: r.profissional_id != null ? String(r.profissional_id) : null,
             empresa_id: r.empresa_id != null ? String(r.empresa_id) : null,
-            profissional_nome: pn,
-            empresa_nome: en,
+            profissional_nome: saudacao,
+            empresa_nome: saudacao,
             destino_notificacao: destino,
             destino_rotulo: rotuloDestinoNotificacaoFinanceiraTexto(destino),
           }

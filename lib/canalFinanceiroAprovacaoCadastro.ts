@@ -14,13 +14,27 @@ import {
 export const TITULO_CADASTRO_LIBERADO_RELATORIOS = 'PARÁBENS'
 
 export const MENSAGEM_CADASTRO_LIBERADO_RELATORIOS =
-  'seu cadastro foi liberado, escolha um plano (na terceira aba) para utilizar todos os benefícios do aplicativo.'
+  'Seu cadastro foi liberado, escolha um plano (na terceira aba) para utilizar todos os benefícios do aplicativo.'
 
 export const VARIANT_CADASTRO_LIBERADO_PLANOS = 'cadastro_liberado_planos'
 
+export function handleArrobaCanal(nomeUsuario: string | null | undefined): string {
+  const handle = String(nomeUsuario ?? '').trim().replace(/^@+/, '')
+  return handle ? `@${handle}` : '@usuario'
+}
+
+export function mensagemCadastroLiberadoRelatoriosExibicao(
+  titulo: string,
+  mensagem: string | null | undefined,
+): string | null {
+  if (String(titulo ?? '').trim().toUpperCase() === TITULO_CADASTRO_LIBERADO_RELATORIOS) {
+    return MENSAGEM_CADASTRO_LIBERADO_RELATORIOS
+  }
+  return mensagem != null && String(mensagem).trim() !== '' ? String(mensagem) : null
+}
+
 export function montarMensagemAprovacaoCadastro(nomeUsuario: string): string {
-  const handle = nomeUsuario.trim().replace(/^@+/, '')
-  const user = handle ? `@${handle}` : '@usuario'
+  const user = handleArrobaCanal(nomeUsuario)
   return `Bem-Vindo ${user},
 
 Sua documentação foi checada e está tudo em ordem, seu cadastro em nosso ecossistema foi aprovado e os benefícios da sua categoria já estão liberados para você.
