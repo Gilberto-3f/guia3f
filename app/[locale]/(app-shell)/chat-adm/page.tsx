@@ -68,7 +68,7 @@ function ChatAdmConteudo() {
 
   return (
     <>
-      <header className="sticky top-0 z-10 flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 pb-3 pt-safe text-white shadow-sm">
+      <header className="flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 pb-3 pt-safe text-white shadow-sm">
         <button
           type="button"
           onClick={() => router.back()}

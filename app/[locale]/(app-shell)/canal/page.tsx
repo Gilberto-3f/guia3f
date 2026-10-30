@@ -157,7 +157,7 @@ export default function CanalPage() {
 
     return (
       <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
-        <div className="sticky top-0 z-10 bg-[#0097b2] px-4 pb-3 pt-safe text-white shadow-sm">
+        <div className="shrink-0 bg-[#0097b2] px-4 pb-3 pt-safe text-white shadow-sm">
           <h1 className="text-xl font-bold">Canal do turista</h1>
           <p className="text-sm text-white/85">Informações, promoções e dicas</p>
         </div>
@@ -171,7 +171,7 @@ export default function CanalPage() {
   if (userTipoEfetivo === 'profissional') {
     return (
       <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
-        <div className="sticky top-0 z-10 bg-[#0097b2] px-4 pb-3 pt-safe text-white shadow-sm">
+        <div className="shrink-0 bg-[#0097b2] px-4 pb-3 pt-safe text-white shadow-sm">
           <h1 className="text-xl font-bold">Profissional</h1>
         </div>
         <div className="flex min-h-0 min-h-[calc(100dvh-7rem)] flex-1 flex-col overflow-hidden">
@@ -190,7 +190,7 @@ export default function CanalPage() {
   if (userTipoEfetivo === 'empresa') {
     return (
       <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
-        <div className="sticky top-0 z-10 bg-[#0097b2] px-4 pb-3 pt-safe text-white shadow-sm">
+        <div className="shrink-0 bg-[#0097b2] px-4 pb-3 pt-safe text-white shadow-sm">
           <h1 className="text-xl font-bold">Empresa</h1>
         </div>
         <div className="flex min-h-0 min-h-[calc(100dvh-7rem)] flex-1 flex-col overflow-hidden">
@@ -209,7 +209,7 @@ export default function CanalPage() {
   if (userTipoEfetivo === 'admin') {
     return (
       <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
-        <div className="sticky top-0 z-10 bg-[#0097b2] px-4 pb-3 pt-safe text-white shadow-sm">
+        <div className="shrink-0 bg-[#0097b2] px-4 pb-3 pt-safe text-white shadow-sm">
           <div className="flex min-w-0 items-center gap-2">
             <h1 className="shrink-0 text-xl font-bold">Canais ADM</h1>
             {canaisEco.carregou ? (

@@ -689,7 +689,7 @@ export default function CanalDetalhePage() {
   if (!authPronto || userTipoEfetivo == null || carregandoCanal) {
     return (
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
-        <header className="sticky top-0 z-10 flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 pb-3 pt-safe text-white shadow-sm">
+        <header className="flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 pb-3 pt-safe text-white shadow-sm">
           <button
             type="button"
             onClick={() => router.push('/canal')}
@@ -736,7 +736,7 @@ export default function CanalDetalhePage() {
     return (
       <>
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
-        <header className="sticky top-0 z-10 flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 pb-3 pt-safe text-white shadow-sm">
+        <header className="flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 pb-3 pt-safe text-white shadow-sm">
           <button
             type="button"
             onClick={() => voltarCanais()}
@@ -830,7 +830,7 @@ export default function CanalDetalhePage() {
     return (
       <>
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
-        <header className="sticky top-0 z-10 flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 pb-3 pt-safe text-white shadow-sm">
+        <header className="flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 pb-3 pt-safe text-white shadow-sm">
           <button
             type="button"
             onClick={() => voltarCanais()}
@@ -931,7 +931,7 @@ export default function CanalDetalhePage() {
     return (
       <>
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-gray-50">
-        <header className="sticky top-0 z-10 flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 pb-3 pt-safe text-white shadow-sm">
+        <header className="flex shrink-0 items-center gap-3 bg-[#0097b2] px-2 pb-3 pt-safe text-white shadow-sm">
           <button
             type="button"
             onClick={() => voltarCanais()}

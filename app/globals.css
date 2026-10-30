@@ -73,14 +73,44 @@ body {
 }
 
 /*
- * iOS PWA (black-translucent): overlay fullscreen deixa véu/degradê no topo.
- * Cabeçalhos opacos, sem backdrop-filter, texto abaixo do inset.
+ * iOS 26+/PWA: glass do sistema sobre black-translucent deixa o título branco ciano.
+ * Faixa opaca no topo do documento (Safari amostra essa cor na status bar).
+ * Cabeçalhos teal pintados sólidos, sem backdrop-filter.
  */
+.app-status-cap {
+  display: none;
+}
+
 @supports (-webkit-touch-callout: none) {
+  .app-status-cap {
+    display: block;
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 100;
+    height: max(env(safe-area-inset-top, 0px), 12px);
+    pointer-events: none;
+    background-color: #0097b2;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  html.dark .app-status-cap {
+    background-color: #000000;
+  }
+
   header,
   [class*='pt-safe'] {
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
+  }
+
+  [class*='bg-[#0097b2]'] {
+    background-color: #0097b2 !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    opacity: 1 !important;
   }
 }
 

@@ -15,7 +15,8 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Guia 3F",
-    statusBarStyle: "black-translucent",
+    /* black-translucent: iOS 26+ desenha glass/véu sobre o texto do cabeçalho */
+    statusBarStyle: "default",
   },
   icons: {
     icon: [
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <script dangerouslySetInnerHTML={{ __html: MODO_NOTURNO_BOOT_SCRIPT }} />
       </head>
       <body suppressHydrationWarning className="min-h-full">
+        <div className="app-status-cap" aria-hidden />
         {children}
       </body>
     </html>
