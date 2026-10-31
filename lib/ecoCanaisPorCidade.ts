@@ -1,11 +1,26 @@
-import { gravarVinculosEcossistema, listarEcossistemasDb, type EcossistemaBloco } from '@/lib/ecossistemas'
+import {
+  CATEGORIAS_MOBILIDADE,
+  gravarVinculosEcossistema,
+  listarEcossistemasDb,
+  parseCategoriasMobilidade,
+  type CategoriaMobilidade,
+  type EcossistemaBloco,
+} from '@/lib/ecossistemas'
 import { cidadePertenceAoBloco } from '@/lib/ecossistemaFiltro'
 
-export const CATEGORIAS_MOBILIDADE = ['Guia', 'Taxista', 'Van', 'Motorista de App'] as const
+export { CATEGORIAS_MOBILIDADE, parseCategoriasMobilidade }
 
 export function categoriaEhMobilidade(categoria: string | null | undefined): boolean {
   const c = String(categoria ?? '').trim()
   return (CATEGORIAS_MOBILIDADE as readonly string[]).includes(c)
+}
+
+export function categoriasMobilidadePorCidade(
+  cidade: string | null | undefined,
+  blocos: EcossistemaBloco[],
+): CategoriaMobilidade[] {
+  const bloco = resolverEcoCanaisPorCidade(cidade, blocos)
+  return parseCategoriasMobilidade(bloco?.categorias_mobilidade)
 }
 
 export function primeiraCidadeAtuacao(raw: unknown): string {

@@ -8,6 +8,15 @@ export type EcossistemaCidade = {
   pais: string | null
 }
 
+export type CategoriaMobilidade = 'Guia' | 'Taxista' | 'Van' | 'Motorista de App'
+
+export const CATEGORIAS_MOBILIDADE: CategoriaMobilidade[] = [
+  'Guia',
+  'Taxista',
+  'Van',
+  'Motorista de App',
+]
+
 export type EcossistemaBloco = {
   id: string
   slug: string
@@ -18,6 +27,7 @@ export type EcossistemaBloco = {
   padrao: boolean
   tile_sexto: EcossistemaTileSexto
   ordem: number
+  categorias_mobilidade: CategoriaMobilidade[]
   cidades: EcossistemaCidade[]
 }
 
@@ -28,6 +38,48 @@ export const CIDADES_CATALOGO: EcossistemaCidade[] = [
   { chave: 'Puerto Iguazu', label: 'Puerto Iguazú', pais: 'AR' },
   { chave: 'Londrina', label: 'Londrina', pais: 'BR' },
 ]
+
+export const SLUG_ECO_TRIPLICE = 'triplice-fronteira'
+
+const CATEGORIAS_MOBILIDADE_SET = new Set<string>(CATEGORIAS_MOBILIDADE)
+const PLACA_CATEGORIAS = new Set<string>(['Guia', 'Taxista', 'Van'])
+
+/** Aceita array ou lista; descarta inválidos; ordem canônica. Vazio = nenhuma. */
+export function parseCategoriasMobilidade(raw: unknown): CategoriaMobilidade[] {
+  const items: unknown[] = Array.isArray(raw)
+    ? raw
+    : typeof raw === 'string' && raw.trim()
+      ? raw.split(',')
+      : []
+  const seen = new Set<CategoriaMobilidade>()
+  for (const item of items) {
+    const s = String(item ?? '').trim()
+    if (!CATEGORIAS_MOBILIDADE_SET.has(s)) continue
+    seen.add(s as CategoriaMobilidade)
+  }
+  return CATEGORIAS_MOBILIDADE.filter((c) => seen.has(c))
+}
+
+export function blocoEhTripliceFronteira(bloco: { slug?: string } | null | undefined): boolean {
+  return String(bloco?.slug ?? '').trim() === SLUG_ECO_TRIPLICE
+}
+
+export function categoriaGanhaPlacaVermelha(
+  categoria: string | null | undefined,
+  bloco: { slug?: string } | null | undefined,
+): boolean {
+  const c = String(categoria ?? '').trim()
+  if (!PLACA_CATEGORIAS.has(c)) return false
+  return blocoEhTripliceFronteira(bloco)
+}
+
+export function blocoOfereceCategoriaMobilidade(
+  bloco: { categorias_mobilidade?: unknown } | null | undefined,
+  categoria: string | null | undefined,
+): boolean {
+  const c = String(categoria ?? '').trim()
+  return parseCategoriasMobilidade(bloco?.categorias_mobilidade).some((x) => x === c)
+}
 
 export const TILE_SEXTO_OPCOES: { id: EcossistemaTileSexto; label: string }[] = [
   { id: 'aguarde', label: 'Aguarde (sem página)' },
@@ -231,6 +283,7 @@ export function mapRowEcossistema(
     padrao: row.padrao === true,
     tile_sexto,
     ordem: Number(row.ordem ?? 0),
+    categorias_mobilidade: parseCategoriasMobilidade(row.categorias_mobilidade),
     cidades,
   }
 }

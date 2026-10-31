@@ -6,6 +6,7 @@ import {
   cidadeDoCatalogo,
   mapRowEcossistema,
   normalizarCidadeChave,
+  parseCategoriasMobilidade,
   slugDeNome,
   type EcossistemaCidade,
   type EcossistemaTileSexto,
@@ -148,18 +149,23 @@ export async function POST(req: Request) {
       await gate.adminDb.from('ecossistemas').update({ padrao: false }).eq('padrao', true)
     }
 
+    const insertRow: Record<string, unknown> = {
+      slug,
+      nome,
+      tipo,
+      descricao,
+      disponivel_home,
+      padrao,
+      tile_sexto,
+      ordem,
+    }
+    if (body.categorias_mobilidade !== undefined) {
+      insertRow.categorias_mobilidade = parseCategoriasMobilidade(body.categorias_mobilidade)
+    }
+
     const { data: novo, error: insErr } = await gate.adminDb
       .from('ecossistemas')
-      .insert({
-        slug,
-        nome,
-        tipo,
-        descricao,
-        disponivel_home,
-        padrao,
-        tile_sexto,
-        ordem,
-      })
+      .insert(insertRow)
       .select('*')
       .maybeSingle()
     if (insErr || !novo?.id) {

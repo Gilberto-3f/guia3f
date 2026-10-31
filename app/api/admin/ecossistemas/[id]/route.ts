@@ -6,6 +6,7 @@ import {
   cidadeDoCatalogo,
   mapRowEcossistema,
   normalizarCidadeChave,
+  parseCategoriasMobilidade,
   slugDeNome,
   type EcossistemaCidade,
 } from '@/lib/ecossistemas'
@@ -113,6 +114,9 @@ export async function PATCH(req: Request, ctx: Ctx) {
       patch.tile_sexto = t === 'compras_cde' || t === 'servicos_locais' ? t : 'aguarde'
     }
     if (body.ordem != null && Number.isFinite(Number(body.ordem))) patch.ordem = Number(body.ordem)
+    if (body.categorias_mobilidade !== undefined) {
+      patch.categorias_mobilidade = parseCategoriasMobilidade(body.categorias_mobilidade)
+    }
 
     const tipoFinal = String(patch.tipo ?? atual.tipo)
     const cidades = parseCidades(body.cidades)
