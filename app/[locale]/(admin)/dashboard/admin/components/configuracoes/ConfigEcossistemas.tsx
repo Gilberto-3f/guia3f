@@ -1,16 +1,28 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Pencil, Plus, Star, Trash2, X } from 'lucide-react'
+import { ChevronDown, Info, Pencil, Plus, Star, Trash2, X } from 'lucide-react'
 import {
   CIDADES_CATALOGO,
   TILE_SEXTO_OPCOES,
+  parseCategoriasMobilidade,
   slugDeNome,
+  type CategoriaMobilidade,
   type EcossistemaBloco,
   type EcossistemaCidade,
   type EcossistemaTileSexto,
   type EcossistemaTipo,
 } from '@/lib/ecossistemas'
+
+const MOBILIDADE_CHECKBOXES: { id: CategoriaMobilidade; label: string }[] = [
+  { id: 'Motorista de App', label: 'Motorista de app' },
+  { id: 'Taxista', label: 'Taxista' },
+  { id: 'Guia', label: 'Guia de turismo' },
+  { id: 'Van', label: 'Motorista de van' },
+]
+
+const TEXTO_INFO_REGIAO =
+  'Empresas e profissionais dessas cidades passam a ver os canais desta região. O eco cidade permanece na home como guia.'
 
 type FormState = {
   nome: string
@@ -19,6 +31,7 @@ type FormState = {
   disponivel_home: boolean
   padrao: boolean
   tile_sexto: EcossistemaTileSexto
+  categorias_mobilidade: CategoriaMobilidade[]
   cidades: EcossistemaCidade[]
 }
 
@@ -29,6 +42,7 @@ const FORM_VAZIO: FormState = {
   disponivel_home: true,
   padrao: false,
   tile_sexto: 'aguarde',
+  categorias_mobilidade: [],
   cidades: [],
 }
 
@@ -40,12 +54,18 @@ function blocoParaForm(b: EcossistemaBloco): FormState {
     disponivel_home: b.disponivel_home,
     padrao: b.padrao,
     tile_sexto: b.tile_sexto,
+    categorias_mobilidade: parseCategoriasMobilidade(b.categorias_mobilidade),
     cidades: [...b.cidades],
   }
 }
 
 function labelTile(id: EcossistemaTileSexto) {
   return TILE_SEXTO_OPCOES.find((o) => o.id === id)?.label ?? id
+}
+
+function labelMobilidadeLista(cats: CategoriaMobilidade[]) {
+  if (cats.length === 0) return 'nenhuma'
+  return cats.map((c) => MOBILIDADE_CHECKBOXES.find((x) => x.id === c)?.label ?? c).join(', ')
 }
 
 export function ConfigEcossistemas() {
@@ -58,6 +78,8 @@ export function ConfigEcossistemas() {
   const [form, setForm] = useState<FormState>(FORM_VAZIO)
   const [cidadeExtra, setCidadeExtra] = useState('')
   const [salvando, setSalvando] = useState(false)
+  const [mobilidadeAberto, setMobilidadeAberto] = useState(false)
+  const [infoRegiaoAberto, setInfoRegiaoAberto] = useState(false)
 
   const formAberto = criando || Boolean(editandoId)
 
@@ -88,12 +110,16 @@ export function ConfigEcossistemas() {
     setEditandoId(null)
     setForm(FORM_VAZIO)
     setCidadeExtra('')
+    setMobilidadeAberto(false)
+    setInfoRegiaoAberto(false)
   }
 
   const abrirNovo = () => {
     setEditandoId(null)
     setForm(FORM_VAZIO)
     setCidadeExtra('')
+    setMobilidadeAberto(false)
+    setInfoRegiaoAberto(false)
     setCriando(true)
   }
 
@@ -102,6 +128,20 @@ export function ConfigEcossistemas() {
     setEditandoId(b.id)
     setForm(blocoParaForm(b))
     setCidadeExtra('')
+    setMobilidadeAberto(false)
+    setInfoRegiaoAberto(false)
+  }
+
+  const toggleCategoriaMobilidade = (id: CategoriaMobilidade) => {
+    setForm((prev) => {
+      const ja = prev.categorias_mobilidade.includes(id)
+      return {
+        ...prev,
+        categorias_mobilidade: ja
+          ? prev.categorias_mobilidade.filter((c) => c !== id)
+          : [...prev.categorias_mobilidade, id],
+      }
+    })
   }
 
   const toggleCidade = (c: EcossistemaCidade) => {
@@ -149,6 +189,7 @@ export function ConfigEcossistemas() {
         disponivel_home: form.disponivel_home,
         padrao: form.padrao,
         tile_sexto: form.tile_sexto,
+        categorias_mobilidade: form.categorias_mobilidade,
         cidades: form.cidades,
       }
       const res = editandoId
@@ -262,8 +303,7 @@ export function ConfigEcossistemas() {
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm text-[#666666]">Blocos de cidade ou região usados no chevron da home.</p>
+      <div className="flex justify-center">
         <button
           type="button"
           onClick={abrirNovo}
@@ -296,18 +336,19 @@ export function ConfigEcossistemas() {
             />
           </label>
 
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             {(['cidade', 'regiao'] as EcossistemaTipo[]).map((t) => (
               <button
                 key={t}
                 type="button"
-                onClick={() =>
+                onClick={() => {
                   setForm((p) => ({
                     ...p,
                     tipo: t,
                     cidades: t === 'cidade' && p.cidades.length > 1 ? p.cidades.slice(0, 1) : p.cidades,
                   }))
-                }
+                  if (t !== 'regiao') setInfoRegiaoAberto(false)
+                }}
                 className={[
                   'flex-1 rounded-xl py-2 text-sm font-bold uppercase',
                   form.tipo === t ? 'bg-[#0097b2] text-white' : 'bg-white text-[#0097b2] border border-gray-200',
@@ -316,13 +357,21 @@ export function ConfigEcossistemas() {
                 {t === 'cidade' ? 'Cidade' : 'Região'}
               </button>
             ))}
+            {form.tipo === 'regiao' ? (
+              <button
+                type="button"
+                onClick={() => setInfoRegiaoAberto((v) => !v)}
+                className="inline-flex shrink-0 rounded-full p-1.5 text-[#0097b2] hover:bg-white"
+                aria-label="Informação sobre região"
+                aria-expanded={infoRegiaoAberto}
+              >
+                <Info className="h-4 w-4" aria-hidden />
+              </button>
+            ) : null}
           </div>
 
-          {form.tipo === 'regiao' ? (
-            <p className="text-xs text-[#666666]">
-              Empresas e profissionais dessas cidades passam a ver os canais desta região. O eco cidade
-              permanece na home como guia.
-            </p>
+          {form.tipo === 'regiao' && infoRegiaoAberto ? (
+            <p className="text-xs leading-relaxed text-[#666666]">{TEXTO_INFO_REGIAO}</p>
           ) : null}
 
           <div>
@@ -379,6 +428,43 @@ export function ConfigEcossistemas() {
                 Incluir
               </button>
             </div>
+          </div>
+
+          <div className="rounded-xl border border-gray-200 bg-white">
+            <button
+              type="button"
+              onClick={() => setMobilidadeAberto((v) => !v)}
+              className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
+              aria-expanded={mobilidadeAberto}
+            >
+              <span className="text-sm font-bold uppercase text-[#0097b2]">Mobilidade</span>
+              <ChevronDown
+                className={`h-4 w-4 shrink-0 text-[#0097b2] transition-transform ${mobilidadeAberto ? 'rotate-180' : ''}`}
+                strokeWidth={2.5}
+                aria-hidden
+              />
+            </button>
+            {mobilidadeAberto ? (
+              <div className="space-y-2 border-t border-gray-100 px-3 py-3">
+                <p className="text-xs text-[#666666]">
+                  Categorias visíveis na mobilidade deste bloco. Anfitrião não entra aqui (hospedagem).
+                </p>
+                {MOBILIDADE_CHECKBOXES.map((item) => {
+                  const on = form.categorias_mobilidade.includes(item.id)
+                  return (
+                    <label key={item.id} className="flex items-center gap-2 text-sm text-gray-800">
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={() => toggleCategoriaMobilidade(item.id)}
+                        className="h-4 w-4 shrink-0 accent-[#00D443]"
+                      />
+                      <span>{item.label}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            ) : null}
           </div>
 
           <label className="block text-sm">
@@ -479,6 +565,9 @@ export function ConfigEcossistemas() {
                     {b.cidades.map((c) => c.label).join(', ') || 'Sem cidades'}
                   </p>
                   <p className="mt-0.5 text-xs text-gray-400">6º botão: {labelTile(b.tile_sexto)}</p>
+                  <p className="mt-0.5 text-xs text-gray-400">
+                    Mobilidade: {labelMobilidadeLista(parseCategoriasMobilidade(b.categorias_mobilidade))}
+                  </p>
                 </div>
                 <div className="flex shrink-0 gap-1">
                   <button
