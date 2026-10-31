@@ -17,6 +17,7 @@ html {
   background: #0097b2;
   height: 100%;
   --app-height: 100dvh;
+  --app-sat: env(safe-area-inset-top, 0px);
   /*
    * Formato original (largura total) por padrão — tablets inclusos.
    * Coluna phone-first só em mobile estreito (< 600px).
@@ -69,27 +70,33 @@ body {
 
 /* Empurra conteúdo abaixo da status bar; a cor de fundo do elemento preenche a área superior */
 @utility pt-safe {
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: var(--app-sat, env(safe-area-inset-top, 0px));
 }
 
 /*
- * iOS 26+/PWA: glass do sistema sobre black-translucent deixa o título branco ciano.
- * Faixa opaca no topo do documento (Safari amostra essa cor na status bar).
- * Cabeçalhos teal pintados sólidos, sem backdrop-filter.
+ * iOS 26+/27 PWA: o sistema pinta glass sobre o topo. Meta status-bar-style
+ * foi removida (Apple). Faixa fixed opaca no body (≥6px, ≥80% largura, top 0)
+ * faz a status bar copiar #0097b2 e tira o blur.
  */
 .app-status-cap {
   display: none;
 }
 
 @supports (-webkit-touch-callout: none) {
+  html {
+    --app-sat: max(env(safe-area-inset-top, 0px), 8px);
+  }
+
   .app-status-cap {
     display: block;
     position: fixed;
     top: 0;
-    right: 0;
     left: 0;
     z-index: 100;
-    height: max(env(safe-area-inset-top, 0px), 12px);
+    width: 100%;
+    min-width: 80vw;
+    height: var(--app-sat);
+    min-height: 8px;
     pointer-events: none;
     background-color: #0097b2;
     -webkit-backdrop-filter: none;

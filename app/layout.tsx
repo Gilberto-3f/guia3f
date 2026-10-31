@@ -15,8 +15,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Guia 3F",
-    /* black-translucent: iOS 26+ desenha glass/véu sobre o texto do cabeçalho */
-    statusBarStyle: "default",
+    /* Sem statusBarStyle: iOS 26+ deprecou black-translucent e pinta glass sobre o texto. */
   },
   icons: {
     icon: [
