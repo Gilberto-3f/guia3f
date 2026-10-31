@@ -81,6 +81,39 @@ export function blocoOfereceCategoriaMobilidade(
   return parseCategoriasMobilidade(bloco?.categorias_mobilidade).some((x) => x === c)
 }
 
+export function categoriaMobilidadeParaSlug(
+  cat: CategoriaMobilidade,
+): 'guia' | 'taxista' | 'van' | 'motorista_app' {
+  if (cat === 'Guia') return 'guia'
+  if (cat === 'Taxista') return 'taxista'
+  if (cat === 'Van') return 'van'
+  return 'motorista_app'
+}
+
+export function slugsMobilidadeDoBloco(
+  bloco: { categorias_mobilidade?: unknown } | null | undefined,
+): Array<'guia' | 'taxista' | 'van' | 'motorista_app'> {
+  return parseCategoriasMobilidade(bloco?.categorias_mobilidade).map(categoriaMobilidadeParaSlug)
+}
+
+/** Cadastro: categorias de mobilidade do bloco + Anfitrião (sempre). */
+export function categoriasCadastroDoBloco(
+  bloco: { categorias_mobilidade?: unknown } | null | undefined,
+): Array<CategoriaMobilidade | 'Anfitriao'> {
+  return [...parseCategoriasMobilidade(bloco?.categorias_mobilidade), 'Anfitriao']
+}
+
+export function slugComunidadeOferecidoNoBloco(
+  slug: string | null | undefined,
+  bloco: { categorias_mobilidade?: unknown } | null | undefined,
+): boolean {
+  const s = String(slug ?? '').trim()
+  if (!s) return true
+  if (s === 'anfitriao') return true
+  if (bloco == null) return true
+  return slugsMobilidadeDoBloco(bloco).includes(s as 'guia' | 'taxista' | 'van' | 'motorista_app')
+}
+
 export const TILE_SEXTO_OPCOES: { id: EcossistemaTileSexto; label: string }[] = [
   { id: 'aguarde', label: 'Aguarde (sem página)' },
   { id: 'compras_cde', label: 'Compras CDE (comparador)' },

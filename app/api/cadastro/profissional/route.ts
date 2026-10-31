@@ -5,13 +5,12 @@ import {
 } from '@/lib/cadastroCreateAuthUser'
 import { normalizarIdiomasGuia } from '@/lib/idiomasGuia'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
-import { categoriaEhMobilidade, gravarVinculoEcoPorCidade } from '@/lib/ecoCanaisPorCidade'
+import { categoriaEhMobilidade, gravarVinculoEcoPorCidade, resolverEcoCanaisPorCidade } from '@/lib/ecoCanaisPorCidade'
+import { categoriaGanhaPlacaVermelha, categoriasCadastroDoBloco, listarEcossistemasDb } from '@/lib/ecossistemas'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const senhaRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
 const usernameRegex = /^[a-z0-9._]{3,20}$/
-
-const PLACA_CATEGORIAS = new Set(['Guia', 'Taxista', 'Van'])
 
 type CadastroProfissionalBody = {
   email?: unknown
@@ -66,6 +65,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'policies' }, { status: 400 })
     }
 
+    let blocoCadastro = null
+    try {
+      const blocos = await listarEcossistemasDb(admin)
+      blocoCadastro = resolverEcoCanaisPorCidade(cidadeRaw, blocos)
+    } catch {
+      blocoCadastro = null
+    }
+    const categoriasOk = categoriasCadastroDoBloco(blocoCadastro) as string[]
+    if (!categoriasOk.includes(categoria)) {
+      return NextResponse.json({ error: 'invalid_category' }, { status: 400 })
+    }
+
     const { data: uCheck } = await admin
       .from('turistas')
       .select('id')
@@ -113,7 +124,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: usuarioErr }, { status: 500 })
     }
 
-    const placaVermelha = PLACA_CATEGORIAS.has(categoria)
+    const placaVermelha = categoriaGanhaPlacaVermelha(categoria, blocoCadastro)
     const cidadeAtuacao = [cidadeRaw]
     const idiomas =
       categoria === 'Guia' ? normalizarIdiomasGuia(body.idiomas) : []

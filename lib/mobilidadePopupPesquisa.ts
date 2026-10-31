@@ -9,6 +9,7 @@ import {
   type RotaTabelada,
 } from '@/lib/servicosTabeladosCatalogo'
 import type { MobilidadePonto } from '@/lib/mobilidadePesquisaParams'
+import { slugsMobilidadeDoBloco } from '@/lib/ecossistemas'
 
 /** Centros aproximados para inferir cidade pelo GPS. */
 const CENTROS_TRIPLICE: { cidade: CidadeTriplice; lat: number; lng: number }[] = [
@@ -72,12 +73,17 @@ export function ehCruzamentoFronteira(
   return origem !== destino
 }
 
-/** Modalidades visíveis: sem anfitrião; sem app se cruzar fronteira. Guia sempre na lista. */
-export function modalidadesDisponiveis(cruzamentoFronteira: boolean): ModalidadeMobilidadeId[] {
-  if (cruzamentoFronteira) {
-    return ['van', 'taxista', 'guia']
-  }
-  return [...MODALIDADES_ORDEM]
+/** Modalidades visíveis: sem anfitrião; sem app se cruzar fronteira; recorte do eco. */
+export function modalidadesDisponiveis(
+  cruzamentoFronteira: boolean,
+  bloco?: { categorias_mobilidade?: unknown } | null,
+): ModalidadeMobilidadeId[] {
+  const base: ModalidadeMobilidadeId[] = cruzamentoFronteira
+    ? ['van', 'taxista', 'guia']
+    : [...MODALIDADES_ORDEM]
+  if (bloco == null) return base
+  const permitidas = new Set(slugsMobilidadeDoBloco(bloco))
+  return base.filter((m) => permitidas.has(m))
 }
 
 /** Modalidade implícita na contratação dirigida (cartão de visita). */
@@ -133,12 +139,13 @@ export function ordenarModalidadesPorPreco(
 export function modalidadeRecomendada(
   cruzamentoFronteira: boolean,
   valores: Partial<Record<ModalidadeMobilidadeId, number | null>>,
+  bloco?: { categorias_mobilidade?: unknown } | null,
 ): ModalidadeMobilidadeId {
-  if (!cruzamentoFronteira) return 'motorista_app'
-  const candidatas: ModalidadeMobilidadeId[] = ['van', 'taxista', 'guia']
-  let best: ModalidadeMobilidadeId = 'taxista'
+  const lista = modalidadesDisponiveis(cruzamentoFronteira, bloco)
+  if (lista.includes('motorista_app') && !cruzamentoFronteira) return 'motorista_app'
+  let best: ModalidadeMobilidadeId = lista[0] ?? 'taxista'
   let bestVal = Infinity
-  for (const id of candidatas) {
+  for (const id of lista) {
     const v = valores[id]
     if (v != null && Number.isFinite(v) && v < bestVal) {
       bestVal = v

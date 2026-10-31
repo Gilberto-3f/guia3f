@@ -17,6 +17,7 @@ import {
   isCanalFinanceiroProfissional,
   slugCanalComunidadeProfissional,
 } from '@/lib/canaisProfissionalSlugs'
+import { slugComunidadeOferecidoNoBloco } from '@/lib/ecossistemas'
 import CanalEmpresaRow from '@/components/CanalEmpresaRow'
 import CanalFinanceiroListaRotulo from '@/components/CanalFinanceiroListaRotulo'
 import CanalListaRow from '@/components/CanalListaRow'
@@ -400,18 +401,23 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
         empresasAprovadas = null
       }
 
-      const { data, error } = await supabase
-        .from('canais')
-        .select(
-          `
+      const [{ data, error }, { data: ecosRows }] = await Promise.all([
+        supabase
+          .from('canais')
+          .select(
+            `
           id, nome, tipo_publico, categoria, comunidade_prof, empresa_id, empresa_categoria, ultima_mensagem_em, ordem_tipo, ordem_posicao, ecossistema_id,
           empresas:empresa_id ( id, nome_fantasia, foto_url, cidade, status )
           `,
-        )
-        .eq('ativo', true)
-        .in('tipo_publico', ['profissional', 'empresa'])
+          )
+          .eq('ativo', true)
+          .in('tipo_publico', ['profissional', 'empresa']),
+        supabase.from('ecossistemas').select('id, categorias_mobilidade'),
+      ])
 
       if (error) throw error
+      /** @type {Map<string, { categorias_mobilidade?: unknown }>} */
+      const ecoPorId = new Map((ecosRows ?? []).map((e) => [String(e.id), e]))
       const lista = /** @type {Canal[]} */ (
         filtrarCanaisEmpresaDosBlocos(
           filtrarCanaisGlobaisDosBlocos(data ?? [], blocoIds),
@@ -419,18 +425,21 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
         )
       )
       const filtrada = lista.filter((c) => {
+        const blocoEco = ecoPorId.get(c.ecossistema_id != null ? String(c.ecossistema_id) : '')
         if (c.tipo_publico === 'profissional') {
           if (isCanalAdmProfissionalGlobal(c)) return false
           if (isCanalFinanceiroProfissional(c.nome)) return true
           const slug = slugCanalComunidadeProfissional(c.categoria, c.nome)
-          return slug != null && slugsCarregados.includes(slug)
+          if (slug == null || !slugsCarregados.includes(slug)) return false
+          return slugComunidadeOferecidoNoBloco(slug, blocoEco)
         }
         if (c.tipo_publico === 'empresa') {
           if (c.empresa_id == null) return false
           if (empresasAprovadas && !empresasAprovadas.has(String(c.empresa_id))) return false
           const comuSlug = slugComunidadeProfissionalDeCanalEmpresa(c)
           if (!comuSlug || !CATEGORIAS_PROFISSIONAIS.includes(comuSlug)) return false
-          return slugsCarregados.includes(comuSlug)
+          if (!slugsCarregados.includes(comuSlug)) return false
+          return slugComunidadeOferecidoNoBloco(comuSlug, blocoEco)
         }
         return false
       })

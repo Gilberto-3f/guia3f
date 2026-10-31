@@ -12,8 +12,19 @@ import { useUsernameDisponivel } from '@/hooks/useUsernameDisponivel'
 import CampoIdiomasGuia from '@/components/perfil/CampoIdiomasGuia'
 import { normalizarIdiomasGuia } from '@/lib/idiomasGuia'
 import { digitsWhatsapp } from '@/lib/whatsapp-empresa'
-import { CIDADES_CATALOGO, cidadeDoCatalogo } from '@/lib/ecossistemas'
-import { categoriaEhMobilidade, gravarVinculoEcoPorCidade } from '@/lib/ecoCanaisPorCidade'
+import {
+  CIDADES_CATALOGO,
+  blocoEhTripliceFronteira,
+  categoriaGanhaPlacaVermelha,
+  cidadeDoCatalogo,
+  type EcossistemaBloco,
+} from '@/lib/ecossistemas'
+import {
+  categoriaEhMobilidade,
+  categoriasCadastroPorCidade,
+  gravarVinculoEcoPorCidade,
+  resolverEcoCanaisPorCidade,
+} from '@/lib/ecoCanaisPorCidade'
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -23,14 +34,6 @@ type CategoriaProfissional =
   | 'Van'
   | 'Motorista de App'
   | 'Anfitriao'
-
-const categoriasDisponiveis: CategoriaProfissional[] = [
-  'Guia',
-  'Taxista',
-  'Van',
-  'Motorista de App',
-  'Anfitriao',
-]
 
 const senhaRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
 
@@ -101,11 +104,16 @@ export default function CadastroProfissionalPage() {
   const [senhaConfirma, setSenhaConfirma] = useState('')
   const [modoLogado, setModoLogado] = useState(false)
   const [whatsApp, setWhatsApp] = useState('')
-  const [cidadeAtuacao, setCidadeAtuacao] = useState(CIDADES_CATALOGO[0]?.chave ?? 'Foz do Iguacu')
+  const [cidadeAtuacao, setCidadeAtuacao] = useState('')
   const [atuacaoEscopo, setAtuacaoEscopo] = useState<'cidade' | 'regiao'>('cidade')
+  const [escopoConfirmado, setEscopoConfirmado] = useState(false)
+  const [popupAtuacao, setPopupAtuacao] = useState(false)
+  const [popupEscopo, setPopupEscopo] = useState<'cidade' | 'regiao'>('cidade')
   const [categoria, setCategoria] = useState<CategoriaProfissional | ''>('')
   const [idiomas, setIdiomas] = useState<string[]>(['pt'])
   const [aceitePoliticas, setAceitePoliticas] = useState(false)
+  const [ecos, setEcos] = useState<EcossistemaBloco[]>([])
+  const [ecosCarregou, setEcosCarregou] = useState(false)
 
   const [erroEnvio, setErroEnvio] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -113,10 +121,19 @@ export default function CadastroProfissionalPage() {
 
   const emailValido = useMemo(() => emailRegex.test(emailSessao), [emailSessao])
   const { usernameLimpo, usernameStatus, usernameFeedback } = useUsernameDisponivel(nomeUsuario, t)
-  const placaVermelha = useMemo(
-    () => categoria === 'Guia' || categoria === 'Taxista' || categoria === 'Van',
-    [categoria]
+  const blocoCidade = useMemo(
+    () => resolverEcoCanaisPorCidade(cidadeAtuacao, ecos),
+    [cidadeAtuacao, ecos],
   )
+  const categoriasDoEco = useMemo(() => {
+    if (!cidadeAtuacao || !ecosCarregou) return []
+    return categoriasCadastroPorCidade(cidadeAtuacao, ecos) as CategoriaProfissional[]
+  }, [cidadeAtuacao, ecos, ecosCarregou])
+  const placaVermelha = useMemo(
+    () => categoriaGanhaPlacaVermelha(categoria, blocoCidade),
+    [categoria, blocoCidade],
+  )
+  const mostrarPlaca = Boolean(categoria) && blocoEhTripliceFronteira(blocoCidade)
   const categoriaEscolhida = Boolean(categoria)
 
   useEffect(() => {
@@ -144,10 +161,28 @@ export default function CadastroProfissionalPage() {
       setBootOk(true)
     }
     void boot()
+    void fetch('/api/ecossistemas')
+      .then((res) => res.json())
+      .then((json: { ecossistemas?: EcossistemaBloco[] }) => {
+        if (!ativo) return
+        setEcos(Array.isArray(json.ecossistemas) ? json.ecossistemas : [])
+      })
+      .catch(() => {
+        if (ativo) setEcos([])
+      })
+      .finally(() => {
+        if (ativo) setEcosCarregou(true)
+      })
     return () => {
       ativo = false
     }
   }, [router])
+
+  useEffect(() => {
+    if (categoria && !categoriasDoEco.includes(categoria)) {
+      setCategoria('')
+    }
+  }, [categoriasDoEco, categoria])
 
   const validarFormulario = () => {
     if (!nomeCompleto.trim()) return t('profissional.valFullName')
@@ -160,9 +195,14 @@ export default function CadastroProfissionalPage() {
     }
     if (!aceitePoliticas) return t('profissional.valPolicies')
     if (!cidadeAtuacao.trim()) return t('profissional.valCidadeResidencia')
+    if (!escopoConfirmado) {
+      setPopupAtuacao(true)
+      return t('profissional.valAtuacaoEscopo')
+    }
     if (categoriaEhMobilidade(categoria) && atuacaoEscopo !== 'cidade' && atuacaoEscopo !== 'regiao') {
       return t('profissional.valAtuacaoEscopo')
     }
+    if (categoria && !categoriasDoEco.includes(categoria)) return t('profissional.valCategory')
     if (!modoLogado) {
       if (!senhaRegex.test(senha)) return t('apiErrorInvalidPassword')
       if (senha !== senhaConfirma) return t('signUpPasswordMatch')
@@ -256,7 +296,7 @@ export default function CadastroProfissionalPage() {
         nome_usuario: usernameLimpo,
         telefone: whatsApp.trim(),
         categorias: [categoria],
-        placa_vermelha: placaVermelha,
+        placa_vermelha: categoriaGanhaPlacaVermelha(categoria, blocoCidade),
         cidade_atuacao: [cidadeAtuacao],
         status: 'pendente',
       }
@@ -435,48 +475,44 @@ export default function CadastroProfissionalPage() {
             </label>
             <select
               id="cidadeProf"
+              required
               value={cidadeAtuacao}
-              onChange={(e) => setCidadeAtuacao(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value
+                setCidadeAtuacao(v)
+                setEscopoConfirmado(false)
+                setPopupEscopo(atuacaoEscopo)
+                if (v) setPopupAtuacao(true)
+              }}
               className="w-full rounded-lg bg-[#0097b2] text-white px-4 py-3 text-sm outline-none"
             >
+              <option value="" disabled>
+                {t('profissional.cidadeResidencia')}
+              </option>
               {cidadesProfissional.map((c) => (
                 <option key={c} value={c}>
                   {cidadeDoCatalogo(c)?.label ?? c}
                 </option>
               ))}
             </select>
-          </div>
-
-          {categoriaEhMobilidade(categoria) ? (
-            <div>
-              <p className="mb-1 block text-sm font-medium text-[#001f3f]">
-                {t('profissional.atuacaoEscopo')} {t('common.required')}
+            {escopoConfirmado ? (
+              <p className="mt-1 text-xs text-[#001f3f]">
+                {atuacaoEscopo === 'regiao'
+                  ? t('profissional.atuacaoEscopoRegiao')
+                  : t('profissional.atuacaoEscopoCidade')}{' '}
+                <button
+                  type="button"
+                  className="font-semibold text-[#0097b2] underline"
+                  onClick={() => {
+                    setPopupEscopo(atuacaoEscopo)
+                    setPopupAtuacao(true)
+                  }}
+                >
+                  Alterar
+                </button>
               </p>
-              <p className="mb-2 text-xs text-[#001f3f]/80">{t('profissional.atuacaoEscopoHint')}</p>
-              <div className="flex flex-col gap-2">
-                <label className="flex items-start gap-2 text-sm text-[#001f3f]">
-                  <input
-                    type="radio"
-                    name="atuacaoEscopo"
-                    checked={atuacaoEscopo === 'cidade'}
-                    onChange={() => setAtuacaoEscopo('cidade')}
-                    className="mt-0.5 h-4 w-4 shrink-0"
-                  />
-                  <span>{t('profissional.atuacaoEscopoCidade')}</span>
-                </label>
-                <label className="flex items-start gap-2 text-sm text-[#001f3f]">
-                  <input
-                    type="radio"
-                    name="atuacaoEscopo"
-                    checked={atuacaoEscopo === 'regiao'}
-                    onChange={() => setAtuacaoEscopo('regiao')}
-                    className="mt-0.5 h-4 w-4 shrink-0"
-                  />
-                  <span>{t('profissional.atuacaoEscopoRegiao')}</span>
-                </label>
-              </div>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
 
           <div>
             <label htmlFor="categoria" className="mb-1 block text-sm font-medium text-[#001f3f]">
@@ -485,14 +521,15 @@ export default function CadastroProfissionalPage() {
             <select
               id="categoria"
               required
+              disabled={!escopoConfirmado || !ecosCarregou}
               value={categoria}
               onChange={(e) => setCategoria(e.target.value as CategoriaProfissional)}
-              className="w-full rounded-lg bg-[#0097b2] text-white px-4 py-3 text-sm outline-none"
+              className="w-full rounded-lg bg-[#0097b2] text-white px-4 py-3 text-sm outline-none disabled:opacity-60"
             >
               <option value="" disabled>
                 {t('profissional.categoryPlaceholder')}
               </option>
-              {categoriasDisponiveis.map((item) => (
+              {categoriasDoEco.map((item) => (
                 <option key={item} value={item}>
                   {labelCategoria(item, t)}
                 </option>
@@ -500,7 +537,7 @@ export default function CadastroProfissionalPage() {
             </select>
           </div>
 
-          {categoriaEscolhida ? (
+          {mostrarPlaca && categoriaEscolhida ? (
             <div className="rounded-lg border border-[#0097b2] bg-white px-3 py-2 text-sm text-[#001f3f]">
               <span className="font-medium">{t('profissional.redPlate')}</span>{' '}
               <span className={placaVermelha ? 'font-semibold text-[#00D443]' : 'font-semibold text-[#0097b2]'}>
@@ -548,6 +585,55 @@ export default function CadastroProfissionalPage() {
             {enviando ? t('sending') : t('submitRegister')}
           </button>
         </form>
+
+        {popupAtuacao ? (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="popup-atuacao-titulo"
+              className="w-full max-w-sm rounded-2xl bg-white p-4 shadow-xl"
+            >
+              <h2 id="popup-atuacao-titulo" className="text-lg font-bold text-[#0097b2]">
+                {t('profissional.atuacaoEscopo')}
+              </h2>
+              <p className="mt-2 text-sm text-[#001f3f]/80">{t('profissional.atuacaoEscopoHint')}</p>
+              <div className="mt-3 flex flex-col gap-2">
+                <label className="flex items-start gap-2 text-sm text-[#001f3f]">
+                  <input
+                    type="radio"
+                    name="popupAtuacaoEscopo"
+                    checked={popupEscopo === 'cidade'}
+                    onChange={() => setPopupEscopo('cidade')}
+                    className="mt-0.5 h-4 w-4 shrink-0"
+                  />
+                  <span>{t('profissional.atuacaoEscopoCidade')}</span>
+                </label>
+                <label className="flex items-start gap-2 text-sm text-[#001f3f]">
+                  <input
+                    type="radio"
+                    name="popupAtuacaoEscopo"
+                    checked={popupEscopo === 'regiao'}
+                    onChange={() => setPopupEscopo('regiao')}
+                    className="mt-0.5 h-4 w-4 shrink-0"
+                  />
+                  <span>{t('profissional.atuacaoEscopoRegiao')}</span>
+                </label>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setAtuacaoEscopo(popupEscopo)
+                  setEscopoConfirmado(true)
+                  setPopupAtuacao(false)
+                }}
+                className="mt-4 w-full rounded-full bg-[#00D443] py-3 text-sm font-bold text-white"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        ) : null}
     </GuiaAuthShell>
   )
 }

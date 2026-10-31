@@ -1,5 +1,6 @@
 import {
   CATEGORIAS_MOBILIDADE,
+  categoriasCadastroDoBloco,
   gravarVinculosEcossistema,
   listarEcossistemasDb,
   parseCategoriasMobilidade,
@@ -21,6 +22,13 @@ export function categoriasMobilidadePorCidade(
 ): CategoriaMobilidade[] {
   const bloco = resolverEcoCanaisPorCidade(cidade, blocos)
   return parseCategoriasMobilidade(bloco?.categorias_mobilidade)
+}
+
+export function categoriasCadastroPorCidade(
+  cidade: string | null | undefined,
+  blocos: EcossistemaBloco[],
+): Array<CategoriaMobilidade | 'Anfitriao'> {
+  return categoriasCadastroDoBloco(resolverEcoCanaisPorCidade(cidade, blocos))
 }
 
 export function primeiraCidadeAtuacao(raw: unknown): string {

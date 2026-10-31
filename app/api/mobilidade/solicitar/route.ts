@@ -7,7 +7,7 @@ import {
   type SolicitarMobilidadeInput,
 } from '@/lib/mobilidadeMatching'
 import type { ModalidadeMobilidadeId } from '@/lib/mobilidadePopupPesquisa'
-import { ehCruzamentoFronteira, inferirCidadeDePonto } from '@/lib/mobilidadePopupPesquisa'
+import { ehCruzamentoFronteira, inferirCidadeDePonto, modalidadesDisponiveis } from '@/lib/mobilidadePopupPesquisa'
 import { blocoPermiteCruzamentoFronteira } from '@/lib/ecossistemaFiltro'
 import { resolverCidadePedidoMatching } from '@/lib/mobilidadeAtuacaoEscopo'
 import { resolverBlocoPorId } from '@/lib/ecossistemas'
@@ -95,6 +95,11 @@ export async function POST(req: Request) {
   const cruzamento =
     regraFronteira &&
     (body.cruzamento_fronteira === true || ehCruzamentoFronteira(cidadeOrigem, cidadeDestino))
+
+  const modalidadesBloco = modalidadesDisponiveis(cruzamento, bloco)
+  if (!modalidadesBloco.includes(modalidade)) {
+    return NextResponse.json({ error: 'Modalidade não oferecida neste ecossistema.' }, { status: 400 })
+  }
 
   const { data: cfg } = await admin
     .from('config_apis')

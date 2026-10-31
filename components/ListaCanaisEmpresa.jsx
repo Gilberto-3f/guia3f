@@ -48,6 +48,7 @@ import {
   rotuloCanalComBloco,
   sufixoNomeBloco,
 } from '@/lib/canaisEcossistemaPerfil'
+import { slugsMobilidadeDoBloco } from '@/lib/ecossistemas'
 
 /** @type {readonly string[]} */
 const COMUNIDADES_PROFISSIONAIS_SLUG = ['guia', 'taxista', 'van', 'motorista_app', 'anfitriao']
@@ -166,6 +167,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
   const [naoLidasPorCanal, setNaoLidasPorCanal] = useState({})
   const [meuUsername, setMeuUsername] = useState(/** @type {string | null} */ (null))
   const [financeiroCanalIdGlobal, setFinanceiroCanalIdGlobal] = useState(/** @type {string | null} */ (null))
+  const [slugsMobEco, setSlugsMobEco] = useState(/** @type {string[] | null} */ (null))
   const { featureLiberada, loading: planoLoading } = useEmpresaServicosPlano(empresaPlano, empresaId, {
     aguardarEmpresa: !empresaId,
   })
@@ -255,7 +257,11 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
       if (!porComunidade.has(k)) porComunidade.set(k, c)
     }
 
-    return COMUNIDADES_PROFISSIONAIS_SLUG.map((slug) => {
+    const slugsLista = slugsMobEco
+      ? COMUNIDADES_PROFISSIONAIS_SLUG.filter((s) => slugsMobEco.includes(s))
+      : COMUNIDADES_PROFISSIONAIS_SLUG
+
+    return slugsLista.map((slug) => {
       const real = porComunidade.get(slug)
       return (
         real ?? {
@@ -292,7 +298,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
       administracao: garantirAdministracaoEmpresa(administracao, empresaCategoria, financeiroCanalIdGlobal),
       profissionais: garantirComunidadesProfissionais(profissionais),
     }
-  }, [canais, empresaId, empresaCategoria, financeiroCanalIdGlobal])
+  }, [canais, empresaId, empresaCategoria, financeiroCanalIdGlobal, slugsMobEco])
 
   const administracaoExibicao = useMemo(() => {
     if (temCanaisComunidade) return part.administracao
@@ -419,6 +425,19 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
 
       const chaveEmp = chaveSegmentoPorCategoriaEmpresa(catEmp)
       const blocoIds = await resolverIdsBlocosCanaisEmpresa(supabase, uid)
+      if (blocoIds.length > 0) {
+        const { data: ecosEmp } = await supabase
+          .from('ecossistemas')
+          .select('id, categorias_mobilidade')
+          .in('id', blocoIds)
+        const permitidos = new Set(['anfitriao'])
+        for (const e of ecosEmp ?? []) {
+          for (const s of slugsMobilidadeDoBloco(e)) permitidos.add(s)
+        }
+        setSlugsMobEco([...permitidos])
+      } else {
+        setSlugsMobEco(null)
+      }
 
       const [{ data, error }, finCanalId, nomes] = await Promise.all([
         supabase

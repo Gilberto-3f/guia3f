@@ -318,7 +318,7 @@ export default function DrawerPesquisaMobilidade({
       destinoCidadeEmpresa,
     )
   const cruzamentoBoot = permiteFronteira && ehCruzamentoFronteira(cidadeOrigemBoot, cidadeDestinoBoot)
-  const disponiveisBoot = modalidadesDisponiveis(cruzamentoBoot)
+  const disponiveisBoot = modalidadesDisponiveis(cruzamentoBoot, ecoAtivo)
   const tabBoot = cidadeTripliceParaTabelado(cidadeOrigemBoot)
   const rotasBoot = tabBoot ? peekRotasTabeladasCache(tabBoot) : null
 
@@ -427,7 +427,7 @@ export default function DrawerPesquisaMobilidade({
   }, [destinoEfetiva, destEmpresaEfetiva, empresas, destinoCidadeEmpresa, destinoLabelBase])
   const cruzamento = permiteFronteira && ehCruzamentoFronteira(cidadeOrigem, cidadeDestino)
 
-  const disponiveisBase = useMemo(() => modalidadesDisponiveis(cruzamento), [cruzamento])
+  const disponiveisBase = useMemo(() => modalidadesDisponiveis(cruzamento, ecoAtivo), [cruzamento, ecoAtivo])
 
   // Montagem fresca a cada abertura (pai usa key + render condicional) — etapa 1 sem herança.
   useEffect(() => {
@@ -706,8 +706,9 @@ export default function DrawerPesquisaMobilidade({
         Object.fromEntries(
           Object.entries(valoresPorMod).map(([k, v]) => [k, v?.valor ?? null]),
         ) as Partial<Record<ModalidadeMobilidadeId, number | null>>,
+        ecoAtivo,
       ),
-    [cruzamento, valoresPorMod],
+    [cruzamento, valoresPorMod, ecoAtivo],
   )
 
   useEffect(() => {
