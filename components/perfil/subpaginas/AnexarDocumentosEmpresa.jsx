@@ -247,6 +247,16 @@ export default function AnexarDocumentosEmpresa({
 
       setMensagemVerificacao(MSG_VERIFICACAO_PENDENTE)
       try {
+        await fetch('/api/empresa/aviso-verificacao-cadastro', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ empresa_id: empresaId }),
+        })
+      } catch {
+        /* aviso ADM não bloqueia o envio dos documentos */
+      }
+      try {
         window.dispatchEvent(new Event('perfil-atualizado'))
         window.dispatchEvent(new Event('empresa-gate-refresh'))
       } catch {
