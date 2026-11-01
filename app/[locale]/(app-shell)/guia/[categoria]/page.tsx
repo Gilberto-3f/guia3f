@@ -593,8 +593,16 @@ export default function ListagemCategoriaPage() {
       </header>
 
       <div className="p-4">
-        <p className="mb-3 text-xs text-[#0097b2]">
-          {ordenacao === 'localizacao' ? 'ordenado por proximidade' : 'ordenado por Avaliação'}
+        <p className="mb-3 text-center text-xs text-[#0097b2]">
+          {ordenacao === 'localizacao' ? (
+            <>
+              Ordenado por <span className="font-bold">Proximidade</span>
+            </>
+          ) : (
+            <>
+              Ordenado por <span className="font-bold">Avaliação</span>
+            </>
+          )}
         </p>
         {ehPaginaHospedagem && checkAtivo ? (
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#0097b2]/25 bg-[#0097b2]/5 px-3 py-2">
