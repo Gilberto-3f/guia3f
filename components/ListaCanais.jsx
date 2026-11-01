@@ -32,6 +32,7 @@ import { ehCanalInboxMensageiroAdm, obterIdCanalInboxMensageiroAdm } from '@/lib
 import { contarAvisosFinanceiroHubNaoLidos } from '@/lib/financeiroAvisosAdmHub'
 import { particionarVisaoAdminTodos } from '@/lib/canaisAdminParticao'
 import { filtrarCanaisDoBloco, filtrarCanaisDoBlocoPadrao } from '@/lib/canaisEcossistema'
+import { slugComunidadeOferecidoNoBloco } from '@/lib/ecossistemas'
 import { GUIA_CANAIS_BADGE_EVENT, notificarBadgeCanais } from '@/lib/canais-badge-events'
 import CanalListaRow from '@/components/CanalListaRow'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
@@ -396,9 +397,24 @@ export default function ListaCanais({
 
         if (error) throw error
 
-        const lista = ecossistemaId
+        const listaBruta = ecossistemaId
           ? filtrarCanaisDoBloco(data ?? [], ecossistemaId)
           : await filtrarCanaisDoBlocoPadrao(supabase, data ?? [])
+        let blocoMob = null
+        if (ecossistemaId) {
+          const { data: ecoRow } = await supabase
+            .from('ecossistemas')
+            .select('id, categorias_mobilidade')
+            .eq('id', ecossistemaId)
+            .maybeSingle()
+          blocoMob = ecoRow
+        }
+        const lista = listaBruta.filter((c) => {
+          if (c.tipo_publico !== 'profissional') return true
+          const slug = String(c.categoria ?? '').trim().toLowerCase()
+          if (!CATEGORIAS_PROFISSIONAIS.includes(slug)) return true
+          return slugComunidadeOferecidoNoBloco(slug, blocoMob)
+        })
         const fixos = lista.filter((c) => c.ordem_tipo === 'fixo').sort((a, b) => (a.ordem_posicao ?? 0) - (b.ordem_posicao ?? 0))
         const rotativos = lista.filter((c) => c.ordem_tipo !== 'fixo')
         rotativos.sort((a, b) => {

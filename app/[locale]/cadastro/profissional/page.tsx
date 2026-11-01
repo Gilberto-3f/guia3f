@@ -14,7 +14,6 @@ import { normalizarIdiomasGuia } from '@/lib/idiomasGuia'
 import { digitsWhatsapp } from '@/lib/whatsapp-empresa'
 import {
   CIDADES_CATALOGO,
-  blocoEhTripliceFronteira,
   categoriaGanhaPlacaVermelha,
   cidadeDoCatalogo,
   type EcossistemaBloco,
@@ -133,8 +132,7 @@ export default function CadastroProfissionalPage() {
     () => categoriaGanhaPlacaVermelha(categoria, blocoCidade),
     [categoria, blocoCidade],
   )
-  const mostrarPlaca = Boolean(categoria) && blocoEhTripliceFronteira(blocoCidade)
-  const categoriaEscolhida = Boolean(categoria)
+  const mostrarPlaca = categoriaGanhaPlacaVermelha(categoria, blocoCidade)
 
   useEffect(() => {
     let ativo = true
@@ -537,7 +535,7 @@ export default function CadastroProfissionalPage() {
             </select>
           </div>
 
-          {mostrarPlaca && categoriaEscolhida ? (
+          {mostrarPlaca ? (
             <div className="rounded-lg border border-[#0097b2] bg-white px-3 py-2 text-sm text-[#001f3f]">
               <span className="font-medium">{t('profissional.redPlate')}</span>{' '}
               <span className={placaVermelha ? 'font-semibold text-[#00D443]' : 'font-semibold text-[#0097b2]'}>
@@ -592,7 +590,7 @@ export default function CadastroProfissionalPage() {
               role="dialog"
               aria-modal="true"
               aria-labelledby="popup-atuacao-titulo"
-              className="w-full max-w-sm rounded-2xl bg-white p-4 shadow-xl"
+              className="w-full max-w-sm rounded-2xl bg-[#f5f5f5] p-4 shadow-xl"
             >
               <h2 id="popup-atuacao-titulo" className="text-lg font-bold text-[#0097b2]">
                 {t('profissional.atuacaoEscopo')}
