@@ -26,11 +26,7 @@ import {
   type CriteriosFiltroHospedagemCheck,
 } from '@/lib/hospedagemFiltroCheck'
 
-import {
-  categoriaDbPorSlugGuia,
-  cidadeGuiaPorPais,
-  TITULO_SLUG_GUIA,
-} from '@/lib/segmentosEmpresaGuia'
+import { categoriaDbPorSlugGuia, TITULO_SLUG_GUIA } from '@/lib/segmentosEmpresaGuia'
 import { useEcossistemaAtivo } from '@/context/EcossistemaAtivoContext'
 import {
   buscarIdsEmpresaEcossistema,
@@ -135,8 +131,7 @@ export default function ListagemCategoriaPage() {
   const cidadeDb = useMemo(() => {
     const chip = chipsPais.find((c) => c.id === filtroAba)
     if (chip) return chip.cidadeChave
-    if (ecoAtivo?.cidades[0]?.chave) return ecoAtivo.cidades[0].chave
-    return cidadeGuiaPorPais('br')
+    return ecoAtivo?.cidades[0]?.chave ? String(ecoAtivo.cidades[0].chave) : ''
   }, [chipsPais, filtroAba, ecoAtivo])
 
   const cacheKey = useMemo(
@@ -158,12 +153,17 @@ export default function ListagemCategoriaPage() {
     if (!silent) setLoading(true)
     if (!silent) setErroLista('')
     try {
-      const idsEco = await buscarIdsEmpresaEcossistema(supabase, ecoAtivo?.id)
+      if (!ecoAtivo?.id) {
+        setEmpresas([])
+        return
+      }
+      const idsEco = await buscarIdsEmpresaEcossistema(supabase, ecoAtivo.id)
+      const idsLista = idsEco && idsEco.size > 0 ? [...idsEco] : null
       const { lista, error } = await buscarEmpresasListagemGuia(supabase, {
         categoria: categoriaDb,
         cidade: cidadeDb,
-        idsEcossistema: idsEco ? [...idsEco] : null,
-        filtrarCidade: chipsPais.length > 1 || !idsEco,
+        idsEcossistema: idsLista,
+        filtrarCidade: chipsPais.length > 1 || idsLista == null,
       })
 
       if (error) {
@@ -276,7 +276,7 @@ export default function ListagemCategoriaPage() {
   }, [empresas])
 
   useEffect(() => {
-    // FIX: cache rápido para volta instantânea
+    if (!ecoCarregou) return
     let cacheFound = false
     try {
       const raw = sessionStorage.getItem(cacheKey)
@@ -292,9 +292,8 @@ export default function ListagemCategoriaPage() {
     } catch {
       // ignore
     }
-    // FIX: no primeiro acesso (sem cache), não usar silent — evita render “vazio” até trocar filtro.
     void (cacheFound ? carregarEmpresas({ silent: true }) : carregarEmpresas())
-  }, [carregarEmpresas, cacheKey])
+  }, [carregarEmpresas, cacheKey, ecoCarregou])
 
   const empresasFiltradas = useMemo(() => {
     let base = empresas
