@@ -60,7 +60,7 @@ export default function CabecalhoAbasGuiaMobilidade({
           />
         </div>
       ) : null}
-      <ChevronEcossistemaHome />
+      {mostrarLogo ? <ChevronEcossistemaHome /> : null}
 
       <nav
         className="relative z-50 flex w-full border-b border-gray-200 bg-white touch-manipulation"
