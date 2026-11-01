@@ -534,6 +534,7 @@
     "idleSim": "Sim, continuo",
     "idleNao": "Ficar offline",
     "matchErro": "Não foi possível iniciar a busca.",
+    "origemForaDoEco": "Para contratar, você precisa estar na região deste ecossistema. O mapa continua disponível para explorar.",
     "matchOfertaTitulo": "Profissional localizado",
     "matchAguardandoAceite": "Aguardando o profissional aceitar…",
     "cancelarSolicitacao": "CANCELAR",

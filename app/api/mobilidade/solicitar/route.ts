@@ -10,7 +10,7 @@ import type { ModalidadeMobilidadeId } from '@/lib/mobilidadePopupPesquisa'
 import { ehCruzamentoFronteira, inferirCidadeDePonto, modalidadesDisponiveis } from '@/lib/mobilidadePopupPesquisa'
 import { blocoPermiteCruzamentoFronteira } from '@/lib/ecossistemaFiltro'
 import { resolverCidadePedidoMatching } from '@/lib/mobilidadeAtuacaoEscopo'
-import { resolverBlocoPorId } from '@/lib/ecossistemas'
+import { origemGpsPertenceAoBloco, resolverBlocoPorId } from '@/lib/ecossistemas'
 import { normalizarMoedasPreferencia } from '@/lib/mobilidadePerfilProfissional'
 import {
   enriquecerCoordsSolicitacaoMobilidade,
@@ -95,6 +95,13 @@ export async function POST(req: Request) {
   const cruzamento =
     regraFronteira &&
     (body.cruzamento_fronteira === true || ehCruzamentoFronteira(cidadeOrigem, cidadeDestino))
+
+  if (!origemGpsPertenceAoBloco(origem.lat, origem.lng, bloco)) {
+    return NextResponse.json(
+      { error: 'Para contratar, você precisa estar na região deste ecossistema.' },
+      { status: 400 },
+    )
+  }
 
   const modalidadesBloco = modalidadesDisponiveis(cruzamento, bloco)
   if (!modalidadesBloco.includes(modalidade)) {

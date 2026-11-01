@@ -534,6 +534,7 @@
     "idleSim": "Yes, stay online",
     "idleNao": "Go offline",
     "matchErro": "Could not start the search.",
+    "origemForaDoEco": "To book a ride, you need to be in this ecosystem region. You can still explore the map.",
     "matchOfertaTitulo": "Professional found",
     "matchAguardandoAceite": "Waiting for the professional to accept…",
     "cancelarSolicitacao": "CANCEL",

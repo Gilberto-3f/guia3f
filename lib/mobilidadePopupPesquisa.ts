@@ -9,7 +9,7 @@ import {
   type RotaTabelada,
 } from '@/lib/servicosTabeladosCatalogo'
 import type { MobilidadePonto } from '@/lib/mobilidadePesquisaParams'
-import { slugsMobilidadeDoBloco } from '@/lib/ecossistemas'
+import { RAIO_PRESENCA_ECO_KM, slugsMobilidadeDoBloco } from '@/lib/ecossistemas'
 
 /** Centros aproximados para inferir cidade pelo GPS. */
 const CENTROS_TRIPLICE: { cidade: CidadeTriplice; lat: number; lng: number }[] = [
@@ -29,7 +29,7 @@ function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): nu
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)))
 }
 
-export function inferirCidadeTriplicePorCoords(lat: number, lng: number): CidadeTriplice {
+export function inferirCidadeTriplicePorCoords(lat: number, lng: number): CidadeTriplice | null {
   let best = CENTROS_TRIPLICE[0]
   let bestD = Infinity
   for (const c of CENTROS_TRIPLICE) {
@@ -39,6 +39,7 @@ export function inferirCidadeTriplicePorCoords(lat: number, lng: number): Cidade
       best = c
     }
   }
+  if (bestD > RAIO_PRESENCA_ECO_KM) return null
   return best.cidade
 }
 
@@ -47,7 +48,8 @@ export function inferirCidadeDePonto(
   fallbackTexto?: string | null,
 ): CidadeTriplice | null {
   if (ponto.lat != null && ponto.lng != null) {
-    return inferirCidadeTriplicePorCoords(ponto.lat, ponto.lng)
+    const porGps = inferirCidadeTriplicePorCoords(ponto.lat, ponto.lng)
+    if (porGps) return porGps
   }
   return (
     normalizarCidadeTriplice(ponto.nome) ??

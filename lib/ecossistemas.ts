@@ -64,6 +64,20 @@ export function blocoEhTripliceFronteira(bloco: { slug?: string } | null | undef
   return String(bloco?.slug ?? '').trim() === SLUG_ECO_TRIPLICE
 }
 
+/** GPS só conta como “presente” no eco se estiver a até este raio de uma cidade do bloco. */
+export const RAIO_PRESENCA_ECO_KM = 45
+
+function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6371
+  const dLat = ((bLat - aLat) * Math.PI) / 180
+  const dLng = ((bLng - aLng) * Math.PI) / 180
+  const s1 = Math.sin(dLat / 2)
+  const s2 = Math.sin(dLng / 2)
+  const h =
+    s1 * s1 + Math.cos((aLat * Math.PI) / 180) * Math.cos((bLat * Math.PI) / 180) * s2 * s2
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)))
+}
+
 const CENTRO_CIDADE_CATALOGO: Record<string, { lat: number; lng: number }> = {
   'foz do iguacu': { lat: -25.5165, lng: -54.5855 },
   'ciudad del este': { lat: -25.5097, lng: -54.6114 },
@@ -97,6 +111,27 @@ export function centroCatalogoDoBloco(
     return { lat: -25.5411, lng: -54.5918 }
   }
   return pontoCatalogoCidade(String(bloco.slug ?? ''))
+}
+
+/** True se lat/lng caem numa cidade do bloco (catálogo + raio). Curitiba→Londrina = false. */
+export function origemGpsPertenceAoBloco(
+  lat: number | null | undefined,
+  lng: number | null | undefined,
+  bloco: { slug?: string; cidades?: EcossistemaCidade[] } | null | undefined,
+): boolean {
+  if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return false
+  if (!bloco) return false
+  const pts: { lat: number; lng: number }[] = []
+  for (const c of bloco.cidades ?? []) {
+    const hit = pontoCatalogoCidade(c.chave) ?? pontoCatalogoCidade(c.label)
+    if (hit) pts.push(hit)
+  }
+  if (pts.length === 0) {
+    const centro = centroCatalogoDoBloco(bloco)
+    if (centro) pts.push(centro)
+  }
+  if (pts.length === 0) return false
+  return pts.some((p) => haversineKm(lat, lng, p.lat, p.lng) <= RAIO_PRESENCA_ECO_KM)
 }
 
 export function categoriaGanhaPlacaVermelha(

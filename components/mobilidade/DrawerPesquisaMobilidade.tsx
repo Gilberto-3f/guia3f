@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { useEcossistemaAtivo } from '@/context/EcossistemaAtivoContext'
+import { origemGpsPertenceAoBloco } from '@/lib/ecossistemas'
 import { blocoPermiteCruzamentoFronteira } from '@/lib/ecossistemaFiltro'
 import { supabase } from '@/lib/supabase'
 import { useModalScrollLock } from '@/lib/useModalScrollLock'
@@ -384,6 +385,10 @@ export default function DrawerPesquisaMobilidade({
   const modoCamposAbertos = modoParticular
 
   const origemEfetiva = rotaAplicada?.origem ?? pesquisa.origem
+  const gpsForaDoEco =
+    origemEfetiva.lat != null &&
+    origemEfetiva.lng != null &&
+    !origemGpsPertenceAoBloco(origemEfetiva.lat, origemEfetiva.lng, ecoAtivo)
   const destinoEfetiva =
     rotaAplicada?.destino ??
     (modoCamposAbertos ? { nome: '', lat: null, lng: null } : pesquisa.destino)
@@ -913,6 +918,22 @@ export default function DrawerPesquisaMobilidade({
         ? dataHoraCombinada
         : null
 
+    if (!origemGpsPertenceAoBloco(origemEnvio.lat, origemEnvio.lng, ecoAtivo)) {
+      setEnviando(false)
+      onResultado({
+        solicitacaoId: '',
+        status: 'sem_profissional',
+        oferta: null,
+        backupsOcultos: 0,
+        matchErro: t('origemForaDoEco'),
+        dataHoraAgendada: dataAgendada || undefined,
+        contratacaoDirigida: modoParticular,
+        profissionalParticular: modoParticular ? profParticular : null,
+      })
+      onFechar()
+      return
+    }
+
       const res = await fetch('/api/mobilidade/solicitar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1158,6 +1179,12 @@ export default function DrawerPesquisaMobilidade({
             </div>
           )}
         </div>
+        ) : null}
+
+        {gpsForaDoEco ? (
+          <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-800">
+            {t('origemForaDoEco')}
+          </p>
         ) : null}
 
         {etapa === 1 && !modoParticular ? (
@@ -1724,7 +1751,7 @@ export default function DrawerPesquisaMobilidade({
             </button>
             <button
               type="button"
-              disabled={enviando || (particularExigeAgenda && !agendaPreenchida)}
+              disabled={enviando || gpsForaDoEco || (particularExigeAgenda && !agendaPreenchida)}
               {...propsUmToque(() => void procurar())}
               className="flex items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-bold uppercase text-white disabled:opacity-60"
               style={{ backgroundColor: VERDE }}
