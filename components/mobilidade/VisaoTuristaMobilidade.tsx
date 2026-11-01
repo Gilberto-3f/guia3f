@@ -34,6 +34,7 @@ import {
 } from '@/lib/chamarCorridaIntent'
 import { type EmpresaMapaMobilidade } from '@/lib/mobilidadeMapaEmpresas'
 import { useEcossistemaAtivo } from '@/context/EcossistemaAtivoContext'
+import { centroCatalogoDoBloco } from '@/lib/ecossistemas'
 import {
   buscarIdsEmpresaEcossistema,
   cidadePertenceAoBloco,
@@ -168,7 +169,7 @@ export default function VisaoTuristaMobilidade({
   const [empresas, setEmpresas] = useState<EmpresaMapaMobilidade[]>([])
   const [empresasErro, setEmpresasErro] = useState<string | null>(null)
   const [carregandoEmpresas, setCarregandoEmpresas] = useState(true)
-  const { ativo: ecoAtivo } = useEcossistemaAtivo()
+  const { ativo: ecoAtivo, carregou: ecoCarregou } = useEcossistemaAtivo()
   const [idsEco, setIdsEco] = useState<Set<string> | null>(null)
   const [visitanteParceria, setVisitanteParceria] = useState<VisitanteParceriaMapa | null>(null)
   const [gpsCentro, setGpsCentro] = useState<{ lat: number; lng: number } | null>(null)
@@ -726,10 +727,13 @@ export default function VisaoTuristaMobilidade({
   }, [ecoAtivo?.id])
 
   const empresasDoBloco = useMemo(() => {
-    if (idsEco) return empresas.filter((e) => idsEco.has(e.id))
-    if (ecoAtivo) return empresas.filter((e) => cidadePertenceAoBloco(e.cidade, ecoAtivo))
-    return empresas
-  }, [empresas, idsEco, ecoAtivo])
+    if (!ecoCarregou) return []
+    if (!ecoAtivo) return []
+    if (idsEco && idsEco.size > 0) return empresas.filter((e) => idsEco.has(e.id))
+    return empresas.filter((e) => cidadePertenceAoBloco(e.cidade, ecoAtivo))
+  }, [empresas, idsEco, ecoAtivo, ecoCarregou])
+
+  const centroEco = useMemo(() => centroCatalogoDoBloco(ecoAtivo), [ecoAtivo])
 
   const cidadesTabeladoOk = useMemo(() => cidadesTabeladoDoBloco(ecoAtivo), [ecoAtivo])
 
@@ -917,7 +921,8 @@ export default function VisaoTuristaMobilidade({
       <div className="absolute inset-0 z-0 overflow-hidden">
         <MapaMobilidade
           empresas={empresasDoBloco}
-          centro={gpsCentro}
+          centro={centroEco}
+          ecoId={ecoAtivo?.id ?? null}
           origem={origemEfetiva}
           destino={destinoEfetivo}
           trajeto={trajetoEfetivo}

@@ -64,6 +64,41 @@ export function blocoEhTripliceFronteira(bloco: { slug?: string } | null | undef
   return String(bloco?.slug ?? '').trim() === SLUG_ECO_TRIPLICE
 }
 
+const CENTRO_CIDADE_CATALOGO: Record<string, { lat: number; lng: number }> = {
+  'foz do iguacu': { lat: -25.5165, lng: -54.5855 },
+  'ciudad del este': { lat: -25.5097, lng: -54.6114 },
+  'puerto iguazu': { lat: -25.5972, lng: -54.5786 },
+  londrina: { lat: -23.3105, lng: -51.1628 },
+}
+
+function pontoCatalogoCidade(chaveOuLabel: string): { lat: number; lng: number } | null {
+  const n = normalizarCidadeChave(chaveOuLabel).toLowerCase()
+  if (!n) return null
+  return CENTRO_CIDADE_CATALOGO[n] ?? null
+}
+
+/** Centro da câmera do mapa: média das cidades do bloco; Tríplice/Londrina no catálogo. */
+export function centroCatalogoDoBloco(
+  bloco: { slug?: string; cidades?: EcossistemaCidade[] } | null | undefined,
+): { lat: number; lng: number } | null {
+  if (!bloco) return null
+  const pts: { lat: number; lng: number }[] = []
+  for (const c of bloco.cidades ?? []) {
+    const hit = pontoCatalogoCidade(c.chave) ?? pontoCatalogoCidade(c.label)
+    if (hit) pts.push(hit)
+  }
+  if (pts.length > 0) {
+    return {
+      lat: pts.reduce((s, p) => s + p.lat, 0) / pts.length,
+      lng: pts.reduce((s, p) => s + p.lng, 0) / pts.length,
+    }
+  }
+  if (blocoEhTripliceFronteira(bloco)) {
+    return { lat: -25.5411, lng: -54.5918 }
+  }
+  return pontoCatalogoCidade(String(bloco.slug ?? ''))
+}
+
 export function categoriaGanhaPlacaVermelha(
   categoria: string | null | undefined,
   bloco: { slug?: string } | null | undefined,

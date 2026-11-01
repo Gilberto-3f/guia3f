@@ -26,7 +26,10 @@ type Ponto = { lat: number; lng: number; label?: string }
 type Props = {
   empresas: EmpresaMapaMobilidade[]
   profissionais?: ProfissionalOnlineMapa[]
+  /** Câmera do eco (catálogo). GPS vai em `origem`, não aqui. */
   centro: { lat: number; lng: number } | null
+  /** Troca de eco recentraliza; não segue o GPS. */
+  ecoId?: string | null
   origem?: Ponto | null
   destino?: Ponto | null
   /** Linha da corrida (profissional → partida ou partida → destino). */
@@ -173,6 +176,7 @@ export default function MapaMobilidade({
   empresas,
   profissionais = [],
   centro,
+  ecoId = null,
   origem = null,
   destino = null,
   trajeto = null,
@@ -191,6 +195,7 @@ export default function MapaMobilidade({
   const markerDeslocamentoRef = useRef<mapboxgl.Marker | null>(null)
   const tipoDeslocamentoRef = useRef<TipoIconeDeslocamento | null>(null)
   const rotaFitKeyRef = useRef<string>('')
+  const ecoCameraKeyRef = useRef<string>('')
   const [tokenMissing, setTokenMissing] = useState(false)
   const [mapReady, setMapReady] = useState(false)
   const [mapError, setMapError] = useState<string | null>(null)
@@ -378,9 +383,32 @@ export default function MapaMobilidade({
 
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !mapReady || !centro) return
-    map.easeTo({ center: [centro.lng, centro.lat], zoom: Math.max(map.getZoom(), 12) })
-  }, [centro, mapReady])
+    if (!map || !mapReady || trajeto) return
+    const id = String(ecoId ?? '')
+    const pts = ocultarPinsEmpresas
+      ? []
+      : empresas.filter(
+          (e) => Number.isFinite(e.latitude) && Number.isFinite(e.longitude),
+        )
+    const modo = pts.length > 0 ? 'pins' : 'catalog'
+    const key = `${id}:${modo}`
+    if (ecoCameraKeyRef.current === key) return
+    if (ecoCameraKeyRef.current.startsWith(`${id}:pins`) && modo === 'catalog') return
+    ecoCameraKeyRef.current = key
+    try {
+      if (pts.length > 0) {
+        const bounds = new mapboxgl.LngLatBounds()
+        for (const e of pts) bounds.extend([e.longitude, e.latitude])
+        map.fitBounds(bounds, { padding: 72, maxZoom: 13, duration: 700 })
+        return
+      }
+      if (centro) {
+        map.easeTo({ center: [centro.lng, centro.lat], zoom: 12, duration: 700 })
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [centro, ecoId, empresas, mapReady, trajeto, ocultarPinsEmpresas])
 
   useEffect(() => {
     const map = mapRef.current
