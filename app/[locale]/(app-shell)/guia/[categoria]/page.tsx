@@ -399,6 +399,7 @@ export default function ListagemCategoriaPage() {
   }, [filtroAba, limparCheck])
 
   const titulo = TITULO_CATEGORIA_EXTRA[slug] ?? TITULO_SLUG_GUIA[slug] ?? slug
+  const layoutCidadeUnica = ecoCarregou && ecoAtivo?.tipo === 'cidade'
   const filtrosApoioCompactos = ehPaginaHospedagem
   const btnFiltroApoioBase = filtrosApoioCompactos
     ? 'inline-flex items-center justify-center rounded-full border-0 bg-transparent p-1.5 transition hover:bg-white/15'
@@ -410,6 +411,90 @@ export default function ListagemCategoriaPage() {
     ? 'relative inline-flex h-5 w-5 shrink-0 items-center justify-center'
     : 'relative inline-flex h-6 w-6 shrink-0 items-center justify-center'
   const strokeFiltro = (ativo: boolean) => (ativo ? 2.75 : 1.75)
+
+  const filtrosAvaliacaoLocalizacao = (
+    <div className={`flex shrink-0 items-center ${filtrosApoioCompactos ? 'gap-1' : 'gap-2'}`}>
+      <button
+        type="button"
+        title="Ordenar por avaliação"
+        aria-label="Ordenar por avaliação"
+        aria-pressed={ordenacao === 'avaliacao'}
+        onClick={() => setOrdenacao('avaliacao')}
+        className={btnFiltroApoioCls(ordenacao === 'avaliacao')}
+      >
+        <Star
+          className={iconFiltroApoioCls}
+          fill={ordenacao === 'avaliacao' ? 'currentColor' : 'none'}
+          stroke="currentColor"
+          strokeWidth={strokeFiltro(ordenacao === 'avaliacao')}
+          aria-hidden
+        />
+      </button>
+
+      <button
+        type="button"
+        title="Ordenar por proximidade"
+        aria-label="Ordenar por proximidade"
+        aria-pressed={ordenacao === 'localizacao'}
+        onClick={() => {
+          setOrdenacao('localizacao')
+          if (userPos || geoCarregando) return
+          if (typeof navigator === 'undefined' || !navigator.geolocation) {
+            window.alert('Geolocalização não disponível neste dispositivo.')
+            return
+          }
+          setGeoCarregando(true)
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+              setGeoCarregando(false)
+            },
+            () => {
+              window.alert('Não foi possível obter sua localização.')
+              setGeoCarregando(false)
+            },
+            { enableHighAccuracy: true, timeout: 8000 }
+          )
+        }}
+        className={btnFiltroApoioCls(ordenacao === 'localizacao')}
+      >
+        <span className={`${iconPinWrapCls} ${geoCarregando ? 'animate-pulse' : ''}`}>
+          <MapPin
+            className={iconFiltroApoioCls}
+            fill={ordenacao === 'localizacao' ? 'currentColor' : 'none'}
+            stroke="currentColor"
+            strokeWidth={strokeFiltro(ordenacao === 'localizacao')}
+            aria-hidden
+          />
+          {ordenacao === 'localizacao' ? (
+            <span
+              className="pointer-events-none absolute left-1/2 top-[44%] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#0097b2]"
+              aria-hidden
+            />
+          ) : null}
+        </span>
+      </button>
+
+      {ehPaginaHospedagem ? (
+        <button
+          type="button"
+          title="Filtrar acomodações (Check)"
+          aria-label="Filtrar acomodações com questionário"
+          aria-pressed={checkAtivo}
+          onClick={() => setPopupCheckAberto(true)}
+          className={btnFiltroApoioCls(checkAtivo)}
+        >
+          <Check
+            className={iconFiltroApoioCls}
+            fill={checkAtivo ? 'currentColor' : 'none'}
+            stroke="currentColor"
+            strokeWidth={strokeFiltro(checkAtivo)}
+            aria-hidden
+          />
+        </button>
+      ) : null}
+    </div>
+  )
 
   if (slug === 'compras') {
     return (
@@ -440,14 +525,18 @@ export default function ListagemCategoriaPage() {
                 />
               </button>
             </div>
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="-mr-1 shrink-0 p-1"
-              aria-label="Voltar"
-            >
-              <ArrowRight size={22} className="text-white" />
-            </button>
+            {layoutCidadeUnica ? (
+              filtrosAvaliacaoLocalizacao
+            ) : (
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="-mr-1 shrink-0 p-1"
+                aria-label="Voltar"
+              >
+                <ArrowRight size={22} className="text-white" />
+              </button>
+            )}
           </div>
 
           {buscaAberta ? (
@@ -460,125 +549,46 @@ export default function ListagemCategoriaPage() {
             </div>
           ) : null}
 
-          <div className="flex w-full min-w-0 flex-nowrap items-center justify-between gap-2">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              {(chipsPais.length > 1 ? chipsPais : []).map((f) => {
-                const ativo = filtroAba === f.id
-                if (f.modo === 'cidade') {
+          {layoutCidadeUnica ? null : (
+            <div className="flex w-full min-w-0 flex-nowrap items-center justify-between gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                {(chipsPais.length > 1 ? chipsPais : []).map((f) => {
+                  const ativo = filtroAba === f.id
+                  if (f.modo === 'cidade') {
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setFiltroAba(f.id)}
+                        aria-label={f.label}
+                        aria-pressed={ativo}
+                        className={`rounded-full px-3 py-1 text-xs font-bold transition ${
+                          ativo ? 'bg-white text-[#0097b2]' : 'bg-white/20 text-white'
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    )
+                  }
+                  const emoji = f.pais === 'br' ? '🇧🇷' : f.pais === 'py' ? '🇵🇾' : '🇦🇷'
                   return (
                     <button
                       key={f.id}
                       type="button"
                       onClick={() => setFiltroAba(f.id)}
                       aria-label={f.label}
-                      aria-pressed={ativo}
-                      className={`rounded-full px-3 py-1 text-xs font-bold transition ${
-                        ativo ? 'bg-white text-[#0097b2]' : 'bg-white/20 text-white'
+                      className={`p-0.5 leading-none drop-shadow-[0_0_2px_white] transition ${
+                        ativo ? 'scale-110 text-5xl' : 'scale-100 text-4xl'
                       }`}
                     >
-                      {f.label}
+                      <span aria-hidden>{emoji}</span>
                     </button>
                   )
-                }
-                const emoji = f.pais === 'br' ? '🇧🇷' : f.pais === 'py' ? '🇵🇾' : '🇦🇷'
-                return (
-                  <button
-                    key={f.id}
-                    type="button"
-                    onClick={() => setFiltroAba(f.id)}
-                    aria-label={f.label}
-                    className={`p-0.5 leading-none drop-shadow-[0_0_2px_white] transition ${
-                      ativo ? 'scale-110 text-5xl' : 'scale-100 text-4xl'
-                    }`}
-                  >
-                    <span aria-hidden>{emoji}</span>
-                  </button>
-                )
-              })}
+                })}
+              </div>
+              {filtrosAvaliacaoLocalizacao}
             </div>
-
-            <div className={`flex shrink-0 items-center ${filtrosApoioCompactos ? 'gap-1' : 'gap-2'}`}>
-              <button
-                type="button"
-                title="Ordenar por avaliação"
-                aria-label="Ordenar por avaliação"
-                aria-pressed={ordenacao === 'avaliacao'}
-                onClick={() => setOrdenacao('avaliacao')}
-                className={btnFiltroApoioCls(ordenacao === 'avaliacao')}
-              >
-                <Star
-                  className={iconFiltroApoioCls}
-                  fill={ordenacao === 'avaliacao' ? 'currentColor' : 'none'}
-                  stroke="currentColor"
-                  strokeWidth={strokeFiltro(ordenacao === 'avaliacao')}
-                  aria-hidden
-                />
-              </button>
-
-              <button
-                type="button"
-                title="Ordenar por proximidade"
-                aria-label="Ordenar por proximidade"
-                aria-pressed={ordenacao === 'localizacao'}
-                onClick={() => {
-                  setOrdenacao('localizacao')
-                  if (userPos || geoCarregando) return
-                  if (typeof navigator === 'undefined' || !navigator.geolocation) {
-                    window.alert('Geolocalização não disponível neste dispositivo.')
-                    return
-                  }
-                  setGeoCarregando(true)
-                  navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                      setUserPos({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-                      setGeoCarregando(false)
-                    },
-                    () => {
-                      window.alert('Não foi possível obter sua localização.')
-                      setGeoCarregando(false)
-                    },
-                    { enableHighAccuracy: true, timeout: 8000 }
-                  )
-                }}
-                className={btnFiltroApoioCls(ordenacao === 'localizacao')}
-              >
-                <span className={`${iconPinWrapCls} ${geoCarregando ? 'animate-pulse' : ''}`}>
-                  <MapPin
-                    className={iconFiltroApoioCls}
-                    fill={ordenacao === 'localizacao' ? 'currentColor' : 'none'}
-                    stroke="currentColor"
-                    strokeWidth={strokeFiltro(ordenacao === 'localizacao')}
-                    aria-hidden
-                  />
-                  {ordenacao === 'localizacao' ? (
-                    <span
-                      className="pointer-events-none absolute left-1/2 top-[44%] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#0097b2]"
-                      aria-hidden
-                    />
-                  ) : null}
-                </span>
-              </button>
-
-              {ehPaginaHospedagem ? (
-                <button
-                  type="button"
-                  title="Filtrar acomodações (Check)"
-                  aria-label="Filtrar acomodações com questionário"
-                  aria-pressed={checkAtivo}
-                  onClick={() => setPopupCheckAberto(true)}
-                  className={btnFiltroApoioCls(checkAtivo)}
-                >
-                  <Check
-                    className={iconFiltroApoioCls}
-                    fill={checkAtivo ? 'currentColor' : 'none'}
-                    stroke="currentColor"
-                    strokeWidth={strokeFiltro(checkAtivo)}
-                    aria-hidden
-                  />
-                </button>
-              ) : null}
-            </div>
-          </div>
+          )}
         </div>
       </header>
 
