@@ -141,15 +141,35 @@ export async function PATCH(req: Request, ctx: Ctx) {
     if (updErr) return jsonAdminError(400, 'update', updErr.message)
 
     if (cidades) {
-      await gate.adminDb.from('ecossistema_cidades').delete().eq('ecossistema_id', ecoId)
-      await gate.adminDb.from('ecossistema_cidades').insert(
+      const { data: atuais, error: listErr } = await gate.adminDb
+        .from('ecossistema_cidades')
+        .select('cidade_chave')
+        .eq('ecossistema_id', ecoId)
+      if (listErr) return jsonAdminError(400, 'cidades', listErr.message)
+
+      const novas = new Set(cidades.map((c) => c.chave))
+      const remover = (atuais ?? [])
+        .map((r) => String(r.cidade_chave ?? '').trim())
+        .filter((k) => k && !novas.has(k))
+      if (remover.length > 0) {
+        const { error: delErr } = await gate.adminDb
+          .from('ecossistema_cidades')
+          .delete()
+          .eq('ecossistema_id', ecoId)
+          .in('cidade_chave', remover)
+        if (delErr) return jsonAdminError(400, 'cidades', delErr.message)
+      }
+
+      const { error: upsErr } = await gate.adminDb.from('ecossistema_cidades').upsert(
         cidades.map((c) => ({
           ecossistema_id: ecoId,
           cidade_chave: c.chave,
           cidade_label: c.label,
           pais: c.pais,
         })),
+        { onConflict: 'ecossistema_id,cidade_chave' },
       )
+      if (upsErr) return jsonAdminError(400, 'cidades', upsErr.message)
     }
 
     const sync = await sincronizarCanaisEVinculosDoBloco(gate.adminDb, ecoId)
