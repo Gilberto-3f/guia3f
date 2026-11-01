@@ -16,8 +16,29 @@ import {
   podeEscolherEcossistemaHome,
   type EcossistemaBloco,
 } from '@/lib/ecossistemas'
+import { primeiraCidadeAtuacao, resolverEcoCanaisPorCidade } from '@/lib/ecoCanaisPorCidade'
 import { gravarEcossistemaAtivoId, lerEcossistemaAtivoId } from '@/lib/ecossistemaAtivoStorage'
 import { marcarEcoSplash } from '@/lib/appSplashReady'
+
+async function blocoDoCadastro(
+  uid: string,
+  role: string | null,
+  todos: EcossistemaBloco[],
+): Promise<EcossistemaBloco | null> {
+  if (role === 'empresa') {
+    const { data: emp } = await supabase.from('empresas').select('cidade').eq('usuario_id', uid).maybeSingle()
+    return resolverEcoCanaisPorCidade(emp?.cidade != null ? String(emp.cidade) : '', todos)
+  }
+  if (role === 'profissional') {
+    const { data: prof } = await supabase
+      .from('profissionais')
+      .select('cidade_atuacao')
+      .eq('usuario_id', uid)
+      .maybeSingle()
+    return resolverEcoCanaisPorCidade(primeiraCidadeAtuacao(prof?.cidade_atuacao), todos)
+  }
+  return null
+}
 
 type EcossistemaAtivoValue = {
   listaHome: EcossistemaBloco[]
@@ -53,13 +74,18 @@ export function EcossistemaAtivoProvider({ children }: { children: ReactNode }) 
         const todos = Array.isArray(json.ecossistemas) ? json.ecossistemas : []
         if (cancel) return
         setRole(roleLida)
-        const inicial = escolherBlocoInicial(todos, lerEcossistemaAtivoId())
         const home = todos.filter((e) => e.disponivel_home)
         setListaHome(home)
-        setAtivo(inicial)
-        if (inicial && podeEscolherEcossistemaHome(roleLida)) {
-          gravarEcossistemaAtivoId(inicial.id)
+
+        let inicial: EcossistemaBloco | null = null
+        if (uid && !podeEscolherEcossistemaHome(roleLida)) {
+          inicial = await blocoDoCadastro(uid, roleLida, todos)
+        } else {
+          inicial = escolherBlocoInicial(todos, lerEcossistemaAtivoId())
+          if (inicial) gravarEcossistemaAtivoId(inicial.id)
         }
+        if (cancel) return
+        setAtivo(inicial)
       } catch {
         if (!cancel) {
           setListaHome([])
@@ -79,12 +105,13 @@ export function EcossistemaAtivoProvider({ children }: { children: ReactNode }) 
 
   const setAtivoId = useCallback(
     (id: string) => {
+      if (!podeEscolherEcossistemaHome(role)) return
       const next = listaHome.find((e) => e.id === id)
       if (!next) return
       setAtivo(next)
       gravarEcossistemaAtivoId(next.id)
     },
-    [listaHome],
+    [listaHome, role],
   )
 
   const value = useMemo<EcossistemaAtivoValue>(
