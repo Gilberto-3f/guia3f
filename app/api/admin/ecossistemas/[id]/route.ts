@@ -140,6 +140,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
     const { error: updErr } = await gate.adminDb.from('ecossistemas').update(patch).eq('id', ecoId)
     if (updErr) return jsonAdminError(400, 'update', updErr.message)
 
+    let cidadesMudaram = false
     if (cidades) {
       const { data: atuais, error: listErr } = await gate.adminDb
         .from('ecossistema_cidades')
@@ -147,35 +148,45 @@ export async function PATCH(req: Request, ctx: Ctx) {
         .eq('ecossistema_id', ecoId)
       if (listErr) return jsonAdminError(400, 'cidades', listErr.message)
 
-      const novas = new Set(cidades.map((c) => c.chave))
-      const remover = (atuais ?? [])
+      const novas = new Set(cidades.map((c) => c.chave.toLowerCase()))
+      const atuaisChaves = (atuais ?? [])
         .map((r) => String(r.cidade_chave ?? '').trim())
-        .filter((k) => k && !novas.has(k))
-      if (remover.length > 0) {
-        const { error: delErr } = await gate.adminDb
-          .from('ecossistema_cidades')
-          .delete()
-          .eq('ecossistema_id', ecoId)
-          .in('cidade_chave', remover)
-        if (delErr) return jsonAdminError(400, 'cidades', delErr.message)
-      }
+        .filter(Boolean)
+      const atuaisSet = new Set(atuaisChaves.map((k) => k.toLowerCase()))
+      cidadesMudaram =
+        novas.size !== atuaisSet.size || [...novas].some((k) => !atuaisSet.has(k))
 
-      const { error: upsErr } = await gate.adminDb.from('ecossistema_cidades').upsert(
-        cidades.map((c) => ({
-          ecossistema_id: ecoId,
-          cidade_chave: c.chave,
-          cidade_label: c.label,
-          pais: c.pais,
-        })),
-        { onConflict: 'ecossistema_id,cidade_chave' },
-      )
-      if (upsErr) return jsonAdminError(400, 'cidades', upsErr.message)
+      if (cidadesMudaram) {
+        const remover = atuaisChaves.filter((k) => !novas.has(k.toLowerCase()))
+        if (remover.length > 0) {
+          const { error: delErr } = await gate.adminDb
+            .from('ecossistema_cidades')
+            .delete()
+            .eq('ecossistema_id', ecoId)
+            .in('cidade_chave', remover)
+          if (delErr) return jsonAdminError(400, 'cidades', delErr.message)
+        }
+
+        const { error: upsErr } = await gate.adminDb.from('ecossistema_cidades').upsert(
+          cidades.map((c) => ({
+            ecossistema_id: ecoId,
+            cidade_chave: c.chave,
+            cidade_label: c.label,
+            pais: c.pais,
+          })),
+          { onConflict: 'ecossistema_id,cidade_chave' },
+        )
+        if (upsErr) return jsonAdminError(400, 'cidades', upsErr.message)
+      }
     }
 
-    const sync = await sincronizarCanaisEVinculosDoBloco(gate.adminDb, ecoId)
-    if (!sync.ok) {
-      console.error('[admin/ecossistemas] sync canais/vínculos', sync.error)
-      return jsonAdminError(500, 'canais', sync.error ?? 'Não foi possível sincronizar os canais do bloco.')
+    const tipoMudou = body.tipo != null && String(patch.tipo) !== String(atual.tipo)
+    if (cidadesMudaram || tipoMudou) {
+      const sync = await sincronizarCanaisEVinculosDoBloco(gate.adminDb, ecoId)
+      if (!sync.ok) {
+        console.error('[admin/ecossistemas] sync canais/vínculos', sync.error)
+        return jsonAdminError(500, 'canais', sync.error ?? 'Não foi possível sincronizar os canais do bloco.')
+      }
     }
 
     const { data: row } = await gate.adminDb.from('ecossistemas').select('*').eq('id', ecoId).maybeSingle()

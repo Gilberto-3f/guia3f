@@ -24,6 +24,9 @@ const MOBILIDADE_CHECKBOXES: { id: CategoriaMobilidade; label: string }[] = [
 const TEXTO_INFO_REGIAO =
   'Empresas e profissionais dessas cidades passam a ver os canais desta região. O eco cidade permanece na home como guia.'
 
+const TEXTO_INFO_MOBILIDADE =
+  'Categorias visíveis na mobilidade deste bloco. Anfitrião não entra aqui (hospedagem).'
+
 type FormState = {
   nome: string
   tipo: EcossistemaTipo
@@ -80,6 +83,7 @@ export function ConfigEcossistemas() {
   const [salvando, setSalvando] = useState(false)
   const [mobilidadeAberto, setMobilidadeAberto] = useState(false)
   const [infoRegiaoAberto, setInfoRegiaoAberto] = useState(false)
+  const [infoMobilidadeAberto, setInfoMobilidadeAberto] = useState(false)
 
   const formAberto = criando || Boolean(editandoId)
 
@@ -112,6 +116,7 @@ export function ConfigEcossistemas() {
     setCidadeExtra('')
     setMobilidadeAberto(false)
     setInfoRegiaoAberto(false)
+    setInfoMobilidadeAberto(false)
   }
 
   const abrirNovo = () => {
@@ -120,6 +125,7 @@ export function ConfigEcossistemas() {
     setCidadeExtra('')
     setMobilidadeAberto(false)
     setInfoRegiaoAberto(false)
+    setInfoMobilidadeAberto(false)
     setCriando(true)
   }
 
@@ -130,6 +136,7 @@ export function ConfigEcossistemas() {
     setCidadeExtra('')
     setMobilidadeAberto(false)
     setInfoRegiaoAberto(false)
+    setInfoMobilidadeAberto(false)
   }
 
   const toggleCategoriaMobilidade = (id: CategoriaMobilidade) => {
@@ -357,25 +364,26 @@ export function ConfigEcossistemas() {
                 {t === 'cidade' ? 'Cidade' : 'Região'}
               </button>
             ))}
-            {form.tipo === 'regiao' ? (
-              <button
-                type="button"
-                onClick={() => setInfoRegiaoAberto((v) => !v)}
-                className="inline-flex shrink-0 rounded-full p-1.5 text-[#0097b2] hover:bg-white"
-                aria-label="Informação sobre região"
-                aria-expanded={infoRegiaoAberto}
-              >
-                <Info className="h-4 w-4" aria-hidden />
-              </button>
-            ) : null}
           </div>
 
-          {form.tipo === 'regiao' && infoRegiaoAberto ? (
-            <p className="text-xs leading-relaxed text-[#666666]">{TEXTO_INFO_REGIAO}</p>
-          ) : null}
-
           <div>
-            <p className="text-sm font-semibold text-gray-700">Cidades</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-semibold text-gray-700">Cidades</p>
+              {form.tipo === 'regiao' ? (
+                <button
+                  type="button"
+                  onClick={() => setInfoRegiaoAberto((v) => !v)}
+                  className="inline-flex shrink-0 rounded-full p-0.5 text-[#0097b2] hover:bg-white"
+                  aria-label="Informação sobre cidades da região"
+                  aria-expanded={infoRegiaoAberto}
+                >
+                  <Info className="h-4 w-4" aria-hidden />
+                </button>
+              ) : null}
+            </div>
+            {form.tipo === 'regiao' && infoRegiaoAberto ? (
+              <p className="mt-1 text-xs leading-relaxed text-[#666666]">{TEXTO_INFO_REGIAO}</p>
+            ) : null}
             <div className="mt-2 flex flex-wrap gap-1.5">
               {CIDADES_CATALOGO.map((c) => {
                 const on = cidadesCatalogoMarcadas.has(c.chave.toLowerCase())
@@ -431,24 +439,38 @@ export function ConfigEcossistemas() {
           </div>
 
           <div className="rounded-xl border border-gray-200 bg-white">
-            <button
-              type="button"
-              onClick={() => setMobilidadeAberto((v) => !v)}
-              className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
-              aria-expanded={mobilidadeAberto}
-            >
+            <div className="flex items-center gap-1 px-3 py-2.5">
               <span className="text-sm font-bold uppercase text-[#0097b2]">Mobilidade</span>
-              <ChevronDown
-                className={`h-4 w-4 shrink-0 text-[#0097b2] transition-transform ${mobilidadeAberto ? 'rotate-180' : ''}`}
-                strokeWidth={2.5}
-                aria-hidden
-              />
-            </button>
+              <button
+                type="button"
+                onClick={() => setInfoMobilidadeAberto((v) => !v)}
+                className="inline-flex shrink-0 rounded-full p-1 text-[#0097b2] hover:bg-gray-50"
+                aria-label="Informação sobre mobilidade"
+                aria-expanded={infoMobilidadeAberto}
+              >
+                <Info className="h-4 w-4" aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobilidadeAberto((v) => !v)}
+                className="ml-auto inline-flex shrink-0 rounded-full p-1 text-[#0097b2] hover:bg-gray-50"
+                aria-expanded={mobilidadeAberto}
+                aria-label={mobilidadeAberto ? 'Recolher mobilidade' : 'Abrir mobilidade'}
+              >
+                <ChevronDown
+                  className={`h-4 w-4 shrink-0 transition-transform ${mobilidadeAberto ? 'rotate-180' : ''}`}
+                  strokeWidth={2.5}
+                  aria-hidden
+                />
+              </button>
+            </div>
+            {infoMobilidadeAberto ? (
+              <p className="border-t border-gray-100 px-3 py-2 text-xs leading-relaxed text-[#666666]">
+                {TEXTO_INFO_MOBILIDADE}
+              </p>
+            ) : null}
             {mobilidadeAberto ? (
               <div className="space-y-2 border-t border-gray-100 px-3 py-3">
-                <p className="text-xs text-[#666666]">
-                  Categorias visíveis na mobilidade deste bloco. Anfitrião não entra aqui (hospedagem).
-                </p>
                 {MOBILIDADE_CHECKBOXES.map((item) => {
                   const on = form.categorias_mobilidade.includes(item.id)
                   return (

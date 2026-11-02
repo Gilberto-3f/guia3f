@@ -28,10 +28,10 @@ export function SubabasGeral({ value }: { value: ConfigGeralSubId }) {
             title={label}
             onClick={() => selectSub('configuracoes', configSubGeral(id))}
             className={[
-              'flex min-h-[40px] items-center justify-center rounded-lg py-2 text-xs font-bold uppercase tracking-wide transition sm:text-sm',
+              'flex min-h-[40px] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition sm:text-sm',
               active
-                ? 'min-w-0 flex-1 gap-1.5 bg-[#00D443] px-3 text-white shadow-sm'
-                : 'w-10 shrink-0 bg-gray-100 px-2 text-[#00D443] hover:bg-gray-200',
+                ? 'bg-[#00D443] text-white shadow-sm'
+                : 'bg-gray-100 text-[#00D443] hover:bg-gray-200',
             ].join(' ')}
           >
             <Icon
@@ -39,7 +39,7 @@ export function SubabasGeral({ value }: { value: ConfigGeralSubId }) {
               strokeWidth={2.25}
               aria-hidden
             />
-            {active ? <span className="whitespace-nowrap">{label}</span> : null}
+            <span className="whitespace-nowrap">{label}</span>
           </button>
         )
       })}
