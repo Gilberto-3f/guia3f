@@ -99,5 +99,11 @@ export async function sincronizarCanaisEVinculosDoBloco(
   if (!seed.ok) return seed
   const { error } = await db.rpc('regravar_vinculos_eco_canais')
   if (!error || rpcAusente(error, 'regravar_vinculos_eco_canais')) return { ok: true }
+  const code = String((error as { code?: string }).code ?? '')
+  const msg = String(error.message ?? '')
+  if (code === '57014' || /timeout|canceling statement/i.test(msg)) {
+    console.error('[eco] regravar_vinculos timeout (não reexecutar agora)', msg)
+    return { ok: true }
+  }
   return { ok: false, error: error.message }
 }
