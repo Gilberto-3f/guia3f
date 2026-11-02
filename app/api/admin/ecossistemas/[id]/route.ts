@@ -239,10 +239,6 @@ export async function DELETE(_req: Request, ctx: Ctx) {
       }
       return jsonAdminError(400, 'delete', error.message)
     }
-    const { error: regravaErr } = await gate.adminDb.rpc('regravar_vinculos_eco_canais')
-    if (regravaErr) {
-      console.error('[admin/ecossistemas] regravar após excluir', regravaErr.message)
-    }
     return NextResponse.json({ ok: true })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'erro'
