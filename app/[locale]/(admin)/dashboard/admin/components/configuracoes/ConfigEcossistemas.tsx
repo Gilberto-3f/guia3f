@@ -84,6 +84,7 @@ export function ConfigEcossistemas() {
   const [mobilidadeAberto, setMobilidadeAberto] = useState(false)
   const [infoRegiaoAberto, setInfoRegiaoAberto] = useState(false)
   const [infoMobilidadeAberto, setInfoMobilidadeAberto] = useState(false)
+  const [cardsAbertos, setCardsAbertos] = useState<Set<string>>(() => new Set())
 
   const formAberto = criando || Boolean(editandoId)
 
@@ -258,6 +259,12 @@ export function ConfigEcossistemas() {
       const json = (await res.json()) as { ok?: boolean; error?: string }
       if (!res.ok || !json.ok) throw new Error(json.error || 'Falha ao excluir.')
       setLista((prev) => prev.filter((x) => x.id !== b.id))
+      setCardsAbertos((prev) => {
+        if (!prev.has(b.id)) return prev
+        const next = new Set(prev)
+        next.delete(b.id)
+        return next
+      })
       if (editandoId === b.id) fecharForm()
       setMensagem({ tipo: 'sucesso', texto: 'Ecossistema excluído.' })
       window.setTimeout(() => setMensagem(null), 3000)
@@ -562,57 +569,82 @@ export function ConfigEcossistemas() {
             Nenhum ecossistema cadastrado.
           </div>
         ) : (
-          lista.map((b) => (
+          lista.map((b) => {
+            const aberto = cardsAbertos.has(b.id)
+            return (
             <div key={b.id} className="rounded-2xl border border-gray-200 bg-white p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-base font-bold text-gray-900">{b.nome}</h3>
-                    {b.padrao ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold uppercase text-amber-700">
-                        <Star className="h-3 w-3" fill="currentColor" />
-                        Padrão
+              <button
+                type="button"
+                onClick={() => {
+                  setCardsAbertos((prev) => {
+                    const next = new Set(prev)
+                    if (next.has(b.id)) next.delete(b.id)
+                    else next.add(b.id)
+                    return next
+                  })
+                }}
+                aria-expanded={aberto}
+                aria-label={aberto ? `Recolher ${b.nome}` : `Abrir ${b.nome}`}
+                className="flex w-full items-center gap-2 text-left"
+              >
+                <ChevronDown
+                  className={`h-4 w-4 shrink-0 text-[#0097b2] transition-transform ${aberto ? 'rotate-180' : ''}`}
+                  strokeWidth={2.5}
+                  aria-hidden
+                />
+                <h3 className="min-w-0 truncate text-base font-bold text-gray-900">{b.nome}</h3>
+              </button>
+              {aberto ? (
+                <div className="mt-3 flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {b.padrao ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold uppercase text-amber-700">
+                          <Star className="h-3 w-3" fill="currentColor" />
+                          Padrão
+                        </span>
+                      ) : null}
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold uppercase text-[#0097b2]">
+                        {b.tipo === 'regiao' ? 'Região' : 'Cidade'}
                       </span>
-                    ) : null}
-                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold uppercase text-[#0097b2]">
-                      {b.tipo === 'regiao' ? 'Região' : 'Cidade'}
-                    </span>
-                    {!b.disponivel_home ? (
-                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">
-                        Oculto na home
-                      </span>
-                    ) : null}
+                      {!b.disponivel_home ? (
+                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">
+                          Oculto na home
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-sm text-[#666666]">
+                      {b.cidades.map((c) => c.label).join(', ') || 'Sem cidades'}
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-400">6º botão: {labelTile(b.tile_sexto)}</p>
+                    <p className="mt-0.5 text-xs text-gray-400">
+                      Mobilidade: {labelMobilidadeLista(parseCategoriasMobilidade(b.categorias_mobilidade))}
+                    </p>
                   </div>
-                  <p className="mt-1 text-sm text-[#666666]">
-                    {b.cidades.map((c) => c.label).join(', ') || 'Sem cidades'}
-                  </p>
-                  <p className="mt-0.5 text-xs text-gray-400">6º botão: {labelTile(b.tile_sexto)}</p>
-                  <p className="mt-0.5 text-xs text-gray-400">
-                    Mobilidade: {labelMobilidadeLista(parseCategoriasMobilidade(b.categorias_mobilidade))}
-                  </p>
+                  <div className="flex shrink-0 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => abrirEditar(b)}
+                      aria-label={`Editar ${b.nome}`}
+                      className="rounded-lg p-2 text-[#0097b2] hover:bg-gray-50"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void excluir(b)}
+                      disabled={b.padrao}
+                      aria-label={`Excluir ${b.nome}`}
+                      className="rounded-lg p-2 text-rose-600 hover:bg-rose-50 disabled:opacity-30"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex shrink-0 gap-1">
-                  <button
-                    type="button"
-                    onClick={() => abrirEditar(b)}
-                    aria-label={`Editar ${b.nome}`}
-                    className="rounded-lg p-2 text-[#0097b2] hover:bg-gray-50"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void excluir(b)}
-                    disabled={b.padrao}
-                    aria-label={`Excluir ${b.nome}`}
-                    className="rounded-lg p-2 text-rose-600 hover:bg-rose-50 disabled:opacity-30"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
+              ) : null}
             </div>
-          ))
+            )
+          })
         )}
       </div>
     </div>
