@@ -25,7 +25,7 @@ function hojeIso() {
 }
 
 function formatDate(value: string | null) {
-  if (!value) return 'Recorrente'
+  if (!value || value.startsWith('9999')) return 'Recorrente'
   const d = new Date(`${value}T00:00:00`)
   if (Number.isNaN(d.getTime())) return value
   return d.toLocaleDateString('pt-BR')

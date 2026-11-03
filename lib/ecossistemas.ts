@@ -272,11 +272,13 @@ export function cidadesChaveDosBlocos(blocos: EcossistemaBloco[]): string[] {
 export async function listarEcossistemasDb(db: { from: (table: string) => any }): Promise<EcossistemaBloco[]> {
   const { data: ecos, error } = await db
     .from('ecossistemas')
-    .select('*')
+    .select('id, slug, nome, tipo, descricao, disponivel_home, padrao, tile_sexto, ordem, categorias_mobilidade')
     .order('ordem', { ascending: true })
     .order('nome', { ascending: true })
   if (error) throw new Error(error.message)
-  const { data: cidades } = await db.from('ecossistema_cidades').select('*')
+  const { data: cidades } = await db
+    .from('ecossistema_cidades')
+    .select('ecossistema_id, cidade_chave, cidade_label, pais')
   const porEco = new Map<string, EcossistemaCidade[]>()
   for (const c of (cidades as Record<string, unknown>[] | null) ?? []) {
     const id = String(c.ecossistema_id)

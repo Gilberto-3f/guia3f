@@ -297,7 +297,7 @@ export default function PublicidadeHome() {
           .eq('tipo', 'home')
           .eq('status', 'ativo')
           .lte('periodo_inicio', hoje)
-          .or(`periodo_fim.gte.${hoje},periodo_fim.is.null`)
+          .gte('periodo_fim', hoje)
           .order('created_at', { ascending: true })
 
       const [anRes0, vigentes, idsEco] = await Promise.all([

@@ -109,9 +109,9 @@ export async function POST(req: Request) {
     if (!eco?.id) return jsonAdminError(400, 'eco', 'Ecossistema não encontrado.')
 
     const vigencia = String(form.get('vigencia') ?? 'recorrente') === 'prazo' ? 'prazo' : 'recorrente'
-    let periodoFim: string | null = null
+    let periodoFim = '9999-12-31'
     if (vigencia === 'prazo') {
-      periodoFim = String(form.get('periodo_fim') ?? '').trim() || null
+      periodoFim = String(form.get('periodo_fim') ?? '').trim()
       if (!periodoFim || periodoFim < isoDate(new Date())) {
         return jsonAdminError(400, 'prazo', 'Informe uma data final igual ou posterior a hoje.')
       }
