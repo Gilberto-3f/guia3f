@@ -19,6 +19,7 @@ type AnuncioSlide = {
   imagem_url: string
   link_url: string | null
   empresa_id: string | null
+  ecossistema_id: string | null
 }
 
 const SWIPE_MIN_PX = 48
@@ -49,6 +50,7 @@ function slidesDesdeCache(raw: string | null): AnuncioSlide[] | null {
         imagem_url: String(o.imagem_url ?? ''),
         link_url: o.link_url != null ? String(o.link_url) : null,
         empresa_id: o.empresa_id != null ? String(o.empresa_id) : null,
+        ecossistema_id: o.ecossistema_id != null ? String(o.ecossistema_id) : null,
       })
     }
     return out.length > 0 ? out : null
@@ -288,18 +290,26 @@ export default function PublicidadeHome() {
         return
       }
       const hoje = isoDate(new Date())
-      const [anRes, vigentes, idsEco] = await Promise.all([
+      const queryHome = (cols: string) =>
         supabase
           .from('anuncios')
-          .select('id, empresa_id, imagem_url, link_url')
+          .select(cols)
           .eq('tipo', 'home')
           .eq('status', 'ativo')
           .lte('periodo_inicio', hoje)
-          .gte('periodo_fim', hoje)
-          .order('created_at', { ascending: true }),
+          .or(`periodo_fim.gte.${hoje},periodo_fim.is.null`)
+          .order('created_at', { ascending: true })
+
+      const [anRes0, vigentes, idsEco] = await Promise.all([
+        queryHome('id, empresa_id, imagem_url, link_url, ecossistema_id'),
         buscarIdsEmpresaPresencaPublicaVigente(supabase),
         buscarIdsEmpresaEcossistema(supabase, ecoId),
       ])
+
+      let anRes = anRes0
+      if (anRes.error && /ecossistema_id|schema cache|column/i.test(anRes.error.message)) {
+        anRes = await queryHome('id, empresa_id, imagem_url, link_url')
+      }
 
       if (!vivo) return
       if (anRes.error) {
@@ -313,10 +323,13 @@ export default function PublicidadeHome() {
             imagem_url: String(row.imagem_url ?? ''),
             link_url: row.link_url != null ? String(row.link_url) : null,
             empresa_id: row.empresa_id != null ? String(row.empresa_id) : null,
+            ecossistema_id:
+              'ecossistema_id' in row && row.ecossistema_id != null ? String(row.ecossistema_id) : null,
           }))
           .filter((s) => {
             const emp = s.empresa_id
-            return Boolean(emp) && noEco.has(emp) && vigentes.has(emp)
+            if (emp) return noEco.has(emp) && vigentes.has(emp)
+            return Boolean(s.ecossistema_id) && s.ecossistema_id === ecoId
           })
         gravarCacheHome(ecoId, slides)
         aplicarSlides(slides)

@@ -88,6 +88,7 @@ import HistoricoDecisoes from '@/components/perfil/subpaginas/HistoricoDecisoes'
 import HistoricoStories from '@/components/perfil/subpaginas/HistoricoStories'
 import SalvosDrawer from '@/components/perfil/subpaginas/SalvosDrawer'
 import ModoApresentacao from '@/components/perfil/subpaginas/ModoApresentacao'
+import PublicidadeAdm from '@/components/perfil/subpaginas/PublicidadeAdm'
 import AuxiliarAdmEmpresas from '@/components/perfil/subpaginas/AuxiliarAdmEmpresas'
 import NomeComVerificacao from '@/components/NomeComVerificacao'
 import AvatarImage from '@/components/AvatarImage'
@@ -596,6 +597,12 @@ function secoesAdmin(ctx, { omitirModoNaLista }) {
         label: 'Modo Apresentação',
         subpagina: 'modo-apresentacao',
         condicional: (c) => c.adminLevel === 1 && !omitirModoNaLista,
+      },
+      {
+        Icon: Megaphone,
+        label: 'Publicidade',
+        subpagina: 'publicidade-adm',
+        condicional: (c) => c.adminLevel === 1,
       },
     ],
     ctx
@@ -1624,6 +1631,7 @@ export default function MenuLateral({
     }
     if (id === 'historico-stories') return <HistoricoStories usuarioId={usuarioIdEfetivo} />
     if (id === 'modo-apresentacao') return <ModoApresentacao />
+    if (id === 'publicidade-adm') return <PublicidadeAdm />
     if (id === 'auxiliar-adm-empresas') return <AuxiliarAdmEmpresas />
     if (id === 'cadastrar-hospedagem-anfitriao')
       return (
