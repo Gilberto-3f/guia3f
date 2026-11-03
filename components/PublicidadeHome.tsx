@@ -317,15 +317,16 @@ export default function PublicidadeHome() {
         setAnuncios((prev) => (prev.length > 0 ? prev : []))
       } else {
         const noEco = idsEco ?? new Set<string>()
-        const slides: AnuncioSlide[] = (anRes.data ?? [])
+        const rows = (anRes.data ?? []) as unknown as Record<string, unknown>[]
+        const slides: AnuncioSlide[] = rows
           .map((row) => ({
-            id: String(row.id),
+            id: String(row.id ?? ''),
             imagem_url: String(row.imagem_url ?? ''),
             link_url: row.link_url != null ? String(row.link_url) : null,
             empresa_id: row.empresa_id != null ? String(row.empresa_id) : null,
-            ecossistema_id:
-              'ecossistema_id' in row && row.ecossistema_id != null ? String(row.ecossistema_id) : null,
+            ecossistema_id: row.ecossistema_id != null ? String(row.ecossistema_id) : null,
           }))
+          .filter((s) => s.id)
           .filter((s) => {
             const emp = s.empresa_id
             if (emp) return noEco.has(emp) && vigentes.has(emp)
