@@ -6,6 +6,8 @@ import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { rpcAnon } from '@/lib/rpcAnon'
 import { supabase } from '@/lib/supabase'
+import { useEcossistemaAtivo } from '@/context/EcossistemaAtivoContext'
+import { buscarIdsEmpresaEcossistema } from '@/lib/ecossistemaFiltro'
 import { buscarIdsEmpresaPresencaPublicaVigente } from '@/lib/empresaPresencaPublica'
 
 function isoDate(d: Date) {
@@ -23,11 +25,13 @@ const SWIPE_MIN_PX = 48
 /** Intervalo de revezamento automático entre criativos ativos. */
 const AUTO_ROTACAO_MS = 5000
 
-/** Último anúncio home exibido nesta sessão (próxima visita começa no seguinte). */
-const SESSION_LAST_HOME_AD_ID = 'guia_home_ultimo_anuncio_id'
+function chaveLastHome(ecoId: string) {
+  return `guia_home_ultimo_anuncio_id_v2_${ecoId}`
+}
 
-/** Lista em cache (sessionStorage) para evitar espera ao voltar à Home. */
-const SESSION_ANUNCIOS_HOME_JSON = 'guia_home_anuncios_cache_v1'
+function chaveCacheHome(ecoId: string) {
+  return `guia_home_anuncios_cache_v2_${ecoId}`
+}
 
 function slidesDesdeCache(raw: string | null): AnuncioSlide[] | null {
   if (!raw) return null
@@ -53,10 +57,12 @@ function slidesDesdeCache(raw: string | null): AnuncioSlide[] | null {
   }
 }
 
-function gravarCacheHome(slides: AnuncioSlide[]) {
+function gravarCacheHome(ecoId: string, slides: AnuncioSlide[]) {
+  if (!ecoId) return
   try {
-    if (slides.length > 0) sessionStorage.setItem(SESSION_ANUNCIOS_HOME_JSON, JSON.stringify(slides))
-    else sessionStorage.removeItem(SESSION_ANUNCIOS_HOME_JSON)
+    const k = chaveCacheHome(ecoId)
+    if (slides.length > 0) sessionStorage.setItem(k, JSON.stringify(slides))
+    else sessionStorage.removeItem(k)
   } catch {
     /* ignore */
   }
@@ -173,12 +179,12 @@ function SlideEnvoltorio({ anuncio, children }: { anuncio: AnuncioSlide; childre
   )
 }
 
-/** Próximo índice após o último visto (round-robin). Sem last → aleatório se houver vários. */
-function indiceInicialRotacao(slides: AnuncioSlide[]): number {
+/** Próximo índice após o último visto neste eco (round-robin). Sem last → aleatório se houver vários. */
+function indiceInicialRotacao(slides: AnuncioSlide[], ecoId: string): number {
   if (slides.length === 0) return 0
   if (slides.length === 1) return 0
   try {
-    const lastId = sessionStorage.getItem(SESSION_LAST_HOME_AD_ID)
+    const lastId = ecoId ? sessionStorage.getItem(chaveLastHome(ecoId)) : null
     if (!lastId) {
       return Math.floor(Math.random() * slides.length)
     }
@@ -192,6 +198,11 @@ function indiceInicialRotacao(slides: AnuncioSlide[]): number {
 
 export default function PublicidadeHome() {
   const t = useTranslations('Home')
+  const { ativo, carregou: ecoCarregou, podeEscolher } = useEcossistemaAtivo()
+  const ecoId = ativo?.id != null ? String(ativo.id).trim() : ''
+  const compacto = podeEscolher
+  const ecoIdRef = useRef(ecoId)
+  ecoIdRef.current = ecoId
   const [anuncios, setAnuncios] = useState<AnuncioSlide[]>([])
   const [carregando, setCarregando] = useState(true)
   const [indice, setIndice] = useState(0)
@@ -232,7 +243,7 @@ export default function PublicidadeHome() {
 
   const aplicarSlides = useCallback((slides: AnuncioSlide[]) => {
     if (!rotacaoAplicadaRef.current) {
-      const idx = indiceInicialRotacao(slides)
+      const idx = indiceInicialRotacao(slides, ecoIdRef.current)
       rotacaoAplicadaRef.current = true
       setAnuncios(slides)
       setIndice(slides.length ? idx : 0)
@@ -251,68 +262,86 @@ export default function PublicidadeHome() {
   }, [])
 
   useLayoutEffect(() => {
+    rotacaoAplicadaRef.current = false
+    if (!ecoId) return
     try {
-      const cached = slidesDesdeCache(sessionStorage.getItem(SESSION_ANUNCIOS_HOME_JSON))
+      const cached = slidesDesdeCache(sessionStorage.getItem(chaveCacheHome(ecoId)))
       if (cached && cached.length > 0) {
         aplicarSlides(cached)
         setCarregando(false)
+      } else {
+        setAnuncios([])
+        setIndice(0)
       }
     } catch {
       /* ignore */
     }
-  }, [aplicarSlides])
+  }, [aplicarSlides, ecoId])
 
   useEffect(() => {
-    let ativo = true
+    let vivo = true
     const carregar = async () => {
+      if (!ecoCarregou) return
+      if (!ecoId) {
+        setAnuncios([])
+        setCarregando(false)
+        return
+      }
       const hoje = isoDate(new Date())
-      const { data, error } = await supabase
-        .from('anuncios')
-        .select('id, empresa_id, imagem_url, link_url')
-        .eq('tipo', 'home')
-        .eq('status', 'ativo')
-        .lte('periodo_inicio', hoje)
-        .gte('periodo_fim', hoje)
-        .order('created_at', { ascending: true })
+      const [anRes, vigentes, idsEco] = await Promise.all([
+        supabase
+          .from('anuncios')
+          .select('id, empresa_id, imagem_url, link_url')
+          .eq('tipo', 'home')
+          .eq('status', 'ativo')
+          .lte('periodo_inicio', hoje)
+          .gte('periodo_fim', hoje)
+          .order('created_at', { ascending: true }),
+        buscarIdsEmpresaPresencaPublicaVigente(supabase),
+        buscarIdsEmpresaEcossistema(supabase, ecoId),
+      ])
 
-      if (!ativo) return
-      if (error) {
-        console.error(error)
+      if (!vivo) return
+      if (anRes.error) {
+        console.error(anRes.error)
         setAnuncios((prev) => (prev.length > 0 ? prev : []))
       } else {
-        const vigentes = await buscarIdsEmpresaPresencaPublicaVigente(supabase)
-        if (!ativo) return
-        const slides: AnuncioSlide[] = (data ?? [])
+        const noEco = idsEco ?? new Set<string>()
+        const slides: AnuncioSlide[] = (anRes.data ?? [])
           .map((row) => ({
             id: String(row.id),
             imagem_url: String(row.imagem_url ?? ''),
             link_url: row.link_url != null ? String(row.link_url) : null,
             empresa_id: row.empresa_id != null ? String(row.empresa_id) : null,
           }))
-          .filter((s) => !s.empresa_id || vigentes.has(s.empresa_id))
-        gravarCacheHome(slides)
+          .filter((s) => {
+            const emp = s.empresa_id
+            return Boolean(emp) && noEco.has(emp) && vigentes.has(emp)
+          })
+        gravarCacheHome(ecoId, slides)
         aplicarSlides(slides)
       }
       setCarregando(false)
     }
     void carregar()
     return () => {
-      ativo = false
+      vivo = false
     }
-  }, [aplicarSlides])
+  }, [aplicarSlides, ecoCarregou, ecoId])
 
-  /** Grava o último visto só ao sair da home (não a cada troca de índice). */
+  /** Grava o último visto deste eco só ao sair da home (não a cada troca de índice). */
   useEffect(() => {
+    const idEco = ecoId
     return () => {
       const id = anunciosRef.current[indiceRef.current]?.id
-      if (!id) return
+      if (!id || !idEco) return
       try {
-        sessionStorage.setItem(SESSION_LAST_HOME_AD_ID, id)
+        sessionStorage.setItem(chaveLastHome(idEco), id)
       } catch {
         /* ignore */
       }
     }
-  }, [])
+  }, [ecoId])
 
   const n = anuncios.length
 
@@ -391,7 +420,11 @@ export default function PublicidadeHome() {
   const slideW = viewportW > 0 ? viewportW : undefined
 
   return (
-    <div className="shrink-0 px-3 pb-2 sm:px-4">
+    <div
+      className={
+        compacto ? 'shrink-0 px-3 pb-2 pt-0 sm:-mt-1 sm:px-4 -mt-1' : 'shrink-0 px-3 pb-2 sm:px-4'
+      }
+    >
       <div className="w-full">
         {n > 0 ? (
           <div className="w-full">
@@ -454,10 +487,12 @@ export default function PublicidadeHome() {
           <div
             className={`flex ${blocoH} w-full flex-col items-center justify-center rounded-lg bg-gray-100 px-4 text-center`}
           >
-            <p className="font-medium text-gray-400">{t('adSpace')}</p>
-            <p className="mt-0.5 text-xs text-gray-400 sm:text-sm">
-              {t('adHere')}
-            </p>
+            {compacto ? null : (
+              <>
+                <p className="font-medium text-gray-400">{t('adSpace')}</p>
+                <p className="mt-0.5 text-xs text-gray-400 sm:text-sm">{t('adHere')}</p>
+              </>
+            )}
           </div>
         )}
       </div>
