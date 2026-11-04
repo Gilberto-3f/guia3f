@@ -7,6 +7,7 @@ import {
   mapRowEcossistema,
   normalizarCidadeChave,
   parseCategoriasMobilidade,
+  invalidarCacheListaEcossistemas,
   slugDeNome,
   type EcossistemaCidade,
   type EcossistemaTileSexto,
@@ -195,6 +196,7 @@ export async function POST(req: Request) {
       return jsonAdminError(500, 'canais', sync.error ?? 'Não foi possível criar os canais do bloco.')
     }
 
+    invalidarCacheListaEcossistemas()
     const lista = await montarLista(gate.adminDb)
     const criado = lista.find((e) => e.id === String(novo.id)) ?? null
     return NextResponse.json({ ok: true, ecossistema: criado, ecossistemas: lista })

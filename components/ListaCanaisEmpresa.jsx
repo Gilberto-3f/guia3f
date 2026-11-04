@@ -550,20 +550,19 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     // Ciclo vencido (só Financeiro): sem Realtime — badge via REST no boot/poll.
     if (!temCanaisComunidade || idsMonitor.length === 0) return
 
-    const ch = supabase.channel('lista-canais-empresa-mensagens')
-    for (const canalId of idsMonitor) {
-      ch.on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'mensagens_canal', filter: `canal_id=eq.${canalId}` },
-        (payload) => {
-          const novo = payload.new
-          if (!novo?.id || String(canalId).startsWith('__placeholder')) return
-          notificarBadgeCanais()
-          setUltimasMensagens((prev) => patchUltimaMensagemCanal(prev, canalId, novo))
-          agendarRecarregarContagens()
-        },
-      )
-    }
+    const ids = new Set(idsMonitor)
+    const ch = supabase.channel('lista-canais-empresa-mensagens').on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'mensagens_canal' },
+      (payload) => {
+        const novo = payload.new
+        const canalId = novo?.canal_id != null ? String(novo.canal_id) : ''
+        if (!novo?.id || !ids.has(canalId) || canalId.startsWith('__placeholder')) return
+        notificarBadgeCanais()
+        setUltimasMensagens((prev) => patchUltimaMensagemCanal(prev, canalId, novo))
+        agendarRecarregarContagens()
+      },
+    )
     void ch.subscribe()
 
     return () => {

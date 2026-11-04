@@ -1,13 +1,18 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
-import { listarEcossistemasDb } from '@/lib/ecossistemas'
+import { listarEcossistemasDbCached } from '@/lib/ecossistemas'
+
+export const revalidate = 60
 
 /** Catálogo público para cadastro (empresa/profissional) e, depois, o chevron da home. */
 export async function GET() {
   try {
     const db = createSupabaseAdmin()
-    const lista = await listarEcossistemasDb(db)
-    return NextResponse.json({ ok: true, ecossistemas: lista })
+    const lista = await listarEcossistemasDbCached(db)
+    return NextResponse.json(
+      { ok: true, ecossistemas: lista },
+      { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' } },
+    )
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'erro'
     const lower = msg.toLowerCase()
@@ -15,7 +20,9 @@ export async function GET() {
       lower.includes('does not exist') ||
       lower.includes('schema cache') ||
       lower.includes('em falta') ||
-      lower.includes('service_role')
+      lower.includes('service_role') ||
+      lower.includes('timeout') ||
+      lower.includes('abort')
     ) {
       return NextResponse.json({ ok: true, ecossistemas: [] })
     }

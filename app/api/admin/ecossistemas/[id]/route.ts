@@ -7,6 +7,7 @@ import {
   mapRowEcossistema,
   normalizarCidadeChave,
   parseCategoriasMobilidade,
+  invalidarCacheListaEcossistemas,
   slugDeNome,
   type EcossistemaCidade,
 } from '@/lib/ecossistemas'
@@ -202,6 +203,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
         pais: c.pais != null ? String(c.pais) : null,
       })),
     )
+    invalidarCacheListaEcossistemas()
     return NextResponse.json({ ok: true, ecossistema: eco })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'erro'
@@ -239,6 +241,7 @@ export async function DELETE(_req: Request, ctx: Ctx) {
       }
       return jsonAdminError(400, 'delete', error.message)
     }
+    invalidarCacheListaEcossistemas()
     return NextResponse.json({ ok: true })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'erro'

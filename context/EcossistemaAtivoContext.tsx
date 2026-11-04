@@ -58,11 +58,24 @@ export function EcossistemaAtivoProvider({ children }: { children: ReactNode }) 
 
   useEffect(() => {
     let cancel = false
+    const ac = new AbortController()
+    const abortTimer = window.setTimeout(() => ac.abort(), 5000)
     ;(async () => {
       try {
+        let todosCache: EcossistemaBloco[] = []
+        try {
+          const raw = sessionStorage.getItem('guia_ecos_catalogo_v1')
+          if (raw) {
+            const parsed = JSON.parse(raw) as unknown
+            if (Array.isArray(parsed)) todosCache = parsed as EcossistemaBloco[]
+          }
+        } catch {
+          /* ignore */
+        }
+
         const [{ data: sessionData }, ecoRes] = await Promise.all([
           supabase.auth.getSession(),
-          fetch('/api/ecossistemas'),
+          fetch('/api/ecossistemas', { signal: ac.signal }).catch(() => null),
         ])
         const uid = sessionData.session?.user?.id
         let roleLida: string | null = null
@@ -70,8 +83,19 @@ export function EcossistemaAtivoProvider({ children }: { children: ReactNode }) 
           const { data } = await buscarUsuarioCached(supabase, uid, 'role')
           roleLida = data?.role != null ? String(data.role) : null
         }
-        const json = (await ecoRes.json().catch(() => ({}))) as { ecossistemas?: EcossistemaBloco[] }
-        const todos = Array.isArray(json.ecossistemas) ? json.ecossistemas : []
+        const json = (ecoRes ? await ecoRes.json().catch(() => ({})) : {}) as {
+          ecossistemas?: EcossistemaBloco[]
+        }
+        const todos = Array.isArray(json.ecossistemas) && json.ecossistemas.length > 0
+          ? json.ecossistemas
+          : todosCache
+        if (todos.length > 0 && json.ecossistemas && json.ecossistemas.length > 0) {
+          try {
+            sessionStorage.setItem('guia_ecos_catalogo_v1', JSON.stringify(todos))
+          } catch {
+            /* ignore */
+          }
+        }
         if (cancel) return
         setRole(roleLida)
         const home = todos.filter((e) => e.disponivel_home)
@@ -92,6 +116,7 @@ export function EcossistemaAtivoProvider({ children }: { children: ReactNode }) 
           setAtivo(null)
         }
       } finally {
+        window.clearTimeout(abortTimer)
         if (!cancel) {
           setCarregou(true)
           marcarEcoSplash()
@@ -100,6 +125,8 @@ export function EcossistemaAtivoProvider({ children }: { children: ReactNode }) 
     })()
     return () => {
       cancel = true
+      window.clearTimeout(abortTimer)
+      ac.abort()
     }
   }, [])
 

@@ -269,16 +269,30 @@ export function cidadesChaveDosBlocos(blocos: EcossistemaBloco[]): string[] {
   return out
 }
 
-export async function listarEcossistemasDb(db: { from: (table: string) => any }): Promise<EcossistemaBloco[]> {
-  const { data: ecos, error } = await db
-    .from('ecossistemas')
-    .select('id, slug, nome, tipo, descricao, disponivel_home, padrao, tile_sexto, ordem, categorias_mobilidade')
-    .order('ordem', { ascending: true })
-    .order('nome', { ascending: true })
+function withAbort<T>(q: T, signal?: AbortSignal): T {
+  if (signal && typeof (q as { abortSignal?: (s: AbortSignal) => T }).abortSignal === 'function') {
+    return (q as { abortSignal: (s: AbortSignal) => T }).abortSignal(signal)
+  }
+  return q
+}
+
+export async function listarEcossistemasDb(
+  db: { from: (table: string) => any },
+  signal?: AbortSignal,
+): Promise<EcossistemaBloco[]> {
+  const { data: ecos, error } = await withAbort(
+    db
+      .from('ecossistemas')
+      .select('id, slug, nome, tipo, descricao, disponivel_home, padrao, tile_sexto, ordem, categorias_mobilidade')
+      .order('ordem', { ascending: true })
+      .order('nome', { ascending: true }),
+    signal,
+  )
   if (error) throw new Error(error.message)
-  const { data: cidades } = await db
-    .from('ecossistema_cidades')
-    .select('ecossistema_id, cidade_chave, cidade_label, pais')
+  const { data: cidades } = await withAbort(
+    db.from('ecossistema_cidades').select('ecossistema_id, cidade_chave, cidade_label, pais'),
+    signal,
+  )
   const porEco = new Map<string, EcossistemaCidade[]>()
   for (const c of (cidades as Record<string, unknown>[] | null) ?? []) {
     const id = String(c.ecossistema_id)
@@ -293,6 +307,59 @@ export async function listarEcossistemasDb(db: { from: (table: string) => any })
   return ((ecos as Record<string, unknown>[] | null) ?? []).map((row) =>
     mapRowEcossistema(row, porEco.get(String(row.id)) ?? []),
   )
+}
+
+const LISTA_ECO_CACHE_MS = 60_000
+const LISTA_ECO_TIMEOUT_MS = 3_000
+let listaEcoCache: { at: number; lista: EcossistemaBloco[] } | null = null
+let listaEcoInflight: Promise<EcossistemaBloco[]> | null = null
+
+export function invalidarCacheListaEcossistemas() {
+  listaEcoCache = null
+}
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout')), ms)
+    p.then(
+      (v) => {
+        clearTimeout(t)
+        resolve(v)
+      },
+      (e) => {
+        clearTimeout(t)
+        reject(e)
+      },
+    )
+  })
+}
+
+/** Catálogo com cache 60s e timeout 3s — não segura o pool se o Postgres estiver saturado. */
+export async function listarEcossistemasDbCached(db: {
+  from: (table: string) => any
+}): Promise<EcossistemaBloco[]> {
+  const agora = Date.now()
+  if (listaEcoCache && agora - listaEcoCache.at < LISTA_ECO_CACHE_MS) {
+    return listaEcoCache.lista
+  }
+  if (listaEcoInflight) return listaEcoInflight
+
+  listaEcoInflight = (async () => {
+    const ac = new AbortController()
+    try {
+      const lista = await withTimeout(listarEcossistemasDb(db, ac.signal), LISTA_ECO_TIMEOUT_MS)
+      listaEcoCache = { at: Date.now(), lista }
+      return lista
+    } catch (e) {
+      ac.abort()
+      if (listaEcoCache) return listaEcoCache.lista
+      throw e
+    } finally {
+      listaEcoInflight = null
+    }
+  })()
+
+  return listaEcoInflight
 }
 
 export async function resolverBlocoPorId(
