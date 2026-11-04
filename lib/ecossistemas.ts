@@ -310,7 +310,7 @@ export async function listarEcossistemasDb(
 }
 
 const LISTA_ECO_CACHE_MS = 60_000
-const LISTA_ECO_TIMEOUT_MS = 3_000
+const LISTA_ECO_TIMEOUT_MS = 8_000
 let listaEcoCache: { at: number; lista: EcossistemaBloco[] } | null = null
 let listaEcoInflight: Promise<EcossistemaBloco[]> | null = null
 
@@ -348,7 +348,9 @@ export async function listarEcossistemasDbCached(db: {
     const ac = new AbortController()
     try {
       const lista = await withTimeout(listarEcossistemasDb(db, ac.signal), LISTA_ECO_TIMEOUT_MS)
-      listaEcoCache = { at: Date.now(), lista }
+      if (lista.length > 0) {
+        listaEcoCache = { at: Date.now(), lista }
+      }
       return lista
     } catch (e) {
       ac.abort()
@@ -469,12 +471,13 @@ export function escolherBlocoInicial(
   storedId: string | null,
 ): EcossistemaBloco | null {
   const home = blocosDisponiveisHome(lista)
-  if (home.length === 0) return null
+  const pool = home.length > 0 ? home : lista
+  if (pool.length === 0) return null
   if (storedId) {
-    const hit = home.find((e) => e.id === storedId)
+    const hit = pool.find((e) => e.id === storedId)
     if (hit) return hit
   }
-  return home.find((e) => e.padrao) ?? home[0] ?? null
+  return pool.find((e) => e.padrao) ?? pool[0] ?? null
 }
 
 export function podeEscolherEcossistemaHome(role: string | null | undefined): boolean {

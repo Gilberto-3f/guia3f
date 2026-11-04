@@ -59,47 +59,55 @@ export function EcossistemaAtivoProvider({ children }: { children: ReactNode }) 
   useEffect(() => {
     let cancel = false
     const ac = new AbortController()
-    const abortTimer = window.setTimeout(() => ac.abort(), 5000)
+    const abortTimer = window.setTimeout(() => ac.abort(), 10_000)
+
+    const lerCacheLocal = (): EcossistemaBloco[] => {
+      try {
+        const raw = sessionStorage.getItem('guia_ecos_catalogo_v1')
+        if (!raw) return []
+        const parsed = JSON.parse(raw) as unknown
+        return Array.isArray(parsed) ? (parsed as EcossistemaBloco[]) : []
+      } catch {
+        return []
+      }
+    }
+
+    const fetchCatalogo = async (signal?: AbortSignal): Promise<EcossistemaBloco[]> => {
+      const ecoRes = await fetch('/api/ecossistemas', { signal, cache: 'no-store' }).catch(() => null)
+      const json = (ecoRes ? await ecoRes.json().catch(() => ({})) : {}) as {
+        ecossistemas?: EcossistemaBloco[]
+      }
+      return Array.isArray(json.ecossistemas) ? json.ecossistemas : []
+    }
+
     ;(async () => {
       try {
-        let todosCache: EcossistemaBloco[] = []
-        try {
-          const raw = sessionStorage.getItem('guia_ecos_catalogo_v1')
-          if (raw) {
-            const parsed = JSON.parse(raw) as unknown
-            if (Array.isArray(parsed)) todosCache = parsed as EcossistemaBloco[]
-          }
-        } catch {
-          /* ignore */
-        }
-
-        const [{ data: sessionData }, ecoRes] = await Promise.all([
+        const todosCache = lerCacheLocal()
+        const [{ data: sessionData }, primeira] = await Promise.all([
           supabase.auth.getSession(),
-          fetch('/api/ecossistemas', { signal: ac.signal }).catch(() => null),
+          fetchCatalogo(ac.signal),
         ])
-        const uid = sessionData.session?.user?.id
-        let roleLida: string | null = null
-        if (uid) {
-          const { data } = await buscarUsuarioCached(supabase, uid, 'role')
-          roleLida = data?.role != null ? String(data.role) : null
+        let todos = primeira.length > 0 ? primeira : todosCache
+        if (todos.length === 0) {
+          todos = await fetchCatalogo()
         }
-        const json = (ecoRes ? await ecoRes.json().catch(() => ({})) : {}) as {
-          ecossistemas?: EcossistemaBloco[]
-        }
-        const todos = Array.isArray(json.ecossistemas) && json.ecossistemas.length > 0
-          ? json.ecossistemas
-          : todosCache
-        if (todos.length > 0 && json.ecossistemas && json.ecossistemas.length > 0) {
+        if (todos.length > 0) {
           try {
             sessionStorage.setItem('guia_ecos_catalogo_v1', JSON.stringify(todos))
           } catch {
             /* ignore */
           }
         }
+        const uid = sessionData.session?.user?.id
+        let roleLida: string | null = null
+        if (uid) {
+          const { data } = await buscarUsuarioCached(supabase, uid, 'role')
+          roleLida = data?.role != null ? String(data.role) : null
+        }
         if (cancel) return
         setRole(roleLida)
-        const home = todos.filter((e) => e.disponivel_home)
-        setListaHome(home)
+        const home = todos.filter((e) => e.disponivel_home !== false)
+        setListaHome(home.length > 0 ? home : todos)
 
         let inicial: EcossistemaBloco | null = null
         if (uid && !podeEscolherEcossistemaHome(roleLida)) {

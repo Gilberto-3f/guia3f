@@ -2,17 +2,30 @@ import { NextResponse } from 'next/server'
 import { createSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { listarEcossistemasDbCached } from '@/lib/ecossistemas'
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
-/** Catálogo público para cadastro (empresa/profissional) e, depois, o chevron da home. */
+function jsonCatalogo(lista: unknown[], status = 200) {
+  const vazio = !Array.isArray(lista) || lista.length === 0
+  return NextResponse.json(
+    { ok: !vazio, ecossistemas: Array.isArray(lista) ? lista : [] },
+    {
+      status,
+      headers: {
+        'Cache-Control': vazio ? 'no-store' : 'public, s-maxage=60, stale-while-revalidate=120',
+      },
+    },
+  )
+}
+
+/** Catálogo público para cadastro (empresa/profissional) e o chevron da home. */
 export async function GET() {
   try {
     const db = createSupabaseAdmin()
     const lista = await listarEcossistemasDbCached(db)
-    return NextResponse.json(
-      { ok: true, ecossistemas: lista },
-      { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' } },
-    )
+    if (lista.length === 0) {
+      return jsonCatalogo([], 503)
+    }
+    return jsonCatalogo(lista)
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'erro'
     const lower = msg.toLowerCase()
@@ -24,8 +37,11 @@ export async function GET() {
       lower.includes('timeout') ||
       lower.includes('abort')
     ) {
-      return NextResponse.json({ ok: true, ecossistemas: [] })
+      return jsonCatalogo([], 503)
     }
-    return NextResponse.json({ ok: false, error: msg, ecossistemas: [] }, { status: 500 })
+    return NextResponse.json(
+      { ok: false, error: msg, ecossistemas: [] },
+      { status: 500, headers: { 'Cache-Control': 'no-store' } },
+    )
   }
 }
