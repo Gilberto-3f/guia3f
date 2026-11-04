@@ -1,18 +1,24 @@
--- Cole no SQL Editor. Seção 1 só lê. Seção 2 encerra backends presos
--- (cancel não bastou em 03/11 16:18: 522 em ecossistemas, Auth 504, Realtime CDC).
--- NÃO rode ANALYZE. NÃO rode ALTER/CREATE INDEX.
+-- Cole o bloco INTEIRO. Sem ANALYZE, ALTER, INDEX.
+-- terminate em superuser (supabase_admin / Realtime) falha com 42501 —
+-- este script ignora esses pids e só mata o que a role postgres consegue.
 
 -- ========== 1) Diagnóstico ==========
-SELECT state, count(*) AS n
+SELECT
+  count(*) AS conexoes,
+  (SELECT setting FROM pg_settings WHERE name = 'max_connections')::int AS max_connections
+FROM pg_stat_activity;
+
+SELECT state, usename, application_name, count(*) AS n
 FROM pg_stat_activity
 WHERE datname = current_database()
-GROUP BY state
+GROUP BY state, usename, application_name
 ORDER BY n DESC;
 
 SELECT
   pid,
   usename,
   application_name,
+  backend_type,
   state,
   wait_event_type,
   wait_event,
@@ -21,23 +27,36 @@ SELECT
 FROM pg_stat_activity
 WHERE datname = current_database()
   AND pid <> pg_backend_pid()
-  AND state <> 'idle'
+  AND coalesce(state, '') <> 'idle'
 ORDER BY query_start NULLS LAST;
 
-SELECT tgname
-FROM pg_trigger
-WHERE NOT tgisinternal
-  AND tgname ILIKE '%regrava%';
-
--- ========== 2) Encerrar o que segura o pool (rode se a seção 1 mostrar active/idle-in-xact > 12s) ==========
-SELECT pg_terminate_backend(pid)
-FROM pg_stat_activity
-WHERE datname = current_database()
-  AND pid <> pg_backend_pid()
-  AND state IN ('active', 'idle in transaction')
-  AND (
-    query_start < now() - interval '12 seconds'
-    OR (state = 'idle in transaction' AND xact_start < now() - interval '12 seconds')
-  )
-  AND coalesce(query, '') NOT ILIKE '%pg_stat_activity%'
-  AND coalesce(query, '') NOT ILIKE '%pg_terminate_backend%';
+-- ========== 2) Encerrar só backends que esta role pode matar ==========
+DO $$
+DECLARE
+  r record;
+BEGIN
+  FOR r IN
+    SELECT a.pid
+    FROM pg_stat_activity a
+    LEFT JOIN pg_roles rol ON rol.rolname = a.usename
+    WHERE a.datname = current_database()
+      AND a.pid <> pg_backend_pid()
+      AND a.backend_type = 'client backend'
+      AND coalesce(rol.rolsuper, false) = false
+      AND (
+        a.state IN ('active', 'idle in transaction', 'idle in transaction (aborted)')
+        OR (a.state = 'idle' AND a.state_change < now() - interval '20 seconds')
+      )
+      AND coalesce(a.query, '') NOT ILIKE '%pg_stat_activity%'
+      AND coalesce(a.query, '') NOT ILIKE '%pg_terminate_backend%'
+  LOOP
+    BEGIN
+      PERFORM pg_terminate_backend(r.pid);
+    EXCEPTION
+      WHEN insufficient_privilege THEN
+        NULL;
+      WHEN OTHERS THEN
+        NULL;
+    END;
+  END LOOP;
+END $$;
