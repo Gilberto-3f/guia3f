@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { CalendarClock, CreditCard, ExternalLink, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { ativarRealtime } from '@/lib/realtimeOptIn'
 import { notificarBadgeCanais, notificarBadgeCanaisAposLeitura } from '@/lib/canais-badge-events'
 import { adminPodeVerAvisosFinanceiroHub } from '@/lib/financeiroAvisosAdmHub'
 import AvatarImage from '@/components/AvatarImage'
@@ -110,6 +111,7 @@ export default function FinanceiroAvisosAdmHub() {
   useEffect(() => {
     if (podeVer !== true) return
 
+    const soltarRt = ativarRealtime()
     const ch = supabase
       .channel('financeiro-avisos-adm-hub')
       .on(
@@ -131,6 +133,7 @@ export default function FinanceiroAvisosAdmHub() {
       .subscribe()
 
     return () => {
+      soltarRt()
       void supabase.removeChannel(ch)
     }
   }, [carregar, podeVer])

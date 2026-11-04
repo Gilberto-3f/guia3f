@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react'
 import { AlertTriangle, ChevronUp, MapPin, Send, UserRound } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { ativarRealtime } from '@/lib/realtimeOptIn'
 import AvatarImage from '@/components/AvatarImage'
 import CanalNaoLidasBadge from '@/components/CanalNaoLidasBadge'
 import { buscarVistoEmOutroEcossistema, mapMensagemEcossistemaPayload, type EcossistemaConversaRow, type EcossistemaMensagemRow } from '@/lib/ecossistemaConversas'
@@ -153,6 +154,7 @@ export default function CanalEcossistemaAdm({
   }, [carregarLista])
 
   useEffect(() => {
+    const soltarRt = ativarRealtime()
     const ch = supabase
       .channel('eco-adm-hub-lista')
       .on(
@@ -173,6 +175,7 @@ export default function CanalEcossistemaAdm({
       .subscribe()
 
     return () => {
+      soltarRt()
       void supabase.removeChannel(ch)
     }
   }, [carregarLista])
@@ -185,6 +188,7 @@ export default function CanalEcossistemaAdm({
       notificarBadgeCanais()
     })()
 
+    const soltarRt = ativarRealtime()
     const ch = supabase
       .channel(`eco-adm-${selecionada.id}`)
       .on(
@@ -222,6 +226,7 @@ export default function CanalEcossistemaAdm({
       .subscribe()
 
     return () => {
+      soltarRt()
       void supabase.removeChannel(ch)
     }
   }, [selecionada?.id, selecionada?.membro_usuario_id, painelAberto, carregarMensagens, carregarLista, atualizarVistoOutro])
@@ -254,6 +259,7 @@ export default function CanalEcossistemaAdm({
   useEffect(() => {
     if (!selecionada?.id || selecionada.motivo_emergencia !== 'perdido' || !painelAberto) return
 
+    const soltarRt = ativarRealtime()
     const ch = supabase
       .channel(`eco-adm-loc-${selecionada.id}`)
       .on(
@@ -286,6 +292,7 @@ export default function CanalEcossistemaAdm({
       .subscribe()
 
     return () => {
+      soltarRt()
       void supabase.removeChannel(ch)
     }
   }, [selecionada?.id, selecionada?.motivo_emergencia, painelAberto, selecionada?.loc_atualizada_em])

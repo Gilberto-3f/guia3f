@@ -7,6 +7,7 @@ import { useDashboardEmpresa } from '@/app/[locale]/(app-shell)/dashboard/empres
 import { useEmpresaServicosPlano } from '@/hooks/useEmpresaServicosPlano'
 import type { MenuEmpresaId } from '@/lib/planosEmpresaServicosGate'
 import { supabase } from '@/lib/supabase'
+import { ativarRealtime } from '@/lib/realtimeOptIn'
 import { contarNaoLidasChatAdmMembro } from '@/lib/ecossistemaConversas'
 import { GUIA_CHAT_ADM_BADGE_EVENT } from '@/lib/chat-adm-badge-events'
 import { useEcossistemaAtivo } from '@/context/EcossistemaAtivoContext'
@@ -81,6 +82,7 @@ export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolea
     }
     document.addEventListener('visibilitychange', onVisible)
 
+    const soltarRt = ativarRealtime()
     const ch = supabase
       .channel(`menu-empresa-chat-adm-${usuarioId}`)
       .on(
@@ -115,6 +117,7 @@ export default function MenuLateralEmpresa({ aberto, onClose }: { aberto: boolea
       if (debounceId) clearTimeout(debounceId)
       window.removeEventListener(GUIA_CHAT_ADM_BADGE_EVENT, onBadge)
       document.removeEventListener('visibilitychange', onVisible)
+      soltarRt()
       void supabase.removeChannel(ch)
     }
   }, [usuarioId, refreshChatAdmBadge])

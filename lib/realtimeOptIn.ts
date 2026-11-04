@@ -1,10 +1,7 @@
+import { holdRealtime, realtimeQuerido } from '@/lib/realtimeFlag'
 import { supabase } from '@/lib/supabase'
 
-let refs = 0
-
-export function realtimeQuerido(): boolean {
-  return refs > 0
-}
+export { realtimeQuerido }
 
 /**
  * Realtime CDC só enquanto há ecrã de chat/lista inscrito.
@@ -12,8 +9,8 @@ export function realtimeQuerido(): boolean {
  */
 export function ativarRealtime(): () => void {
   if (typeof window === 'undefined') return () => {}
-  refs += 1
-  if (refs === 1) {
+  const soltar = holdRealtime()
+  if (realtimeQuerido()) {
     try {
       supabase.realtime.connect()
     } catch {
@@ -21,8 +18,8 @@ export function ativarRealtime(): () => void {
     }
   }
   return () => {
-    refs = Math.max(0, refs - 1)
-    if (refs === 0) {
+    soltar()
+    if (!realtimeQuerido()) {
       try {
         supabase.realtime.disconnect()
       } catch {

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Send } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { ativarRealtime } from '@/lib/realtimeOptIn'
 import {
   buscarVistoEmOutroEcossistema,
   mapMensagemEcossistemaPayload,
@@ -239,6 +240,7 @@ export default function ChatAdmEcossistema({
   useEffect(() => {
     if (!conversaAbertaId || conversaVisualId !== conversaAbertaId) return
 
+    const soltarRt = ativarRealtime()
     const ch = supabase
       .channel(`eco-membro-${conversaAbertaId}`)
       .on(
@@ -258,6 +260,7 @@ export default function ChatAdmEcossistema({
       .subscribe()
 
     return () => {
+      soltarRt()
       void supabase.removeChannel(ch)
     }
   }, [conversaAbertaId, conversaVisualId, appendMensagem])
@@ -269,6 +272,7 @@ export default function ChatAdmEcossistema({
     }
     void atualizarVistoOutro(conversaVisualId, usuarioId)
 
+    const soltarRt = ativarRealtime()
     const ch = supabase
       .channel(`eco-visto-membro-${conversaVisualId}`)
       .on(
@@ -286,6 +290,7 @@ export default function ChatAdmEcossistema({
       .subscribe()
 
     return () => {
+      soltarRt()
       void supabase.removeChannel(ch)
     }
   }, [conversaVisualId, atualizarVistoOutro, usuarioId])

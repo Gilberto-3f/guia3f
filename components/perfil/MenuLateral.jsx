@@ -39,6 +39,7 @@ import {
 import { useRouter } from '@/i18n/navigation'
 import { signOutCurrentDevice } from '@/lib/authCookieSync'
 import { supabase } from '@/lib/supabase'
+import { ativarRealtime } from '@/lib/realtimeOptIn'
 import { buscarUsuarioCached, invalidarCacheUsuarioSession } from '@/lib/usuarioSessionCache'
 import { useInfracoes } from '@/app/[locale]/(admin)/dashboard/admin/hooks/useInfracoes'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
@@ -966,6 +967,7 @@ export default function MenuLateral({
 
   useEffect(() => {
     if (!usuarioIdEfetivo || menuVariantEfetivo !== 'turista') return
+    const soltarRt = ativarRealtime()
     const ch = supabase
       .channel(`menu-turista-compras-${usuarioIdEfetivo}`)
       .on(
@@ -982,6 +984,7 @@ export default function MenuLateral({
       )
       .subscribe()
     return () => {
+      soltarRt()
       void supabase.removeChannel(ch)
     }
   }, [usuarioIdEfetivo, menuVariantEfetivo, atualizarIndicadoresMenu])
@@ -1234,6 +1237,7 @@ export default function MenuLateral({
     }
     document.addEventListener('visibilitychange', onVisible)
 
+    const soltarRt = ativarRealtime()
     const ch = supabase
       .channel(`menu-chat-adm-${usuarioIdEfetivo}`)
       .on(
@@ -1268,6 +1272,7 @@ export default function MenuLateral({
       if (debounceId) clearTimeout(debounceId)
       window.removeEventListener(GUIA_CHAT_ADM_BADGE_EVENT, onBadge)
       document.removeEventListener('visibilitychange', onVisible)
+      soltarRt()
       void supabase.removeChannel(ch)
     }
   }, [usuarioIdEfetivo, variant, refreshChatAdmBadge])

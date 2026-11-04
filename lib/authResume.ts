@@ -1,5 +1,5 @@
 import { syncSessionCookiesToServer } from '@/lib/authCookieSync'
-import { realtimeQuerido } from '@/lib/realtimeOptIn'
+import { realtimeQuerido } from '@/lib/realtimeFlag'
 import { supabase } from '@/lib/supabase'
 
 /** Evita tempestade focus+visibility+pageshow após idle. */

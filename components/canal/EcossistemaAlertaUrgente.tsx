@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AlertTriangle, MessageSquare, ShieldAlert, X } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
-import { supabase } from '@/lib/supabase'
-import { ativarRealtime } from '@/lib/realtimeOptIn'
 
 type AlertaUrgente = {
   id: string
@@ -20,8 +18,10 @@ export default function EcossistemaAlertaUrgente() {
   const [visivel, setVisivel] = useState(false)
 
   const carregar = useCallback(async () => {
+    const ac = new AbortController()
+    const t = window.setTimeout(() => ac.abort(), 4_000)
     try {
-      const res = await fetch('/api/admin/ecossistema-alertas-urgentes')
+      const res = await fetch('/api/admin/ecossistema-alertas-urgentes', { signal: ac.signal })
       if (res.status === 401 || res.status === 403) return
       const json = (await res.json()) as { ok?: boolean; alertas?: AlertaUrgente[] }
       if (json.ok && json.alertas && json.alertas.length > 0) {
@@ -33,47 +33,24 @@ export default function EcossistemaAlertaUrgente() {
       }
     } catch {
       /* ignore */
+    } finally {
+      window.clearTimeout(t)
     }
   }, [])
 
   useEffect(() => {
-    void carregar()
-
-    let debounceId: ReturnType<typeof setTimeout> | null = null
-    const agendarCarregar = () => {
-      if (debounceId) clearTimeout(debounceId)
-      debounceId = setTimeout(() => {
-        debounceId = null
-        void carregar()
-      }, 400)
+    const first = window.setTimeout(() => void carregar(), 3_000)
+    const poll = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void carregar()
+    }, 20_000)
+    const onVis = () => {
+      if (document.visibilityState === 'visible') void carregar()
     }
-
-    const soltarRt = ativarRealtime()
-    const ch = supabase
-      .channel('eco-alertas-urgentes-adm')
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'ecossistema_conversas' },
-        (payload) => {
-          const row = payload.new as Record<string, unknown> | undefined
-          if (!row) return
-          const motivo = String(row.motivo_emergencia ?? '')
-          if (motivo === 'perdido' || motivo === 'item_esquecido') return
-          const urgente = row.urgente === true
-          const visto = row.alerta_urgente_visto === true
-          const aberta = String(row.status ?? '') === 'aberta'
-          const turista = String(row.membro_tipo ?? '') === 'turista'
-          if (urgente && !visto && aberta && turista) {
-            agendarCarregar()
-          }
-        },
-      )
-      .subscribe()
-
+    document.addEventListener('visibilitychange', onVis)
     return () => {
-      if (debounceId) clearTimeout(debounceId)
-      soltarRt()
-      void supabase.removeChannel(ch)
+      window.clearTimeout(first)
+      window.clearInterval(poll)
+      document.removeEventListener('visibilitychange', onVis)
     }
   }, [carregar])
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { ativarRealtime } from '@/lib/realtimeOptIn'
 import CanalFinanceiroItem from '@/components/CanalFinanceiroItem'
 import CanalFinanceiroItemDegustacao from '@/components/CanalFinanceiroItemDegustacao'
 import CanalFinanceiroItemPreLiberacao from '@/components/CanalFinanceiroItemPreLiberacao'
@@ -535,6 +536,7 @@ export default function CanalFinanceiroUsuario({
   useEffect(() => {
     if (!usuarioId) return
 
+    const soltarRt = ativarRealtime()
     let cancelled = false
     let ch = /** @type {ReturnType<typeof supabase.channel> | null} */ (null)
 
@@ -624,6 +626,7 @@ export default function CanalFinanceiroUsuario({
 
     return () => {
       cancelled = true
+      soltarRt()
       if (ch) void supabase.removeChannel(ch)
     }
   }, [usuarioId, tipo, carregar])

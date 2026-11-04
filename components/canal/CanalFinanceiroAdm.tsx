@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { BarChart3, ChevronUp, MessageCircle, Search, Send, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { ativarRealtime } from '@/lib/realtimeOptIn'
 import AvatarImage from '@/components/AvatarImage'
 import ChatReciboVisto from '@/components/chat/ChatReciboVisto'
 import CanalMensagemAudio from '@/components/CanalMensagemAudio'
@@ -857,6 +858,7 @@ function ListaMensagensFinanceiro({
 
     void atualizar()
 
+    const soltarRt = ativarRealtime()
     const ch = supabase
       .channel(`fin-adm-visto-${conversaId}`)
       .on(
@@ -874,6 +876,7 @@ function ListaMensagensFinanceiro({
       .subscribe()
 
     return () => {
+      soltarRt()
       void supabase.removeChannel(ch)
     }
   }, [admUsuarioId, alvoUsuarioId, conversaId, viewerUserId])

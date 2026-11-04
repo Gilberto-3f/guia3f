@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Camera, FileText, Globe2, MapPin, Star } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
+import { ativarRealtime } from '@/lib/realtimeOptIn'
 import BotaoEstrelaFavorito from '@/components/favoritos/BotaoEstrelaFavorito'
 import BotaoAlfineteItinerario from '@/components/manifesto/BotaoAlfineteItinerario'
 import UsuarioHandleVerificado from '@/components/UsuarioHandleVerificado'
@@ -200,6 +201,7 @@ export default function EmpresaPage() {
 
     void verificar()
 
+    const soltarRt = ativarRealtime()
     const ch = supabase
       .channel(`reserva-hosp-page-${empresaId}-${usuarioId}`)
       .on(
@@ -218,6 +220,7 @@ export default function EmpresaPage() {
 
     return () => {
       ativo = false
+      soltarRt()
       void supabase.removeChannel(ch)
     }
   }, [enderecoExigeReservaConfirmada, usuarioId, empresaId])

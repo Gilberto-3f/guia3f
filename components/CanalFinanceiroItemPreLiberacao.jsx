@@ -5,6 +5,7 @@ import { KeyRound } from 'lucide-react'
 import AvatarImage from '@/components/AvatarImage'
 import { notificarBadgeCanais } from '@/lib/canais-badge-events'
 import { supabase } from '@/lib/supabase'
+import { ativarRealtime } from '@/lib/realtimeOptIn'
 import { pickFotoTurista } from '@/lib/turistaPreLiberacao'
 import {
   TEXTO_PRE_LIBERACAO_CONFIRME,
@@ -62,6 +63,7 @@ export default function CanalFinanceiroItemPreLiberacao({ item, onRespondido }) 
     }
     document.addEventListener('visibilitychange', onVisivel)
 
+    const soltarRt = ativarRealtime()
     const ch = supabase
       .channel(`pre-lib-turista-foto-${turistaUsuarioId}`)
       .on(
@@ -81,6 +83,7 @@ export default function CanalFinanceiroItemPreLiberacao({ item, onRespondido }) 
     return () => {
       cancelled = true
       document.removeEventListener('visibilitychange', onVisivel)
+      soltarRt()
       void supabase.removeChannel(ch)
     }
   }, [turistaUsuarioId, fotoMetadata])

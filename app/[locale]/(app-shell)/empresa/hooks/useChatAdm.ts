@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { ativarRealtime } from '@/lib/realtimeOptIn'
 import type { MensagemChatAdm } from '../types/empresa.types'
 
 function asRecord(v: unknown) {
@@ -78,6 +79,7 @@ export function useChatAdm(empresaId: string | null) {
 
   useEffect(() => {
     if (!empresaId) return
+    const soltarRt = ativarRealtime()
     const ch = supabase
       .channel(`chat-adm-${empresaId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensagens_chat_adm', filter: `empresa_id=eq.${empresaId}` }, () => {
@@ -86,6 +88,7 @@ export function useChatAdm(empresaId: string | null) {
       .subscribe()
 
     return () => {
+      soltarRt()
       void supabase.removeChannel(ch)
     }
   }, [carregar, empresaId])

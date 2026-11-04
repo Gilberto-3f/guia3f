@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Mic, Paperclip, Send } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { ativarRealtime } from '@/lib/realtimeOptIn'
 import AvatarImage from '@/components/AvatarImage'
 import FinanceiroDialogoVisual from '@/components/canal/FinanceiroDialogoVisual'
 import {
@@ -195,6 +196,7 @@ export default function CanalFinanceiroMensageiro({ usuarioId, ecossistemaId = n
 
   useEffect(() => {
     if (!idAtivo) return
+    const soltarRt = ativarRealtime()
     const ch = supabase
       .channel(`financeiro-msg-${idAtivo}`)
       .on(
@@ -232,6 +234,7 @@ export default function CanalFinanceiroMensageiro({ usuarioId, ecossistemaId = n
       )
       .subscribe()
     return () => {
+      soltarRt()
       void supabase.removeChannel(ch)
     }
   }, [idAtivo, carregarMensagens, todasConversas, usuarioId])

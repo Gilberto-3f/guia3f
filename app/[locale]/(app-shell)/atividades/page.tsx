@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Loader2, Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { ativarRealtime } from '@/lib/realtimeOptIn'
 import { pickAutorDisplay, fetchFotoPerfilUsuario } from '@/lib/feed-autor'
 import { fetchVerificadoPorUsuarioIds, contaVerificadaDocumentacao } from '@/lib/contaVerificada'
 import AbasAtividades from '@/components/atividades/AbasAtividades'
@@ -2077,6 +2078,7 @@ export default function AtividadesPage() {
         void recarregar()
       }, 400)
     }
+    const soltarRt = ativarRealtime()
     const channel = supabase
       .channel(`atividades-sync-${meuId}`)
       .on(
@@ -2102,6 +2104,7 @@ export default function AtividadesPage() {
       })
     return () => {
       if (debounceTimer !== undefined) clearTimeout(debounceTimer)
+      soltarRt()
       void supabase.removeChannel(channel)
     }
   }, [meuId, recarregar, aplicarRemocaoLocal])
