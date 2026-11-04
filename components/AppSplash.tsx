@@ -6,7 +6,7 @@ import { usePathname } from '@/i18n/navigation'
 import { lerAppSplashUi, subscribeAppSplashUi } from '@/lib/appSplashReady'
 
 /** Rede travada: não prende o usuário na capa para sempre. */
-const SPLASH_MAX_MS = 12_000
+const SPLASH_MAX_MS = 4_000
 
 function rotaLiberaCapa(pathname: string) {
   if (!pathname) return false

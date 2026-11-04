@@ -15,15 +15,26 @@ export async function GET() {
       return NextResponse.json({ error: 'server_config' }, { status: 503 })
     }
 
-    const { data: convite } = await adminDb
-      .from('convites_admin')
-      .select('id, nivel, comunidade, pais, ecossistema_id, convidado_em, expira_em, convidado_por')
-      .eq('usuario_id', session.userId)
-      .eq('status', 'pendente')
-      .gt('expira_em', new Date().toISOString())
-      .order('convidado_em', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+    const ac = new AbortController()
+    const abortTimer = setTimeout(() => ac.abort(), 3_000)
+    let convite
+    try {
+      const { data } = await adminDb
+        .from('convites_admin')
+        .select('id, nivel, comunidade, pais, ecossistema_id, convidado_em, expira_em, convidado_por')
+        .eq('usuario_id', session.userId)
+        .eq('status', 'pendente')
+        .gt('expira_em', new Date().toISOString())
+        .order('convidado_em', { ascending: false })
+        .limit(1)
+        .abortSignal(ac.signal)
+        .maybeSingle()
+      convite = data
+    } catch {
+      return NextResponse.json({ convite: null })
+    } finally {
+      clearTimeout(abortTimer)
+    }
 
     if (!convite?.id) {
       return NextResponse.json({ convite: null })

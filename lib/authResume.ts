@@ -1,4 +1,5 @@
 import { syncSessionCookiesToServer } from '@/lib/authCookieSync'
+import { realtimeQuerido } from '@/lib/realtimeOptIn'
 import { supabase } from '@/lib/supabase'
 
 /** Evita tempestade focus+visibility+pageshow após idle. */
@@ -107,6 +108,7 @@ function registrarPausaRealtimeEmBackground(): () => void {
         void (async () => {
           await resumirSessaoAposIdle()
           if (document.visibilityState !== 'visible') return
+          if (!realtimeQuerido()) return
           try {
             supabase.realtime.connect()
           } catch {

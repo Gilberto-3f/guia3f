@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
+import { ativarRealtime } from '@/lib/realtimeOptIn'
 import { Send, Paperclip, X, Check, Mic } from 'lucide-react'
 import { listarMensagensInboxCanalAdm } from '@/lib/canaisProfissionalAdm'
 import { listarMensagensInboxCanalAdmEmpresa } from '@/lib/canaisEmpresaAdm'
@@ -513,6 +514,7 @@ export default function CanalMensagens({
         ? [inboxCanalAdm.canalAdmId, ...inboxCanalAdm.canaisBroadcastIds]
         : [canalId]
 
+    const soltarRt = ativarRealtime()
     const ch = supabase.channel(`mensagens-canal-${canalId}-inbox`)
     for (const cid of idsMonitor) {
       ch.on(
@@ -614,6 +616,7 @@ export default function CanalMensagens({
     void ch.subscribe()
 
     return () => {
+      soltarRt()
       void supabase.removeChannel(ch)
     }
   }, [canalId, inboxCanalAdm, paisTab, modoFiltroPais, garantirScrollNoRodape])

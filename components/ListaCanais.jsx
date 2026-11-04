@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { ativarRealtime } from '@/lib/realtimeOptIn'
 import { MessageCircle, Building2, Crown, ChevronUp, ChevronDown } from 'lucide-react'
 import {
   CLASSE_AVATAR_CANAL_ADMINISTRACAO,
@@ -461,6 +462,7 @@ export default function ListaCanais({
     if (idsMonitor.length === 0) return
 
     const ids = new Set(idsMonitor)
+    const soltarRt = ativarRealtime()
     const ch = supabase.channel('lista-canais-adm-mensagens').on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'mensagens_canal' },
@@ -478,6 +480,7 @@ export default function ListaCanais({
 
     return () => {
       if (contagensTimerRef.current) clearTimeout(contagensTimerRef.current)
+      soltarRt()
       void supabase.removeChannel(ch)
     }
   }, [idsMonitor, agendarRecarregarContagens])
@@ -485,6 +488,7 @@ export default function ListaCanais({
   useEffect(() => {
     if (!ehVisaoAdminBadges) return
 
+    const soltarRt = ativarRealtime()
     const chHub = supabase
       .channel('lista-canais-adm-avisos-hub')
       .on(
@@ -506,6 +510,7 @@ export default function ListaCanais({
       .subscribe()
 
     return () => {
+      soltarRt()
       void supabase.removeChannel(chHub)
     }
   }, [ehVisaoAdminBadges, agendarRecarregarContagens])

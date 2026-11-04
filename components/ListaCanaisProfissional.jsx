@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { ativarRealtime } from '@/lib/realtimeOptIn'
 import { Building2, ChevronDown, ChevronUp, ShoppingBag, Star, Ticket, Utensils, Wrench } from 'lucide-react'
 import {
   CLASSE_AVATAR_CANAL_ADMINISTRACAO,
@@ -484,6 +485,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
     if (idsMonitor.length === 0) return
 
     const ids = new Set(idsMonitor)
+    const soltarRt = ativarRealtime()
     const ch = supabase.channel('lista-canais-prof-mensagens').on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'mensagens_canal' },
@@ -506,6 +508,7 @@ export default function ListaCanaisProfissional({ onSelectCanal, canalSelecionad
 
     return () => {
       if (contagensTimerRef.current) clearTimeout(contagensTimerRef.current)
+      soltarRt()
       void supabase.removeChannel(ch)
     }
   }, [idsMonitor, agendarRecarregarContagens])

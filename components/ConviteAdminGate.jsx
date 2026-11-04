@@ -4,6 +4,31 @@ import { useCallback, useEffect, useState } from 'react'
 import { useModoApresentacao } from '@/context/ModoApresentacaoContext'
 import PopupConviteAdmin from '@/components/PopupConviteAdmin'
 
+const CACHE_KEY = 'guia_convite_admin_v1'
+const CACHE_MS = 15 * 60 * 1000
+const FETCH_MS = 3_000
+
+function lerCache() {
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY)
+    if (!raw) return null
+    const o = JSON.parse(raw)
+    if (!o || typeof o.at !== 'number') return null
+    if (Date.now() - o.at > CACHE_MS) return null
+    return o
+  } catch {
+    return null
+  }
+}
+
+function gravarCache(convite) {
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), convite: convite ?? null }))
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Popup branco de convite administrativo pendente. */
 export default function ConviteAdminGate() {
   const { modoAtivo } = useModoApresentacao()
@@ -12,12 +37,27 @@ export default function ConviteAdminGate() {
 
   const carregar = useCallback(async () => {
     if (modoAtivo) return
+    const cached = lerCache()
+    if (cached) {
+      setConvite(cached.convite ?? null)
+      return
+    }
+    const ac = new AbortController()
+    const t = window.setTimeout(() => ac.abort(), FETCH_MS)
     try {
-      const res = await fetch('/api/admin/convites/pendente', { credentials: 'include' })
+      const res = await fetch('/api/admin/convites/pendente', {
+        credentials: 'include',
+        signal: ac.signal,
+      })
       const json = await res.json().catch(() => ({}))
-      setConvite(json.convite ?? null)
+      const next = json.convite ?? null
+      setConvite(next)
+      gravarCache(next)
     } catch {
       setConvite(null)
+      gravarCache(null)
+    } finally {
+      window.clearTimeout(t)
     }
   }, [modoAtivo])
 
@@ -41,6 +81,7 @@ export default function ConviteAdminGate() {
         return
       }
       setConvite(null)
+      gravarCache(null)
       window.dispatchEvent(new CustomEvent('admin-convite-respondido'))
     } finally {
       setLoading(false)

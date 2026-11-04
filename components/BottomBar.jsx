@@ -22,7 +22,6 @@ import { GUIA_CANAIS_BADGE_EVENT } from '@/lib/canais-badge-events'
 import { GUIA_FUNIL_BADGE_EVENT } from '@/lib/dashboard-funil-badge-events'
 import { contarMensagensNaoLidasCanais, invalidarCacheBadgeCanais } from '@/lib/canalBadge'
 import { contarNaoLidasFunilEmpresa } from '@/lib/dashboardFunilBadge'
-import { subscribeRecomendacoesEmpresa } from '@/lib/funilRecomendacoesRealtime'
 import { empresaGestorTemPresencaVigenteCached } from '@/lib/empresaPresencaPublica'
 import { useGateFeedSocial } from '@/lib/useGateFeedSocial'
 import { useProfissionalGate } from '@/context/ProfissionalGateContext'
@@ -250,12 +249,7 @@ export default function BottomBar() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
-      if (
-        event === 'SIGNED_IN' ||
-        event === 'SIGNED_OUT' ||
-        event === 'USER_UPDATED' ||
-        event === 'TOKEN_REFRESHED'
-      ) {
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
         void syncAuth()
       }
     })
@@ -461,41 +455,6 @@ export default function BottomBar() {
     }
     window.addEventListener(GUIA_FUNIL_BADGE_EVENT, onFunil)
 
-    let debounceRt = null
-    const onRealtime = () => {
-      if (debounceRt) clearTimeout(debounceRt)
-      debounceRt = setTimeout(() => {
-        debounceRt = null
-        void refresh()
-      }, 200)
-    }
-
-    const chRec = subscribeRecomendacoesEmpresa(
-      supabase,
-      empId,
-      `bottombar-funil-rec-${empId}-${authUserId}`,
-      onRealtime,
-    )
-
-    const chExtra = supabase
-      .channel(`bottombar-funil-extra-${empId}-${authUserId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'manifesto',
-          filter: `empresa_destino_id=eq.${empId}`,
-        },
-        onRealtime,
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'comissao', filter: `empresa_id=eq.${empId}` },
-        onRealtime,
-      )
-      .subscribe()
-
     const pollFunilId = setInterval(() => {
       if (document.visibilityState === 'visible') void refresh()
     }, FUNIL_BADGE_POLL_MS)
@@ -504,10 +463,7 @@ export default function BottomBar() {
       cancelled = true
       clearTimeout(deferId)
       clearInterval(pollFunilId)
-      if (debounceRt) clearTimeout(debounceRt)
       window.removeEventListener(GUIA_FUNIL_BADGE_EVENT, onFunil)
-      void supabase.removeChannel(chRec)
-      void supabase.removeChannel(chExtra)
     }
   }, [authUserId, userRole, empresaId, modoAtivo, perfilSimulado?.tipo, contextoEmpresaId, ehAnfitriao, modoEfetivo, empresaHospedagemId, empresaHospedagemLiberada, ehGuia, modoGuiaEfetivo, empresaAgenciaId, empresaAgenciaLiberada, empresaIdDual])
 

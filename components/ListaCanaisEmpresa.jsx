@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { ativarRealtime } from '@/lib/realtimeOptIn'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import {
   CLASSE_AVATAR_CANAL_ADMINISTRACAO,
@@ -551,6 +552,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
     if (!temCanaisComunidade || idsMonitor.length === 0) return
 
     const ids = new Set(idsMonitor)
+    const soltarRt = ativarRealtime()
     const ch = supabase.channel('lista-canais-empresa-mensagens').on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'mensagens_canal' },
@@ -567,6 +569,7 @@ export default function ListaCanaisEmpresa({ onSelectCanal, canalSelecionadoId }
 
     return () => {
       if (contagensTimerRef.current) clearTimeout(contagensTimerRef.current)
+      soltarRt()
       void supabase.removeChannel(ch)
     }
   }, [idsMonitor, temCanaisComunidade, agendarRecarregarContagens])

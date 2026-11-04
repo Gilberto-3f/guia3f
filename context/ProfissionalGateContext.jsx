@@ -10,7 +10,7 @@ import { buscarUsuarioCached } from '@/lib/usuarioSessionCache'
 import { marcarBootSplash } from '@/lib/appSplashReady'
 
 const ProfissionalGateContext = createContext(null)
-const GATE_BOOT_MS = 7000
+const GATE_BOOT_MS = 2500
 
 /** @param {{ foto_perfil_url?: unknown, foto_url?: unknown } | null | undefined} row */
 function pickFotoPerfilRow(row) {
@@ -341,12 +341,7 @@ export function ProfissionalGateProvider({ children }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
-      if (
-        event === 'SIGNED_IN' ||
-        event === 'SIGNED_OUT' ||
-        event === 'USER_UPDATED' ||
-        event === 'TOKEN_REFRESHED'
-      ) {
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
         void refreshGate({ force: true })
       }
     })

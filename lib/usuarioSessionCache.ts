@@ -61,19 +61,28 @@ export async function buscarUsuarioCached(
   let pending = inflight.get(inflightKey)
   if (!pending) {
     pending = (async (): Promise<{ data: UsuarioRow | null; error: Error | null }> => {
-      const { data, error } = await supabase
-        .from('usuarios')
-        .select(fetchSelect)
-        .eq('id', uid)
-        .maybeSingle()
-      inflight.delete(inflightKey)
-      const row = data && typeof data === 'object' ? (data as UsuarioRow) : null
-      if (!error) {
-        const prev = rowCache.get(uid)
-        const merged = prev?.row && row ? { ...prev.row, ...row } : row
-        rowCache.set(uid, { at: Date.now(), row: merged })
+      const ac = new AbortController()
+      const t = setTimeout(() => ac.abort(), 4_000)
+      try {
+        const { data, error } = await supabase
+          .from('usuarios')
+          .select(fetchSelect)
+          .eq('id', uid)
+          .abortSignal(ac.signal)
+          .maybeSingle()
+        const row = data && typeof data === 'object' ? (data as UsuarioRow) : null
+        if (!error) {
+          const prev = rowCache.get(uid)
+          const merged = prev?.row && row ? { ...prev.row, ...row } : row
+          rowCache.set(uid, { at: Date.now(), row: merged })
+        }
+        return { data: row, error: error as Error | null }
+      } catch (e) {
+        return { data: null, error: e instanceof Error ? e : new Error('usuarios timeout') }
+      } finally {
+        clearTimeout(t)
+        inflight.delete(inflightKey)
       }
-      return { data: row, error: error as Error | null }
     })()
     inflight.set(inflightKey, pending)
   }

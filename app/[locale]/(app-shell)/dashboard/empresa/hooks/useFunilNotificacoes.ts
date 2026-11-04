@@ -16,6 +16,7 @@ import {
   type LeituraFunilEmpresa,
 } from '@/lib/dashboardFunilBadge'
 import { subscribeRecomendacoesEmpresa } from '@/lib/funilRecomendacoesRealtime'
+import { ativarRealtime } from '@/lib/realtimeOptIn'
 
 const LEITURA_VAZIA = {
   recomendacoes_visto_em: '1970-01-01T00:00:00.000Z',
@@ -131,6 +132,7 @@ export function useFunilNotificacoes(empresaId: string | null) {
     }
     window.addEventListener(GUIA_FUNIL_BADGE_EVENT, onBadgeEvento)
 
+    const soltarRt = ativarRealtime()
     const chRec = subscribeRecomendacoesEmpresa(
       supabase,
       empresaId,
@@ -160,6 +162,7 @@ export function useFunilNotificacoes(empresaId: string | null) {
     return () => {
       window.removeEventListener(GUIA_FUNIL_BADGE_EVENT, onBadgeEvento)
       if (debounceId) clearTimeout(debounceId)
+      soltarRt()
       void supabase.removeChannel(chRec)
       void supabase.removeChannel(chExtra)
     }

@@ -35,10 +35,14 @@ async function fetchPlanosAtivosCached(): Promise<PlanoResumoServicos[]> {
   if (planosCachePromise) return planosCachePromise
 
   planosCachePromise = (async () => {
+    const ac = new AbortController()
+    const t = setTimeout(() => ac.abort(), 4_000)
     const { data, error } = await supabase
       .from('planos')
       .select('id, nome, titulo, servicos')
       .eq('ativo', true)
+      .abortSignal(ac.signal)
+    clearTimeout(t)
     if (error) throw error
 
     const mapped = (data ?? []).map((row) => {

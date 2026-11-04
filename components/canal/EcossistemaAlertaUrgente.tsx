@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { AlertTriangle, MessageSquare, ShieldAlert, X } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
+import { ativarRealtime } from '@/lib/realtimeOptIn'
 
 type AlertaUrgente = {
   id: string
@@ -47,6 +48,7 @@ export default function EcossistemaAlertaUrgente() {
       }, 400)
     }
 
+    const soltarRt = ativarRealtime()
     const ch = supabase
       .channel('eco-alertas-urgentes-adm')
       .on(
@@ -70,6 +72,7 @@ export default function EcossistemaAlertaUrgente() {
 
     return () => {
       if (debounceId) clearTimeout(debounceId)
+      soltarRt()
       void supabase.removeChannel(ch)
     }
   }, [carregar])

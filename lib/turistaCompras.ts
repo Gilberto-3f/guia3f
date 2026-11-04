@@ -360,16 +360,29 @@ export async function buscarPopupReservaConfirmadaPendente(
   const uid = String(turistaUsuarioId ?? '').trim()
   if (!uid) return null
 
-  const { data, error } = await supabase
-    .from('turista_compras')
-    .select('id, empresa_id, metadata, descricao')
-    .eq('turista_usuario_id', uid)
-    .eq('tipo', 'reserva_hospedagem')
-    .eq('status', 'confirmada')
-    .is('popup_exibido_em', null)
-    .order('registrado_em', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  const ac = new AbortController()
+  const t = setTimeout(() => ac.abort(), 4_000)
+  let data
+  let error
+  try {
+    const res = await supabase
+      .from('turista_compras')
+      .select('id, empresa_id, metadata, descricao')
+      .eq('turista_usuario_id', uid)
+      .eq('tipo', 'reserva_hospedagem')
+      .eq('status', 'confirmada')
+      .is('popup_exibido_em', null)
+      .order('registrado_em', { ascending: false })
+      .limit(1)
+      .abortSignal(ac.signal)
+      .maybeSingle()
+    data = res.data
+    error = res.error
+  } catch {
+    return null
+  } finally {
+    clearTimeout(t)
+  }
 
   if (error || !data?.id || !data.empresa_id) return null
 

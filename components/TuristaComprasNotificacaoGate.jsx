@@ -57,43 +57,11 @@ export default function TuristaComprasNotificacaoGate() {
   useEffect(() => {
     if (!usuarioId || modoAtivo) return
     void abrirSePendente()
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void abrirSePendente()
+    }, 120_000)
+    return () => window.clearInterval(id)
   }, [usuarioId, modoAtivo, abrirSePendente])
-
-  useEffect(() => {
-    if (!usuarioId) return
-
-    const ch = supabase
-      .channel(`turista-compras-popup-${usuarioId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'turista_compras',
-          filter: `turista_usuario_id=eq.${usuarioId}`,
-        },
-        () => {
-          void abrirSePendente()
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'reservas_hospedagem',
-          filter: `turista_usuario_id=eq.${usuarioId}`,
-        },
-        () => {
-          void abrirSePendente()
-        },
-      )
-      .subscribe()
-
-    return () => {
-      void supabase.removeChannel(ch)
-    }
-  }, [usuarioId, abrirSePendente])
 
   const fechar = useCallback(async () => {
     if (dadosPopup?.compraId) {
