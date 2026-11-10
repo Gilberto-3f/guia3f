@@ -1,3 +1,4 @@
+import { appVaiRecarregarPorIdle } from '@/lib/appIdleRecovery'
 import { syncSessionCookiesToServer } from '@/lib/authCookieSync'
 import { realtimeQuerido } from '@/lib/realtimeFlag'
 import { supabase } from '@/lib/supabase'
@@ -33,6 +34,7 @@ function jwtExpMs(session: { access_token?: string; expires_at?: number }): numb
 export async function resumirSessaoAposIdle(): Promise<void> {
   if (typeof window === 'undefined') return
   if (document.visibilityState !== 'visible') return
+  if (appVaiRecarregarPorIdle()) return
 
   const now = Date.now()
   if (inflightResume) {

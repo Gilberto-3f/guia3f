@@ -171,6 +171,7 @@ async function buscarAssinaturasPresencaPublicaDireto(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient | any,
   empresaIds: string[],
+  signal?: AbortSignal,
 ): Promise<AssinaturaPresencaPublicaRow[]> {
   const agora = new Date().toISOString()
   let q = supabase
@@ -183,6 +184,7 @@ async function buscarAssinaturasPresencaPublicaDireto(
   if (empresaIds.length > 0) {
     q = q.in('empresa_id', empresaIds)
   }
+  if (signal) q = q.abortSignal(signal)
 
   const { data, error } = await q
   if (error) {
@@ -202,25 +204,29 @@ export async function buscarAssinaturasPresencaPublica(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient | any,
   empresaIds?: string[] | null,
+  signal?: AbortSignal,
 ): Promise<AssinaturaPresencaPublicaRow[]> {
   const ids = (empresaIds ?? [])
     .map((id) => String(id ?? '').trim())
     .filter(Boolean)
-  const { data, error } = await supabase.rpc('empresa_assinaturas_presenca_publica', {
+  let rpc = supabase.rpc('empresa_assinaturas_presenca_publica', {
     p_empresa_ids: ids.length ? ids : null,
   })
+  if (signal) rpc = rpc.abortSignal(signal)
+  const { data, error } = await rpc
   if (error) {
+    if (signal?.aborted) return []
     console.warn(
       '[empresaAssinatura] buscarAssinaturasPresencaPublica RPC:',
       error.message,
       '— usando SELECT direto',
     )
-    return buscarAssinaturasPresencaPublicaDireto(supabase, ids)
+    return buscarAssinaturasPresencaPublicaDireto(supabase, ids, signal)
   }
   const mapped = mapRowsAssinaturaPresenca(data)
   // RPC vazia com service_role sem grant às vezes retorna [] sem error — tenta direto.
-  if (mapped.length === 0) {
-    const direto = await buscarAssinaturasPresencaPublicaDireto(supabase, ids)
+  if (mapped.length === 0 && !signal?.aborted) {
+    const direto = await buscarAssinaturasPresencaPublicaDireto(supabase, ids, signal)
     if (direto.length > 0) return direto
   }
   return mapped

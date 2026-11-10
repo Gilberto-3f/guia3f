@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { jwtAindaValido, userFromAccessToken } from '@/lib/serverAuthSession'
+import { jwtAindaValido, tokensDosCookiesAuth, userFromAccessToken } from '@/lib/serverAuthSession'
 import { limparPerfilSessaoCookies } from '@/lib/perfilSessaoCache'
 
 function fetchSemGetUserAuth(accessToken: string): typeof fetch {
@@ -23,9 +23,10 @@ function fetchSemGetUserAuth(accessToken: string): typeof fetch {
  * Replica a sessão do browser (localStorage) nos cookies HttpOnly do domínio,
  * para o middleware e o createServerClient enxergarem a mesma sessão (Safari / PWA).
  *
- * Evita `setSession` (que pode bater em Auth `/token` ou `/user`) quando os cookies
- * já têm os mesmos tokens e o access JWT ainda é válido.
- * Com JWT válido, `setSession` não chama GoTrue — o GET /user é respondido localmente.
+ * Nunca chama `getSession`: com o access dos cookies vencido (volta do idle),
+ * o client SSR dispara POST /token?grant_type=refresh_token no Node e disputa
+ * o Postgres com o refresh do browser (504, context canceled, 57014).
+ * Com JWT válido, `setSession` só grava o cookie — o GET /user é respondido localmente.
  */
 export async function POST(request: Request) {
   let body: unknown
@@ -55,6 +56,11 @@ export async function POST(request: Request) {
   }
 
   const cookieStore = await cookies()
+  const atuais = tokensDosCookiesAuth(cookieStore.getAll())
+  if (atuais.accessToken === access_token && atuais.refreshToken === refresh_token) {
+    return NextResponse.json({ ok: true, skipped: true })
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -79,18 +85,6 @@ export async function POST(request: Request) {
       },
     },
   )
-
-  const {
-    data: { session: existing },
-  } = await supabase.auth.getSession()
-
-  if (
-    existing?.access_token === access_token &&
-    existing?.refresh_token === refresh_token &&
-    jwtAindaValido(access_token)
-  ) {
-    return NextResponse.json({ ok: true, skipped: true })
-  }
 
   const { error } = await supabase.auth.setSession({ access_token, refresh_token })
   if (error) {

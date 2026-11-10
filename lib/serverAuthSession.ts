@@ -45,25 +45,45 @@ function juntarCookieAuth(all: { name: string; value: string }[]): string | null
 }
 
 function extrairAccessToken(raw: string): string {
+  return extrairTokensSessao(raw).accessToken
+}
+
+function extrairTokensSessao(raw: string): { accessToken: string; refreshToken: string } {
   if (raw.startsWith('{')) {
     try {
-      const o = JSON.parse(raw) as { access_token?: string }
-      return String(o.access_token ?? '')
+      const o = JSON.parse(raw) as { access_token?: string; refresh_token?: string }
+      return {
+        accessToken: String(o.access_token ?? ''),
+        refreshToken: String(o.refresh_token ?? ''),
+      }
     } catch {
-      return ''
+      return { accessToken: '', refreshToken: '' }
     }
   }
   if (raw.startsWith('base64-')) {
     try {
       const decoded = atob(raw.slice(7))
-      const o = JSON.parse(decoded) as { access_token?: string }
-      return String(o.access_token ?? '')
+      const o = JSON.parse(decoded) as { access_token?: string; refresh_token?: string }
+      return {
+        accessToken: String(o.access_token ?? ''),
+        refreshToken: String(o.refresh_token ?? ''),
+      }
     } catch {
-      return ''
+      return { accessToken: '', refreshToken: '' }
     }
   }
-  if (raw.split('.').length === 3) return raw
-  return ''
+  if (raw.split('.').length === 3) return { accessToken: raw, refreshToken: '' }
+  return { accessToken: '', refreshToken: '' }
+}
+
+/** Lê access + refresh dos cookies `sb-*-auth-token` sem chamar o GoTrue. */
+export function tokensDosCookiesAuth(all: { name: string; value: string }[]): {
+  accessToken: string
+  refreshToken: string
+} {
+  const raw = juntarCookieAuth(all)
+  if (!raw) return { accessToken: '', refreshToken: '' }
+  return extrairTokensSessao(raw)
 }
 
 /** Monta User do JWT — sem GET /auth/v1/user. */

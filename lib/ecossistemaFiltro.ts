@@ -112,13 +112,13 @@ export async function buscarIdsEmpresaEcossistema(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   ecoId: string | null | undefined,
+  signal?: AbortSignal,
 ): Promise<Set<string> | null> {
   const id = String(ecoId ?? '').trim()
   if (!id) return null
-  const { data, error } = await supabase
-    .from('empresa_ecossistemas')
-    .select('empresa_id')
-    .eq('ecossistema_id', id)
+  let q = supabase.from('empresa_ecossistemas').select('empresa_id').eq('ecossistema_id', id)
+  if (signal) q = q.abortSignal(signal)
+  const { data, error } = await q
   if (error) {
     if (vinculoEcossistemaIgnoravel(error)) return null
     return null

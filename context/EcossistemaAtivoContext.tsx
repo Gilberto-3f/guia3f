@@ -83,10 +83,11 @@ export function EcossistemaAtivoProvider({ children }: { children: ReactNode }) 
     ;(async () => {
       try {
         const todosCache = lerCacheLocal()
-        const [{ data: sessionData }, primeira] = await Promise.all([
-          supabase.auth.getSession(),
-          fetchCatalogo(ac.signal),
-        ])
+        // Sessão primeiro: o catálogo (service role) não disputa o Postgres
+        // com o POST /token do refresh depois do idle.
+        const { data: sessionData } = await supabase.auth.getSession()
+        if (cancel) return
+        const primeira = await fetchCatalogo(ac.signal)
         let todos = primeira.length > 0 ? primeira : todosCache
         if (todos.length === 0) {
           todos = await fetchCatalogo()

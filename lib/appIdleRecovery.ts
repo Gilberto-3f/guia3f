@@ -1,8 +1,14 @@
-import { resumirSessaoAposIdle } from '@/lib/authResume'
 import { resetModalScrollLockStale } from '@/lib/useModalScrollLock'
 
 /** AppShell escuta para reexibir a BottomBar (teclado/modal presos após hibernação). */
 export const GUIA_IDLE_RECOVER_EVENT = 'guia-idle-recover'
+
+/** Recarga dura já decidida — o refresh de sessão não deve começar (o reload o abortaria). */
+let recargaIdleArmada = false
+
+export function appVaiRecarregarPorIdle(): boolean {
+  return recargaIdleArmada
+}
 
 const HEARTBEAT_MS = 4_000
 /** JS não rodou por ~2 min → processo hibernado (PWA/Safari). */
@@ -99,20 +105,12 @@ export async function recuperarAppAposIdle(): Promise<boolean> {
     return false
   }
 
+  // Sem refresh antes do reload: o POST /token era abortado no meio
+  // (context canceled, 08006) e a página nova abria outro em cima das queries ainda vivas.
+  recargaIdleArmada = true
   recuperando = true
   marcarReloadGuard()
   limparTrapsUi()
-
-  try {
-    await Promise.race([
-      resumirSessaoAposIdle(),
-      new Promise<void>((resolve) => {
-        window.setTimeout(resolve, 1200)
-      }),
-    ])
-  } catch {
-    /* ignore */
-  }
 
   if (skipReload) return false
   window.location.reload()

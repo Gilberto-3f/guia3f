@@ -104,10 +104,12 @@ export function ProfissionalGateProvider({ children }) {
     lastGateAtRef.current = Date.now()
     if (!gateCarregadoUmaVez.current && !lerPerfilBarraCache()) setLoading(true)
 
+    const ac = new AbortController()
     const executar = async () => {
     const {
       data: { session },
     } = await supabase.auth.getSession()
+    if (ac.signal.aborted) return
     const uid = session?.user?.id ?? null
 
     if (uid) {
@@ -170,6 +172,7 @@ export function ProfissionalGateProvider({ children }) {
           'status, docs_verificado, documentos_enviados_em, documento_frente_url, proxima_revisao_docs_em, categorias, empresa_hospedagem_id, empresa_agencia_id, empresa_agencia_van_id, foto_perfil_url, foto_url',
         )
         .eq('usuario_id', uid)
+        .abortSignal(ac.signal)
         .maybeSingle()
       setProfRow(
         p && typeof p === 'object'
@@ -205,6 +208,7 @@ export function ProfissionalGateProvider({ children }) {
           .from('empresas')
           .select('foto_url')
           .eq('id', empresaHospedagemIdCache)
+          .abortSignal(ac.signal)
           .maybeSingle()
         empresaFotoCache =
           empH?.foto_url != null && String(empH.foto_url).trim() !== '' ? String(empH.foto_url) : null
@@ -214,6 +218,7 @@ export function ProfissionalGateProvider({ children }) {
         .from('empresas')
         .select('id, status, docs_verificado, aprovado_em, verificado_em, foto_url')
         .eq('usuario_id', uid)
+        .abortSignal(ac.signal)
         .maybeSingle()
       setProfRow(null)
       setTuristaGate(null)
@@ -260,6 +265,7 @@ export function ProfissionalGateProvider({ children }) {
         .from('turistas')
         .select('documento_frente_url, documento_verso_url, docs_verificado, foto_perfil_url, foto_url')
         .eq('usuario_id', uid)
+        .abortSignal(ac.signal)
         .maybeSingle()
       setTuristaDocsRow(
         t && typeof t === 'object'
@@ -282,8 +288,8 @@ export function ProfissionalGateProvider({ children }) {
       setTuristaDocsRow(null)
       if (role === 'admin') {
         const [profRes, turRes] = await Promise.all([
-          supabase.from('profissionais').select('foto_perfil_url, foto_url').eq('usuario_id', uid).maybeSingle(),
-          supabase.from('turistas').select('foto_perfil_url, foto_url').eq('usuario_id', uid).maybeSingle(),
+          supabase.from('profissionais').select('foto_perfil_url, foto_url').eq('usuario_id', uid).abortSignal(ac.signal).maybeSingle(),
+          supabase.from('turistas').select('foto_perfil_url, foto_url').eq('usuario_id', uid).abortSignal(ac.signal).maybeSingle(),
         ])
         fotoCache = pickFotoPerfilRow(profRes.data) ?? pickFotoPerfilRow(turRes.data)
         setFotoPerfilBarra(fotoCache)
@@ -309,6 +315,7 @@ export function ProfissionalGateProvider({ children }) {
         executar(),
         new Promise((_, reject) => {
           setTimeout(() => {
+            ac.abort()
             reject(Object.assign(new Error('gate timeout'), { status: 504 }))
           }, GATE_BOOT_MS)
         }),

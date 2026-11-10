@@ -54,8 +54,9 @@ export default function SupabaseCookieSync() {
   }, [])
 
   useEffect(() => {
-    const unsubResume = registrarResumoSessaoAoVoltar()
+    // Idle primeiro: na volta longa arma o reload antes do refresh de sessão.
     const unsubIdle = registrarRecuperacaoIdle()
+    const unsubResume = registrarResumoSessaoAoVoltar()
     return () => {
       unsubResume()
       unsubIdle()

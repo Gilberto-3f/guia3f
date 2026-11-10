@@ -282,6 +282,8 @@ export default function PublicidadeHome() {
 
   useEffect(() => {
     let vivo = true
+    const ac = new AbortController()
+    const abortTimer = window.setTimeout(() => ac.abort(), 6_000)
     const carregar = async () => {
       if (!ecoCarregou) return
       if (!ecoId) {
@@ -299,12 +301,23 @@ export default function PublicidadeHome() {
           .lte('periodo_inicio', hoje)
           .gte('periodo_fim', hoje)
           .order('created_at', { ascending: true })
+          .abortSignal(ac.signal)
 
-      const [anRes0, vigentes, idsEco] = await Promise.all([
-        queryHome('id, empresa_id, imagem_url, link_url, ecossistema_id'),
-        buscarIdsEmpresaPresencaPublicaVigente(supabase),
-        buscarIdsEmpresaEcossistema(supabase, ecoId),
-      ])
+      let anRes0: Awaited<ReturnType<typeof queryHome>>
+      let vigentes: Awaited<ReturnType<typeof buscarIdsEmpresaPresencaPublicaVigente>>
+      let idsEco: Awaited<ReturnType<typeof buscarIdsEmpresaEcossistema>>
+      try {
+        ;[anRes0, vigentes, idsEco] = await Promise.all([
+          queryHome('id, empresa_id, imagem_url, link_url, ecossistema_id'),
+          buscarIdsEmpresaPresencaPublicaVigente(supabase),
+          buscarIdsEmpresaEcossistema(supabase, ecoId, ac.signal),
+        ])
+      } catch (err) {
+        if (!vivo) return
+        console.warn('[PublicidadeHome] consulta interrompida:', err)
+        setCarregando(false)
+        return
+      }
 
       let anRes = anRes0
       if (anRes.error && /ecossistema_id|schema cache|column/i.test(anRes.error.message)) {
@@ -340,6 +353,8 @@ export default function PublicidadeHome() {
     void carregar()
     return () => {
       vivo = false
+      window.clearTimeout(abortTimer)
+      ac.abort()
     }
   }, [aplicarSlides, ecoCarregou, ecoId])
 

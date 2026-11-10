@@ -36,8 +36,11 @@ function agoraIso(d = new Date()): string {
 async function buscarIdsEmpresasGratuitasProfissional(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient | any,
+  signal?: AbortSignal,
 ): Promise<{ data: { id?: unknown }[] | null; error: { message?: string } | null }> {
-  const rpc = await supabase.rpc('empresa_ids_presenca_dual')
+  let rpcQ = supabase.rpc('empresa_ids_presenca_dual')
+  if (signal) rpcQ = rpcQ.abortSignal(signal)
+  const rpc = await rpcQ
   if (!rpc.error && Array.isArray(rpc.data)) {
     return {
       data: rpc.data.map((r: { empresa_id?: unknown }) => ({ id: r.empresa_id })),
@@ -45,8 +48,8 @@ async function buscarIdsEmpresasGratuitasProfissional(
     }
   }
 
-  const base = (col: string) =>
-    supabase
+  const base = (col: string) => {
+    let q = supabase
       .from('empresas')
       .select('id')
       .eq('docs_verificado', true)
@@ -54,6 +57,9 @@ async function buscarIdsEmpresasGratuitasProfissional(
       .eq('somente_modo_apresentacao', false)
       .not('foto_url', 'is', null)
       .eq(col, true)
+    if (signal) q = q.abortSignal(signal)
+    return q
+  }
 
   const cols = ['somente_anfitriao', 'somente_guia', 'somente_van']
   const parts = await Promise.all(cols.map((c) => base(c)))
@@ -84,8 +90,11 @@ async function buscarIdsEmpresasGratuitasProfissional(
 async function buscarIdsEmpresasPlanoCampoLegado(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient | any,
+  signal?: AbortSignal,
 ): Promise<{ data: { id?: unknown }[] | null; error: { message?: string } | null }> {
-  const rpc = await supabase.rpc('empresa_ids_plano_legado_sem_assinatura')
+  let rpcQ = supabase.rpc('empresa_ids_plano_legado_sem_assinatura')
+  if (signal) rpcQ = rpcQ.abortSignal(signal)
+  const rpc = await rpcQ
   if (!rpc.error && Array.isArray(rpc.data)) {
     return {
       data: rpc.data.map((r: { empresa_id?: unknown }) => ({ id: r.empresa_id })),
@@ -109,16 +118,29 @@ async function carregarPresencaPublicaRaw(
   agora = new Date(),
 ): Promise<PresencaIdsCache> {
   const iso = agoraIso(agora)
-  const [degRes, assRows, gratisRes, legadoRes] = await Promise.all([
-    supabase
+  const ac = new AbortController()
+  const timer = setTimeout(() => ac.abort(), 5_000)
+  const sinal = <T,>(q: T): T => {
+    const b = q as { abortSignal?: (s: AbortSignal) => T }
+    return typeof b.abortSignal === 'function' ? b.abortSignal(ac.signal) : q
+  }
+  let degRes: { data: { empresa_id?: unknown }[] | null; error: { message?: string } | null }
+  let assRows: Awaited<ReturnType<typeof buscarAssinaturasPresencaPublica>>
+  let gratisRes: { data: { id?: unknown }[] | null; error: { message?: string } | null }
+  let legadoRes: { data: { id?: unknown }[] | null; error: { message?: string } | null }
+  try {
+  ;[degRes, assRows, gratisRes, legadoRes] = await Promise.all([
+    sinal(
+      supabase
       .from('empresa_degustacoes')
       .select('empresa_id')
       .eq('status', 'ativa')
       .gt('expira_em', iso),
+    ),
     // RPC: bypass RLS dono/admin — turista vê só empresas com ciclo regular.
-    buscarAssinaturasPresencaPublica(supabase),
-    buscarIdsEmpresasGratuitasProfissional(supabase),
-    buscarIdsEmpresasPlanoCampoLegado(supabase),
+    buscarAssinaturasPresencaPublica(supabase, null, ac.signal),
+    buscarIdsEmpresasGratuitasProfissional(supabase, ac.signal),
+    buscarIdsEmpresasPlanoCampoLegado(supabase, ac.signal),
   ])
 
   const degErr = degRes.error
@@ -165,7 +187,9 @@ async function carregarPresencaPublicaRaw(
   const CHUNK = 80
   for (let i = 0; i < empIds.length; i += CHUNK) {
     const slice = empIds.slice(i, i + CHUNK)
-    const { data, error } = await supabase.from('empresas').select('usuario_id').in('id', slice)
+    let chunkQ = supabase.from('empresas').select('usuario_id').in('id', slice)
+    chunkQ = chunkQ.abortSignal(ac.signal)
+    const { data, error } = await chunkQ
     if (error) {
       console.warn('[empresaPresencaPublica] usuario_id chunk:', error.message)
       if (presencaCache) return presencaCache
@@ -180,6 +204,13 @@ async function carregarPresencaPublicaRaw(
   }
 
   return { at: Date.now(), empIds, usuarioIds }
+  } catch (err) {
+    console.warn('[empresaPresencaPublica] consulta interrompida:', err)
+    if (presencaCache) return presencaCache
+    return { at: Date.now(), empIds: [], usuarioIds: [] }
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 async function obterPresencaCache(
