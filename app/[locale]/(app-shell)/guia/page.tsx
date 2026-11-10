@@ -16,7 +16,7 @@ import { refreshAppViewportHeight } from '@/lib/useAppViewportHeight'
 export default function GuiaPage() {
   const router = useRouter()
   const [abaAtiva, setAbaAtiva] = useState<'guia' | 'mobilidade'>('guia')
-  const { carregou: ecoCarregou, podeEscolher: podeEscolherEco } = useEcossistemaAtivo()
+  const { carregou: ecoCarregou } = useEcossistemaAtivo()
   const { bootConcluido } = useProfissionalGate()
 
   useEffect(() => {
@@ -81,9 +81,7 @@ export default function GuiaPage() {
         ) : (
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-20">
             <GradeFiltros onFiltroClick={handleFiltroClick} />
-            {podeEscolherEco ? null : (
-              <p className="mb-1 mt-2 text-center text-xs text-[#0097b2]">Espaço Publicitário</p>
-            )}
+            <p className="mb-1 mt-2 text-center text-xs text-[#0097b2]">Espaço Publicitário</p>
             <PublicidadeHome />
           </div>
         )}
