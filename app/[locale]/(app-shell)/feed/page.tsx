@@ -183,25 +183,6 @@ function FeedPageInner() {
   const storyImagePreloadRef = useRef(new Set<string>())
   const [bloqueioEmpresaFeed, setBloqueioEmpresaFeed] = useState(false)
 
-  useEffect(() => {
-    const root = document.documentElement
-    const body = document.body
-    root.classList.add('feed-status-branco')
-    const fundoRoot = root.style.background
-    const fundoBody = body.style.background
-    root.style.background = '#ffffff'
-    body.style.background = '#ffffff'
-    const meta = document.querySelector('meta[name="theme-color"]')
-    const anterior = meta?.getAttribute('content') ?? null
-    if (meta) meta.setAttribute('content', '#ffffff')
-    return () => {
-      root.classList.remove('feed-status-branco')
-      root.style.background = fundoRoot
-      body.style.background = fundoBody
-      if (meta) meta.setAttribute('content', anterior || '#0097b2')
-    }
-  }, [])
-
   const [meuId, setMeuId] = useState<string | null>(null)
   const [email, setEmail] = useState<string | null>(null)
   const { modoAtivo } = useModoApresentacao()

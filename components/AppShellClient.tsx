@@ -20,6 +20,7 @@ import ConviteAdminGate from '@/components/ConviteAdminGate'
 import AdminColaboradorModoGate from '@/components/AdminColaboradorModoGate'
 import OfertaMobilidadeListener from '@/components/mobilidade/OfertaMobilidadeListener'
 import { useAppViewportHeight } from '@/lib/useAppViewportHeight'
+import { definirStatusFeedBranco } from '@/lib/modoNoturno'
 import {
   isModalScrollLocked,
   MODAL_SCROLL_LOCK_EVENT,
@@ -186,6 +187,10 @@ function AppShellInner({ children }: { children: ReactNode }) {
   useEffect(() => {
     marcarShellInnerMontado()
   }, [])
+
+  useEffect(() => {
+    definirStatusFeedBranco(/\/feed\/?$/.test(pathname))
+  }, [pathname])
 
   useEffect(() => {
     if (naHomeGuia) return
