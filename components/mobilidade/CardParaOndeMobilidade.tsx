@@ -22,6 +22,7 @@ import {
   type SugestaoDestinoMobilidade,
 } from '@/lib/mobilidadePopupPesquisa'
 import { propsUmToque } from '@/lib/umToque'
+import { useEcossistemaAtivo } from '@/context/EcossistemaAtivoContext'
 import CardParteAtendimentoFlutuante from '@/components/mobilidade/CardParteAtendimentoFlutuante'
 import {
   ehAtendimentoImediatoAtivo,
@@ -132,6 +133,8 @@ export default function CardParaOndeMobilidade({
 }: Props) {
   const t = useTranslations('Mobilidade')
   const router = useRouter()
+  const { ativo: ecoAtivo } = useEcossistemaAtivo()
+  const nomeEco = String(ecoAtivo?.nome ?? '').trim()
   const listaRef = useRef<HTMLUListElement | null>(null)
 
   const [aberto, setAberto] = useState(expandidoInicial && !forcarRecolhido)
@@ -610,11 +613,22 @@ export default function CardParaOndeMobilidade({
             })}
             className="flex min-w-0 flex-1 cursor-pointer touch-manipulation items-center justify-between gap-3 px-2 py-1.5 text-left text-white"
             aria-expanded={painelAberto}
-            aria-label={painelAberto ? t('paraOndeTitulo') : `${t('paraOndeTitulo')}. ${resumoDestino}`}
+            aria-label={
+              nomeEco
+                ? `${t('paraOndeTitulo')}. ${nomeEco}`
+                : painelAberto
+                  ? t('paraOndeTitulo')
+                  : `${t('paraOndeTitulo')}. ${resumoDestino}`
+            }
           >
             <div className="flex min-w-0 items-center gap-2.5">
               <Car className="h-5 w-5 shrink-0 text-white" aria-hidden strokeWidth={2} />
-              <p className="text-base font-extrabold text-white">{t('paraOndeTitulo')}</p>
+              <div className="min-w-0">
+                <p className="text-base font-extrabold leading-tight text-white">{t('paraOndeTitulo')}</p>
+                {nomeEco ? (
+                  <p className="truncate text-[11px] font-medium leading-tight text-white/90">{nomeEco}</p>
+                ) : null}
+              </div>
             </div>
             {painelAberto ? (
               <ChevronUp className="h-5 w-5 shrink-0 text-white" aria-hidden />
