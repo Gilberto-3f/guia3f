@@ -634,13 +634,14 @@ export default function VisaoTuristaMobilidade({
     pesquisa.modo,
   ])
 
-  const fecharDrawerPesquisa = () => {
+  const fecharDrawerPesquisa = (opts?: { manterCampos?: boolean }) => {
     openGenRef.current += 1
     abrindoDrawerRef.current = false
     empresaFechadaIdRef.current = pesquisaAtiva.destinoEmpresaId
     setDrawerAberto(false)
     setPesquisaDrawer(null)
-    limparPesquisaDestino()
+    // Sem profissional: partida e destino ficam para uma nova busca.
+    if (!opts?.manterCampos) limparPesquisaDestino()
   }
 
   /** URL já sem destino — reforça limpeza do card. */
@@ -975,8 +976,13 @@ export default function VisaoTuristaMobilidade({
               empresas={empresasDoBloco}
               forcarRecolhido={drawerAberto}
               expandidoInicial={Boolean(cardDestino) || anfitriaoChamarCorrida}
+              descartarPendencia={resultadoCorrida?.status === 'sem_profissional'}
               pendenciaResultado={
-                resultadoCorrida && !resultadoAberto && resultadoCorrida.solicitacaoId
+                resultadoCorrida &&
+                !resultadoAberto &&
+                resultadoCorrida.solicitacaoId &&
+                resultadoCorrida.status !== 'sem_profissional' &&
+                (resultadoCorrida.oferta || resultadoCorrida.profissionalParticular)
                   ? {
                       profissional: resultadoCorrida.profissionalParticular
                         ? {
@@ -1061,6 +1067,13 @@ export default function VisaoTuristaMobilidade({
         resultado={resultadoCorrida}
         onFechar={() => {
           setResultadoAberto(false)
+        }}
+        onSemProfissional={() => {
+          setResultadoCorrida((prev) =>
+            prev && prev.status !== 'sem_profissional'
+              ? { ...prev, status: 'sem_profissional', oferta: null }
+              : prev,
+          )
         }}
         onEncerrar={(motivo) => {
           setResultadoAberto(false)

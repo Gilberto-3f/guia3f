@@ -90,6 +90,11 @@ type Props = {
     categoriaLabel?: string | null
   } | null
   onAbrirResultadoPendente?: () => void
+  /**
+   * Busca sem profissional online: sai do atalho "aguardando aceite"
+   * e reabre o formulário (partida/destino + botão verde).
+   */
+  descartarPendencia?: boolean
   /** Voltar ao card anterior (ex.: anfitrião). */
   onVoltar?: () => void
 }
@@ -122,6 +127,7 @@ export default function CardParaOndeMobilidade({
   forcarRecolhido = false,
   pendenciaResultado = null,
   onAbrirResultadoPendente,
+  descartarPendencia = false,
   onVoltar,
 }: Props) {
   const t = useTranslations('Mobilidade')
@@ -258,13 +264,19 @@ export default function CardParaOndeMobilidade({
   )
 
   const pendenciaHoldRef = useRef(pendenciaResultado)
-  if (pendenciaResultado) {
-    pendenciaHoldRef.current = pendenciaResultado
-  } else if (emAtendimento) {
+  if (descartarPendencia || emAtendimento) {
     pendenciaHoldRef.current = null
+  } else if (pendenciaResultado?.profissional) {
+    pendenciaHoldRef.current = pendenciaResultado
   }
-  const pendenciaExibir = pendenciaResultado ?? (!emAtendimento ? pendenciaHoldRef.current : null)
-  const emPendencia = Boolean(pendenciaExibir) && !emAtendimento
+  const pendenciaExibir = descartarPendencia
+    ? null
+    : pendenciaResultado?.profissional
+      ? pendenciaResultado
+      : !emAtendimento
+        ? pendenciaHoldRef.current
+        : null
+  const emPendencia = Boolean(pendenciaExibir?.profissional) && !emAtendimento
 
   const atendimentoIdAbertoRef = useRef<string | null>(null)
   useEffect(() => {
@@ -282,6 +294,12 @@ export default function CardParaOndeMobilidade({
     if (!emPendencia || forcarRecolhido) return
     setAberto(true)
   }, [emPendencia, forcarRecolhido])
+
+  /** Sem profissional: formulário aberto, botão Pesquisar verde, sem atalho de espera. */
+  useEffect(() => {
+    if (!descartarPendencia || forcarRecolhido) return
+    setAberto(true)
+  }, [descartarPendencia, forcarRecolhido])
 
   useEffect(() => {
     if (origemInicial?.lat != null && origemInicial?.lng != null) {

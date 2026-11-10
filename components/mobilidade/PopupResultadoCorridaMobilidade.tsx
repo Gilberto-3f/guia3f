@@ -40,6 +40,8 @@ type Props = {
   /** Aceite do profissional ou cancelamento do cliente — limpa o atalho pendente. */
   onEncerrar?: (motivo: 'aceita' | 'cancelada') => void
   onReabrirAgendar?: () => void
+  /** Nenhum profissional da categoria online: a barra volta ao formulário de busca. */
+  onSemProfissional?: () => void
 }
 
 /**
@@ -52,6 +54,7 @@ export default function PopupResultadoCorridaMobilidade({
   onFechar,
   onEncerrar,
   onReabrirAgendar,
+  onSemProfissional,
 }: Props) {
   const t = useTranslations('Mobilidade')
   const [matchStatus, setMatchStatus] = useState<string | null>(null)
@@ -81,6 +84,11 @@ export default function PopupResultadoCorridaMobilidade({
   useEffect(() => {
     encerrouRef.current = false
   }, [resultado?.solicitacaoId])
+
+  useEffect(() => {
+    if (matchStatus !== 'sem_profissional') return
+    onSemProfissional?.()
+  }, [matchStatus, onSemProfissional])
 
   /** Após aceite: fecha o popup de espera; o mapa + card flutuante assumem. */
   useEffect(() => {

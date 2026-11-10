@@ -86,7 +86,7 @@ const CINZA = '#9CA3AF'
 
 type Props = {
   aberto: boolean
-  onFechar: () => void
+  onFechar: (opts?: { manterCampos?: boolean }) => void
   pesquisa: MobilidadePesquisaState
   destinoCidadeEmpresa?: string | null
   destinoNomeEmpresa?: string | null
@@ -930,7 +930,7 @@ export default function DrawerPesquisaMobilidade({
         contratacaoDirigida: modoParticular,
         profissionalParticular: modoParticular ? profParticular : null,
       })
-      onFechar()
+      onFechar({ manterCampos: true })
       return
     }
 
@@ -980,7 +980,7 @@ export default function DrawerPesquisaMobilidade({
           contratacaoDirigida: modoParticular,
           profissionalParticular: modoParticular ? profParticular : null,
         })
-        onFechar()
+        onFechar({ manterCampos: true })
         return
       }
 
@@ -997,7 +997,7 @@ export default function DrawerPesquisaMobilidade({
         contratacaoDirigida: modoParticular,
         profissionalParticular: modoParticular ? profParticular : null,
       })
-      onFechar()
+      onFechar(of?.profissionalId ? undefined : { manterCampos: true })
     } catch {
       onResultado({
         solicitacaoId: '',
@@ -1008,7 +1008,7 @@ export default function DrawerPesquisaMobilidade({
         contratacaoDirigida: modoParticular,
         profissionalParticular: modoParticular ? profParticular : null,
       })
-      onFechar()
+      onFechar({ manterCampos: true })
     } finally {
       setEnviando(false)
     }
