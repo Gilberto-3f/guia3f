@@ -25,7 +25,7 @@ export default function ChevronEcossistemaHome() {
   const podeAbrir = listaHome.length > 1
 
   return (
-    <div ref={rootRef} className="relative flex justify-center px-3 pb-3 pt-1">
+    <div ref={rootRef} className="relative flex justify-center px-3 pb-1 pt-0">
       <button
         type="button"
         aria-label={t('ecoAria')}

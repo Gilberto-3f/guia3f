@@ -7,7 +7,7 @@ import { Link } from '@/i18n/navigation'
 import ChevronEcossistemaHome from '@/components/ChevronEcossistemaHome'
 
 function abaCls(ativo: boolean) {
-  return `relative z-10 flex min-w-0 flex-1 cursor-pointer touch-manipulation items-center justify-center gap-2 border-b-[3px] py-3 text-center text-sm font-semibold tracking-wide transition-colors sm:text-base ${
+  return `relative z-10 flex min-w-0 flex-1 cursor-pointer touch-manipulation items-center justify-center gap-2 border-b-[3px] py-2 text-center text-sm font-semibold tracking-wide transition-colors sm:text-base ${
     ativo
       ? 'border-[#0097b2] text-[#0097b2]'
       : 'border-transparent text-gray-500'

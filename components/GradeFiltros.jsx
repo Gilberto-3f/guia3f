@@ -29,7 +29,7 @@ export default function GradeFiltros({ onFiltroClick }) {
   ]
 
   return (
-    <div data-splash-grade="" className="grid grid-cols-3 gap-2 p-3 sm:gap-3 sm:p-4">
+    <div data-splash-grade="" className="grid grid-cols-3 gap-1.5 p-2 sm:gap-3 sm:p-4">
       {filtros.map((filtro, idx) => {
         const Icon = filtro.icon
         const aguarde = filtro.id === 'aguarde'
@@ -44,8 +44,8 @@ export default function GradeFiltros({ onFiltroClick }) {
             aria-disabled={aguarde || undefined}
             className={
               aguarde
-                ? 'flex aspect-square flex-col items-center justify-center rounded-lg border border-gray-200 bg-white'
-                : 'flex aspect-square flex-col items-center justify-center rounded-lg border border-gray-200 bg-white transition-shadow hover:shadow-md'
+                ? 'flex aspect-[6/5] flex-col items-center justify-center rounded-lg border border-gray-200 bg-white sm:aspect-square'
+                : 'flex aspect-[6/5] flex-col items-center justify-center rounded-lg border border-gray-200 bg-white transition-shadow hover:shadow-md sm:aspect-square'
             }
           >
             <Icon className="mb-1 h-7 w-7 shrink-0 text-[#0097b2]" strokeWidth={2} aria-hidden />
