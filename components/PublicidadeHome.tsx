@@ -87,11 +87,13 @@ function BlocoImagemBanner({
   alt,
   classNameHeight,
   priorizarCarregamento,
+  objectClassName = 'object-cover',
 }: {
   anuncio: AnuncioSlide
   alt: string
   classNameHeight: string
   priorizarCarregamento?: boolean
+  objectClassName?: string
 }) {
   const imagem = anuncio.imagem_url ?? ''
   const usarNextImage = imagem && isSupabasePublicStorageUrl(imagem)
@@ -105,7 +107,7 @@ function BlocoImagemBanner({
             src={imagem}
             alt={alt}
             fill
-            className="object-cover"
+            className={objectClassName}
             sizes="(max-width: 768px) 100vw, 896px"
             priority={Boolean(priorizarCarregamento)}
             fetchPriority={priorizarCarregamento ? 'high' : 'auto'}
@@ -116,7 +118,7 @@ function BlocoImagemBanner({
             key={anuncio.id}
             src={imagem}
             alt={alt}
-            className="h-full w-full object-cover"
+            className={`h-full w-full ${objectClassName}`}
             fetchPriority={priorizarCarregamento ? 'high' : 'auto'}
           />
         )
@@ -210,6 +212,11 @@ export default function PublicidadeHome() {
   const [indice, setIndice] = useState(0)
   /** Android: banner maior para igualar o visual do iOS (mesmo CSS px renderiza menor no Chrome). */
   const [androidBanner, setAndroidBanner] = useState(false)
+  /**
+   * iPhone que não é Pro Max/Plus: a barra fixa cobre o fim do banner de 176px.
+   * Pro Max (lado curto ≥ 428) e Android já enquadram com a altura atual.
+   */
+  const [iphoneBannerCurto, setIphoneBannerCurto] = useState(false)
   const [viewportW, setViewportW] = useState(0)
   const viewportRef = useRef<HTMLDivElement | null>(null)
   const touchStartX = useRef<number | null>(null)
@@ -223,9 +230,13 @@ export default function PublicidadeHome() {
 
   useLayoutEffect(() => {
     try {
-      setAndroidBanner(/Android/i.test(navigator.userAgent || ''))
+      const ua = navigator.userAgent || ''
+      setAndroidBanner(/Android/i.test(ua))
+      const ladoCurto = Math.min(window.screen.width, window.screen.height)
+      setIphoneBannerCurto(/iPhone/i.test(ua) && ladoCurto > 0 && ladoCurto < 428)
     } catch {
       setAndroidBanner(false)
+      setIphoneBannerCurto(false)
     }
   }, [])
 
@@ -441,10 +452,14 @@ export default function PublicidadeHome() {
   }
 
   const alt = t('adImageAlt')
-  // iOS: 176/208 (referência). Android: ~+30% para compensar escala visual do Chrome.
+  // iOS Pro Max / padrão: 176/208. iPhone comum: mais baixo para a barra não cortar o fim.
+  // Android: ~+30% para compensar escala visual do Chrome.
   const blocoH = androidBanner
     ? 'min-h-[232px] h-[232px] sm:h-[272px]'
-    : 'min-h-[176px] h-[176px] sm:h-[208px]'
+    : iphoneBannerCurto
+      ? 'min-h-[140px] h-[140px]'
+      : 'min-h-[176px] h-[176px] sm:h-[208px]'
+  const objectClassName = iphoneBannerCurto ? 'object-cover object-bottom' : 'object-cover'
   const slideW = viewportW > 0 ? viewportW : undefined
 
   return (
@@ -487,6 +502,7 @@ export default function PublicidadeHome() {
                         alt={alt}
                         classNameHeight={blocoH}
                         priorizarCarregamento={slideIdx === indice}
+                        objectClassName={objectClassName}
                       />
                     </SlideEnvoltorio>
                   </div>

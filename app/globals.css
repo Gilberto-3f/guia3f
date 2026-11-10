@@ -107,6 +107,17 @@ body {
     background-color: #000000;
   }
 
+  /* Só a página do feed: status bar branca. As outras páginas continuam no azul. */
+  html.feed-status-branco,
+  html.feed-status-branco body {
+    background: #ffffff;
+  }
+
+  html.feed-status-branco .app-status-cap,
+  html.dark.feed-status-branco .app-status-cap {
+    background-color: #ffffff;
+  }
+
   header,
   [class*='pt-safe'] {
     -webkit-backdrop-filter: none !important;
