@@ -285,9 +285,8 @@ export default function PublicidadeHome() {
     const ac = new AbortController()
     const abortTimer = window.setTimeout(() => ac.abort(), 6_000)
     const carregar = async () => {
-      if (!ecoCarregou) return
-      if (!ecoId) {
-        setAnuncios([])
+      if (!ecoCarregou || !ecoId) {
+        if (!ecoId) setAnuncios([])
         setCarregando(false)
         return
       }

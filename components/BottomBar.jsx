@@ -33,8 +33,6 @@ import { profissionalOperaComoEmpresaAgencia } from '@/lib/guiaDualMode'
 import { profissionalOperaComoEmpresaAgenciaVan } from '@/lib/vanDualMode'
 import { lerPerfilBarraCache } from '@/lib/perfilBarraCache'
 import { registrarBarraSplash } from '@/lib/appSplashReady'
-import { resumirSessaoAposIdle } from '@/lib/authResume'
-import { precisaNavegacaoDura, navegarHard } from '@/lib/appIdleRecovery'
 import PopupAvisoBloqueioConta from '@/components/PopupAvisoBloqueioConta'
 import AvatarImage from '@/components/AvatarImage'
 
@@ -613,23 +611,13 @@ export default function BottomBar() {
     return <User size={24} className={active ? 'text-[#0097b2]' : 'text-gray-400'} aria-hidden />
   }
 
-  const antesDeNavegar = () => {
-    void resumirSessaoAposIdle()
-  }
-
   /**
-   * Após hibernação longa o App Router não completa o voo RSC (fica na home).
-   * Se o JS ficou parado, troca de rota por navegação completa.
-   * @param {React.MouseEvent} e
-   * @param {string} href
+   * Toque na barra só navega. Refresh/reload aqui seguravam o clique
+   * e derrubavam a conexão do Postgres no meio da troca de página.
+   * @param {React.MouseEvent} _e
+   * @param {string} _href
    */
-  const aoClicarBarra = (e, href) => {
-    const precisaHard = precisaNavegacaoDura()
-    void resumirSessaoAposIdle()
-    if (!precisaHard) return
-    e.preventDefault()
-    navegarHard(href)
-  }
+  const aoClicarBarra = (_e, _href) => {}
 
   return (
     <div
@@ -641,7 +629,6 @@ export default function BottomBar() {
         <Link
           href="/guia"
           prefetch={false}
-          onPointerDown={antesDeNavegar}
           onClick={(e) => aoClicarBarra(e, '/guia')}
           className="flex flex-col items-center p-2"
           aria-label={t('home')}
@@ -653,7 +640,6 @@ export default function BottomBar() {
           <Link
             href="/favoritos"
             prefetch={false}
-            onPointerDown={antesDeNavegar}
             onClick={(e) => aoClicarBarra(e, '/favoritos')}
             className="flex flex-col items-center p-2"
             aria-label={t('favorites')}
@@ -668,7 +654,6 @@ export default function BottomBar() {
           <Link
             href="/canal"
             prefetch={false}
-            onPointerDown={antesDeNavegar}
             onClick={(e) => aoClicarBarra(e, '/canal')}
             className="relative flex flex-col items-center p-2"
             aria-label={t('channel')}
@@ -690,7 +675,6 @@ export default function BottomBar() {
           <Link
             href="/dashboard/empresa"
             prefetch={false}
-            onPointerDown={antesDeNavegar}
             onClick={(e) => aoClicarBarra(e, '/dashboard/empresa')}
             className="relative flex flex-col items-center p-2"
             aria-label={t('dashboard')}
@@ -731,7 +715,6 @@ export default function BottomBar() {
           <Link
             href={getTerceiroHref()}
             prefetch={false}
-            onPointerDown={antesDeNavegar}
             onClick={(e) => {
               if (!podeInteragir && isFeedPage) {
                 e.preventDefault()
@@ -758,7 +741,6 @@ export default function BottomBar() {
         <Link
           href="/atividades"
           prefetch={false}
-          onPointerDown={antesDeNavegar}
           onClick={(e) => aoClicarBarra(e, '/atividades')}
           className="relative flex flex-col items-center p-2"
           aria-label={t('activities')}
@@ -774,7 +756,6 @@ export default function BottomBar() {
         <Link
           href={getQuintoHref()}
           prefetch={false}
-          onPointerDown={antesDeNavegar}
           onClick={(e) => aoClicarBarra(e, getQuintoHref())}
           className="flex flex-col items-center p-2"
           aria-label={isEmpresaBar ? t('companyGuia') : t('profile')}

@@ -105,16 +105,13 @@ export async function recuperarAppAposIdle(): Promise<boolean> {
     return false
   }
 
-  // Sem refresh antes do reload: o POST /token era abortado no meio
-  // (context canceled, 08006) e a página nova abria outro em cima das queries ainda vivas.
-  recargaIdleArmada = true
-  recuperando = true
-  marcarReloadGuard()
+  // Não recarrega. O reload abortava as consultas (08006 / 57014) e a home
+  // voltava presa em "Carregando...", parecendo um loop. A barra navega no cliente.
+  recargaIdleArmada = false
+  recuperando = false
+  marcarFundoEncerrado()
   limparTrapsUi()
-
-  if (skipReload) return false
-  window.location.reload()
-  return true
+  return false
 }
 
 /** Heartbeat + reload ao voltar do background / bfcache. */

@@ -81,17 +81,29 @@ export function EcossistemaAtivoProvider({ children }: { children: ReactNode }) 
     }
 
     ;(async () => {
+      const todosCache = lerCacheLocal()
       try {
-        const todosCache = lerCacheLocal()
-        // Sessão primeiro: o catálogo (service role) não disputa o Postgres
-        // com o POST /token do refresh depois do idle.
-        const { data: sessionData } = await supabase.auth.getSession()
-        if (cancel) return
-        const primeira = await fetchCatalogo(ac.signal)
-        let todos = primeira.length > 0 ? primeira : todosCache
-        if (todos.length === 0) {
-          todos = await fetchCatalogo()
+        if (!cancel && todosCache.length > 0) {
+          const homeCache = todosCache.filter((e) => e.disponivel_home !== false)
+          setListaHome(homeCache.length > 0 ? homeCache : todosCache)
+          const inicialCache = escolherBlocoInicial(todosCache, lerEcossistemaAtivoId())
+          if (inicialCache) setAtivo(inicialCache)
+          setCarregou(true)
+          marcarEcoSplash()
         }
+        // Catálogo e sessão em paralelo. A sessão não pode segurar a home:
+        // getSession espera no máximo o timeout local se o refresh estiver em 504.
+        const [sessionData, primeira] = await Promise.all([
+          Promise.race([
+            supabase.auth.getSession().then((r) => r.data),
+            new Promise<{ session: null }>((resolve) => {
+              window.setTimeout(() => resolve({ session: null }), 2_500)
+            }),
+          ]),
+          fetchCatalogo(ac.signal),
+        ])
+        if (cancel) return
+        const todos = primeira.length > 0 ? primeira : todosCache
         if (todos.length > 0) {
           try {
             sessionStorage.setItem('guia_ecos_catalogo_v1', JSON.stringify(todos))
@@ -120,7 +132,7 @@ export function EcossistemaAtivoProvider({ children }: { children: ReactNode }) 
         if (cancel) return
         setAtivo(inicial)
       } catch {
-        if (!cancel) {
+        if (!cancel && todosCache.length === 0) {
           setListaHome([])
           setAtivo(null)
         }
